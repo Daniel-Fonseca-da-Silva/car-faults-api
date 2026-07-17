@@ -114,6 +114,8 @@ npm run test:e2e
 npm run test:cov
 ```
 
+Global coverage (statements, branches, functions, lines) must stay at **90%+**. PRs and pushes to `main` run `npm run test:cov` in CI and fail below that threshold.
+
 ## License
 
 Proprietary source-available license — see [LICENSE](LICENSE).

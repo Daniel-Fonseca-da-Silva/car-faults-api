@@ -66,5 +66,39 @@ describe('pino-http.options', () => {
         'req.headers.cookie',
       ]);
     });
+
+    it('serializes requests to id, method and url', () => {
+      const options = createPinoHttpOptions('production');
+      const request = {
+        id: 'req-1',
+        method: 'GET',
+        url: '/v1/health',
+      } as IncomingMessage & { id?: string };
+
+      expect(
+        (
+          options.serializers as {
+            req: (req: typeof request) => unknown;
+          }
+        ).req(request),
+      ).toEqual({
+        id: 'req-1',
+        method: 'GET',
+        url: '/v1/health',
+      });
+    });
+
+    it('serializes responses to statusCode', () => {
+      const options = createPinoHttpOptions('production');
+      const response = { statusCode: 200 };
+
+      expect(
+        (
+          options.serializers as {
+            res: (res: typeof response) => unknown;
+          }
+        ).res(response),
+      ).toEqual({ statusCode: 200 });
+    });
   });
 });
