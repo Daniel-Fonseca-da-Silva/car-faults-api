@@ -1,0 +1,40 @@
+# Response Rules
+- Be direct, concise, and avoid long introductions or apologies.
+- Never rewrite or break existing code entirely if only a specific part needs to be changed.
+- If the solution requires a massive refactoring, explain the pros and cons before writing the code.
+- Prefer readability and simplicity over complex code "tricks".
+- Always preserve existing comments and logs in the code unless explicitly asked otherwise.
+- Always write code in English.
+- Always write comments in English when they are necessary.
+
+# Code Patterns
+- Write clean, modular code following the single-responsibility principle.
+- Use highly descriptive variable and function names (e.g., `isUserAuthenticated` instead of `check`).
+- Proper Error Handling: Always catch errors and handle failures gracefully (avoid empty `catch` blocks).
+- Avoid "magic numbers" or hardcoded strings; use well-defined constants at the top of the file or in configuration files.
+
+# TypeScript & React
+- Always define types/interfaces explicitly; strictly avoid using `any`.
+- Prefer functional components using arrow functions (`const MyComponent = () => ...`).
+- Use functional components and the latest hooks (especially `useCallback` and `useMemo` only where performance is critical).
+- In Next.js (App Router), prefer Server Components by default. Only use 'use client' if interactivity is required.
+
+# Tailwind CSS
+- Use Tailwind CSS for all component styling; avoid inline styles or separate CSS files unless strictly necessary.
+- Follow a consistent utility class ordering (e.g., layout/positioning, sizing, spacing, typography, colors, effects).
+- Use tools like `clsx` or `tailwind-merge` when conditionally applying Tailwind classes to prevent conflicts.
+- Avoid creating overly long, unreadable class strings; break them down or use descriptive component design where appropriate.
+
+# Internationalization (i18n)
+- All user-facing copy lives in `messages/{locale}/*.json` — never hardcode strings in components.
+- Supported locales: `pt-PT` and `en-GB`.
+- When adding, removing, or changing any translation key or text, update **both** locale files in the same change.
+- Mirror the same JSON structure and keys across locales; only the string values differ.
+- Run `npm test -- i18n/messages-parity.test.ts` after translation changes to confirm key parity.
+
+# Automated Testing (Jest)
+- Write unit and integration tests using Jest and React Testing Library.
+- When creating a new feature, always include the corresponding test files (`.test.ts` or `.test.tsx`).
+- Aim for a minimum of 90% code coverage (lines, functions, and branches); write tests to cover edge cases and error states.
+- Use mocks for external services, APIs, and databases to isolate the code under test.
+- Keep tests focused on user behavior and business logic, not on internal implementation details.
