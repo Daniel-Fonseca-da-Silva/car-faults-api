@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   HealthCheckService,
   MemoryHealthIndicator,
+  TypeOrmHealthIndicator,
   HealthCheckResult,
 } from '@nestjs/terminus';
 import { HealthController } from './health.controller';
@@ -10,16 +11,18 @@ describe('HealthController', () => {
   let controller: HealthController;
   let healthCheckService: HealthCheckService;
   let memoryHealthIndicator: { checkHeap: jest.Mock };
+  let typeOrmHealthIndicator: { pingCheck: jest.Mock };
 
   const healthCheckResult: HealthCheckResult = {
     status: 'ok',
-    info: { memory_heap: { status: 'up' } },
+    info: { memory_heap: { status: 'up' }, database: { status: 'up' } },
     error: {},
-    details: { memory_heap: { status: 'up' } },
+    details: { memory_heap: { status: 'up' }, database: { status: 'up' } },
   };
 
   beforeEach(async () => {
     memoryHealthIndicator = { checkHeap: jest.fn() };
+    typeOrmHealthIndicator = { pingCheck: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
@@ -33,6 +36,10 @@ describe('HealthController', () => {
         {
           provide: MemoryHealthIndicator,
           useValue: memoryHealthIndicator,
+        },
+        {
+          provide: TypeOrmHealthIndicator,
+          useValue: typeOrmHealthIndicator,
         },
       ],
     }).compile();
@@ -68,5 +75,19 @@ describe('HealthController', () => {
       'memory_heap',
       200 * 1024 * 1024,
     );
+  });
+
+  it('should run the database ping indicator passed to HealthCheckService.check', async () => {
+    const checkSpy = jest
+      .spyOn(healthCheckService, 'check')
+      .mockImplementation((indicators) => {
+        indicators.forEach((indicator) => void indicator());
+        return Promise.resolve(healthCheckResult);
+      });
+
+    await controller.check();
+
+    expect(checkSpy).toHaveBeenCalledTimes(1);
+    expect(typeOrmHealthIndicator.pingCheck).toHaveBeenCalledWith('database');
   });
 });

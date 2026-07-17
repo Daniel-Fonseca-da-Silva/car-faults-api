@@ -91,6 +91,18 @@ npm run start:prod
 
 Default port: `3005` (override with `PORT`).
 
+### Database (Docker)
+
+The API expects a local PostgreSQL instance, provided via Docker Compose.
+
+```bash
+cp .env.example .env
+docker compose up -d
+docker compose ps   # postgres should be "healthy"
+```
+
+The app runs locally (outside Docker) and connects to Postgres using the `DATABASE_*` variables in `.env`.
+
 ### Useful URLs
 
 | Resource | URL |
