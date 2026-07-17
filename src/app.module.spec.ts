@@ -13,4 +13,8 @@ describe('AppModule', () => {
   it('should be defined', () => {
     expect(module.get(AppModule)).toBeDefined();
   });
+
+  afterEach(async () => {
+    await module.close();
+  });
 });
