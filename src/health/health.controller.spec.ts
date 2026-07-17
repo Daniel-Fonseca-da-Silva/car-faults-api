@@ -9,6 +9,7 @@ import { HealthController } from './health.controller';
 describe('HealthController', () => {
   let controller: HealthController;
   let healthCheckService: HealthCheckService;
+  let memoryHealthIndicator: { checkHeap: jest.Mock };
 
   const healthCheckResult: HealthCheckResult = {
     status: 'ok',
@@ -18,6 +19,8 @@ describe('HealthController', () => {
   };
 
   beforeEach(async () => {
+    memoryHealthIndicator = { checkHeap: jest.fn() };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [
@@ -29,9 +32,7 @@ describe('HealthController', () => {
         },
         {
           provide: MemoryHealthIndicator,
-          useValue: {
-            checkHeap: jest.fn(),
-          },
+          useValue: memoryHealthIndicator,
         },
       ],
     }).compile();
@@ -50,5 +51,22 @@ describe('HealthController', () => {
 
     expect(checkSpy).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('ok');
+  });
+
+  it('should run the memory heap indicator passed to HealthCheckService.check', async () => {
+    const checkSpy = jest
+      .spyOn(healthCheckService, 'check')
+      .mockImplementation((indicators) => {
+        indicators.forEach((indicator) => void indicator());
+        return Promise.resolve(healthCheckResult);
+      });
+
+    await controller.check();
+
+    expect(checkSpy).toHaveBeenCalledTimes(1);
+    expect(memoryHealthIndicator.checkHeap).toHaveBeenCalledWith(
+      'memory_heap',
+      200 * 1024 * 1024,
+    );
   });
 });
