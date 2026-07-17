@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
 const DEFAULT_PORT = 3005;
@@ -11,7 +12,8 @@ const API_DESCRIPTION =
 const API_VERSION = '1';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
 
   app.enableVersioning({
     type: VersioningType.URI,
