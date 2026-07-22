@@ -3,7 +3,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './app.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
+import { FixesModule } from './fixes/fixes.module';
+import { KnownIssuesModule } from './known-issues/known-issues.module';
+import { LookupsModule } from './lookups/lookups.module';
+import { UserVehiclesModule } from './user-vehicles/user-vehicles.module';
 import { UsersModule } from './users/users.module';
+import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
 
 @Module({})
 class DatabaseModuleStub {}
@@ -13,6 +18,21 @@ class UsersModuleStub {}
 
 @Module({})
 class AuthModuleStub {}
+
+@Module({})
+class VehicleModelsModuleStub {}
+
+@Module({})
+class KnownIssuesModuleStub {}
+
+@Module({})
+class FixesModuleStub {}
+
+@Module({})
+class LookupsModuleStub {}
+
+@Module({})
+class UserVehiclesModuleStub {}
 
 describe('AppModule', () => {
   let module: TestingModule;
@@ -27,6 +47,16 @@ describe('AppModule', () => {
       .useModule(UsersModuleStub)
       .overrideModule(AuthModule)
       .useModule(AuthModuleStub)
+      .overrideModule(VehicleModelsModule)
+      .useModule(VehicleModelsModuleStub)
+      .overrideModule(KnownIssuesModule)
+      .useModule(KnownIssuesModuleStub)
+      .overrideModule(FixesModule)
+      .useModule(FixesModuleStub)
+      .overrideModule(LookupsModule)
+      .useModule(LookupsModuleStub)
+      .overrideModule(UserVehiclesModule)
+      .useModule(UserVehiclesModuleStub)
       .compile();
   });
 
