@@ -1,3 +1,4 @@
+import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { HealthModule } from './health.module';
 import { HealthController } from './health.controller';
@@ -7,7 +8,7 @@ describe('HealthModule', () => {
 
   beforeEach(async () => {
     module = await Test.createTestingModule({
-      imports: [HealthModule],
+      imports: [ConfigModule.forRoot({ isGlobal: true }), HealthModule],
     }).compile();
   });
 

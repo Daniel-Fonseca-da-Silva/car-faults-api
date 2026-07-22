@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   HealthCheck,
@@ -6,16 +7,17 @@ import {
   MemoryHealthIndicator,
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
-
-const MEMORY_HEAP_LIMIT_BYTES = 200 * 1024 * 1024;
+import { SkipThrottle } from '@nestjs/throttler';
 
 @ApiTags('health')
 @Controller('health')
+@SkipThrottle()
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly memory: MemoryHealthIndicator,
     private readonly db: TypeOrmHealthIndicator,
+    private readonly config: ConfigService,
   ) {}
 
   @Get()
@@ -25,8 +27,12 @@ export class HealthController {
     description: 'Application and database are healthy',
   })
   check() {
+    const memoryHeapLimitBytes = Number(
+      this.config.getOrThrow<string>('HEALTH_MEMORY_HEAP_LIMIT_BYTES'),
+    );
+
     return this.health.check([
-      () => this.memory.checkHeap('memory_heap', MEMORY_HEAP_LIMIT_BYTES),
+      () => this.memory.checkHeap('memory_heap', memoryHeapLimitBytes),
       () => this.db.pingCheck('database'),
     ]);
   }

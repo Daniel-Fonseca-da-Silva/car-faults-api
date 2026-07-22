@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   HealthCheckService,
@@ -6,6 +7,8 @@ import {
   HealthCheckResult,
 } from '@nestjs/terminus';
 import { HealthController } from './health.controller';
+
+const MEMORY_HEAP_LIMIT_BYTES = 209715200;
 
 describe('HealthController', () => {
   let controller: HealthController;
@@ -41,6 +44,14 @@ describe('HealthController', () => {
           provide: TypeOrmHealthIndicator,
           useValue: typeOrmHealthIndicator,
         },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest
+              .fn()
+              .mockReturnValue(String(MEMORY_HEAP_LIMIT_BYTES)),
+          },
+        },
       ],
     }).compile();
 
@@ -73,7 +84,7 @@ describe('HealthController', () => {
     expect(checkSpy).toHaveBeenCalledTimes(1);
     expect(memoryHealthIndicator.checkHeap).toHaveBeenCalledWith(
       'memory_heap',
-      200 * 1024 * 1024,
+      MEMORY_HEAP_LIMIT_BYTES,
     );
   });
 

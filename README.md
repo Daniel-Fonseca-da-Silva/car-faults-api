@@ -89,7 +89,7 @@ npm run start:dev
 npm run start:prod
 ```
 
-Default port: `3005` (override with `PORT`).
+Port and CORS origins come from `PORT` and `CORS_ORIGINS` in `.env` (required).
 
 ### Database (Docker)
 
