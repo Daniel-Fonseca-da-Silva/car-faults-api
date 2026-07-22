@@ -9,6 +9,8 @@ describe('UsersRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    softDelete: jest.Mock;
+    recover: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -16,6 +18,8 @@ describe('UsersRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      softDelete: jest.fn(),
+      recover: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -77,6 +81,22 @@ describe('UsersRepository', () => {
     });
   });
 
+  describe('findByGoogleIdIncludingDeleted', () => {
+    it('delegates to repository.findOne by googleId including deleted', async () => {
+      const user = { googleId: 'google-1' } as User;
+      repository.findOne.mockResolvedValue(user);
+
+      const result =
+        await usersRepository.findByGoogleIdIncludingDeleted('google-1');
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { googleId: 'google-1' },
+        withDeleted: true,
+      });
+      expect(result).toBe(user);
+    });
+  });
+
   describe('create', () => {
     it('delegates to repository.create', () => {
       const data = { email: 'a@b.com' };
@@ -98,6 +118,28 @@ describe('UsersRepository', () => {
       const result = await usersRepository.save(user);
 
       expect(repository.save).toHaveBeenCalledWith(user);
+      expect(result).toBe(user);
+    });
+  });
+
+  describe('softDelete', () => {
+    it('delegates to repository.softDelete', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
+
+      await usersRepository.softDelete('id-1');
+
+      expect(repository.softDelete).toHaveBeenCalledWith('id-1');
+    });
+  });
+
+  describe('recover', () => {
+    it('delegates to repository.recover', async () => {
+      const user = { id: 'id-1' } as User;
+      repository.recover.mockResolvedValue(user);
+
+      const result = await usersRepository.recover(user);
+
+      expect(repository.recover).toHaveBeenCalledWith(user);
       expect(result).toBe(user);
     });
   });

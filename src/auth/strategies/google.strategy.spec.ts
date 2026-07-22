@@ -59,6 +59,31 @@ describe('GoogleStrategy', () => {
       expect(done).toHaveBeenCalledWith(null, user);
     });
 
+    it('falls back to a null avatarUrl when the Google profile has no photos', async () => {
+      const profileWithoutPhotos = {
+        ...baseProfile,
+        photos: [],
+      } as unknown as Profile;
+      const user = { id: 'id-1' } as User;
+      authService.validateGoogleProfile.mockResolvedValue(user);
+      const done = jest.fn();
+
+      await googleStrategy.validate(
+        'access-token',
+        'refresh-token',
+        profileWithoutPhotos,
+        done,
+      );
+
+      expect(authService.validateGoogleProfile).toHaveBeenCalledWith({
+        googleId: 'google-1',
+        email: 'ana@example.com',
+        name: 'Ana Silva',
+        avatarUrl: null,
+      });
+      expect(done).toHaveBeenCalledWith(null, user);
+    });
+
     it('calls done with an error when the Google profile has no email', async () => {
       const profileWithoutEmail = {
         ...baseProfile,

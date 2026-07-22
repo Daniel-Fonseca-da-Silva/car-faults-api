@@ -10,8 +10,11 @@ describe('UsersService', () => {
     findById: jest.Mock;
     findByEmail: jest.Mock;
     findByGoogleId: jest.Mock;
+    findByGoogleIdIncludingDeleted: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    softDelete: jest.Mock;
+    recover: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -19,8 +22,11 @@ describe('UsersService', () => {
       findById: jest.fn(),
       findByEmail: jest.fn(),
       findByGoogleId: jest.fn(),
+      findByGoogleIdIncludingDeleted: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      softDelete: jest.fn(),
+      recover: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -163,17 +169,36 @@ describe('UsersService', () => {
   });
 
   describe('findOptionalByGoogleId', () => {
-    it('returns the user when found', async () => {
-      const user = { googleId: 'google-1' } as User;
-      usersRepository.findByGoogleId.mockResolvedValue(user);
+    it('returns the active user without recovering it', async () => {
+      const user = { googleId: 'google-1', deletedAt: null } as User;
+      usersRepository.findByGoogleIdIncludingDeleted.mockResolvedValue(user);
 
       const result = await usersService.findOptionalByGoogleId('google-1');
 
+      expect(
+        usersRepository.findByGoogleIdIncludingDeleted,
+      ).toHaveBeenCalledWith('google-1');
+      expect(usersRepository.recover).not.toHaveBeenCalled();
       expect(result).toBe(user);
     });
 
+    it('recovers and returns the user when it was soft deleted', async () => {
+      const user = {
+        googleId: 'google-1',
+        deletedAt: new Date('2026-01-01'),
+      } as User;
+      const recoveredUser = { ...user, deletedAt: null };
+      usersRepository.findByGoogleIdIncludingDeleted.mockResolvedValue(user);
+      usersRepository.recover.mockResolvedValue(recoveredUser);
+
+      const result = await usersService.findOptionalByGoogleId('google-1');
+
+      expect(usersRepository.recover).toHaveBeenCalledWith(user);
+      expect(result).toBe(recoveredUser);
+    });
+
     it('returns null when the user does not exist', async () => {
-      usersRepository.findByGoogleId.mockResolvedValue(null);
+      usersRepository.findByGoogleIdIncludingDeleted.mockResolvedValue(null);
 
       const result = await usersService.findOptionalByGoogleId('google-1');
 
@@ -204,6 +229,27 @@ describe('UsersService', () => {
         usersService.update('id-1', { name: 'New Name' }),
       ).rejects.toThrow(NotFoundException);
       expect(usersRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('softDelete', () => {
+    it('soft deletes an existing user', async () => {
+      const user = { id: 'id-1' } as User;
+      usersRepository.findById.mockResolvedValue(user);
+
+      await usersService.softDelete('id-1');
+
+      expect(usersRepository.findById).toHaveBeenCalledWith('id-1');
+      expect(usersRepository.softDelete).toHaveBeenCalledWith('id-1');
+    });
+
+    it('throws NotFoundException when the user does not exist', async () => {
+      usersRepository.findById.mockResolvedValue(null);
+
+      await expect(usersService.softDelete('id-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(usersRepository.softDelete).not.toHaveBeenCalled();
     });
   });
 });

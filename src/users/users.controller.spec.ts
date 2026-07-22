@@ -8,7 +8,7 @@ import { UsersService } from './users.service';
 
 describe('UsersController', () => {
   let usersController: UsersController;
-  let usersService: { update: jest.Mock };
+  let usersService: { update: jest.Mock; softDelete: jest.Mock };
 
   const user = {
     id: 'id-1',
@@ -20,7 +20,7 @@ describe('UsersController', () => {
   } as User;
 
   beforeEach(async () => {
-    usersService = { update: jest.fn() };
+    usersService = { update: jest.fn(), softDelete: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
@@ -62,6 +62,17 @@ describe('UsersController', () => {
 
       expect(usersService.update).toHaveBeenCalledWith(user.id, dto);
       expect(result).toMatchObject({ id: user.id, name: 'New Name' });
+    });
+  });
+
+  describe('deleteProfile', () => {
+    it("soft deletes the authenticated user's account", async () => {
+      const req = { user } as unknown as Request;
+      usersService.softDelete.mockResolvedValue(undefined);
+
+      await usersController.deleteProfile(req);
+
+      expect(usersService.softDelete).toHaveBeenCalledWith(user.id);
     });
   });
 });
