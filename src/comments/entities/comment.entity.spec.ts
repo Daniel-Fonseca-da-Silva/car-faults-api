@@ -1,24 +1,27 @@
 import { getMetadataArgsStorage } from 'typeorm';
-import { Fix } from './fix.entity';
+import { Comment } from './comment.entity';
 import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
+import { User } from '../../users/entities/user.entity';
 
 const resolveRelationType = (relationType: unknown): unknown =>
   typeof relationType === 'function'
     ? (relationType as () => unknown)()
     : relationType;
 
-describe('Fix entity', () => {
+describe('Comment entity', () => {
   const columns = getMetadataArgsStorage().columns.filter(
-    (column) => column.target === Fix,
+    (column) => column.target === Comment,
   );
 
   const findColumn = (propertyName: string) =>
     columns.find((column) => column.propertyName === propertyName);
 
-  it('maps to the "fixes" table', () => {
-    const table = getMetadataArgsStorage().tables.find((t) => t.target === Fix);
+  it('maps to the "comments" table', () => {
+    const table = getMetadataArgsStorage().tables.find(
+      (t) => t.target === Comment,
+    );
 
-    expect(table?.name).toBe('fixes');
+    expect(table?.name).toBe('comments');
   });
 
   it('defines id as a generated uuid primary column', () => {
@@ -27,9 +30,24 @@ describe('Fix entity', () => {
 
     const generated = getMetadataArgsStorage().generations.find(
       (generation) =>
-        generation.target === Fix && generation.propertyName === 'id',
+        generation.target === Comment && generation.propertyName === 'id',
     );
     expect(generated?.strategy).toBe('uuid');
+  });
+
+  it('maps userId to a required user_id column', () => {
+    const column = findColumn('userId');
+    expect(column?.options.name).toBe('user_id');
+    expect(column?.options.nullable).toBeFalsy();
+  });
+
+  it('defines a many-to-one relation to User with cascade delete', () => {
+    const relation = getMetadataArgsStorage().relations.find(
+      (r) => r.target === Comment && r.propertyName === 'user',
+    );
+    expect(relation?.relationType).toBe('many-to-one');
+    expect(relation?.options?.onDelete).toBe('CASCADE');
+    expect(resolveRelationType(relation?.type)).toBe(User);
   });
 
   it('maps knownIssueId to a required known_issue_id column', () => {
@@ -40,42 +58,16 @@ describe('Fix entity', () => {
 
   it('defines a many-to-one relation to KnownIssue with cascade delete', () => {
     const relation = getMetadataArgsStorage().relations.find(
-      (r) => r.target === Fix && r.propertyName === 'knownIssue',
+      (r) => r.target === Comment && r.propertyName === 'knownIssue',
     );
     expect(relation?.relationType).toBe('many-to-one');
     expect(relation?.options?.onDelete).toBe('CASCADE');
     expect(resolveRelationType(relation?.type)).toBe(KnownIssue);
-
-    expect(typeof relation?.inverseSideProperty).toBe('function');
-    const inverseSide = relation!.inverseSideProperty as (
-      entity: KnownIssue,
-    ) => unknown;
-    const stub = { fixes: [] } as unknown as KnownIssue;
-    expect(inverseSide(stub)).toBe(stub.fixes);
   });
 
-  it('maps userId to a nullable user_id column', () => {
-    const column = findColumn('userId');
-    expect(column?.options.name).toBe('user_id');
-    expect(column?.options.nullable).toBe(true);
-  });
-
-  it('defines summary as required and steps as text', () => {
-    expect(findColumn('summary')?.options.nullable).toBeFalsy();
-    expect(findColumn('steps')?.options.type).toBe('text');
-    expect(findColumn('steps')?.options.nullable).toBeFalsy();
-  });
-
-  it('maps estimatedCostEur to a nullable decimal column', () => {
-    const column = findColumn('estimatedCostEur');
-    expect(column?.options.name).toBe('estimated_cost_eur');
-    expect(column?.options.type).toBe('decimal');
-    expect(column?.options.nullable).toBe(true);
-  });
-
-  it('defines source as a required enum column', () => {
-    const column = findColumn('source');
-    expect(column?.options.type).toBe('enum');
+  it('defines body as a required text column', () => {
+    const column = findColumn('body');
+    expect(column?.options.type).toBe('text');
     expect(column?.options.nullable).toBeFalsy();
   });
 

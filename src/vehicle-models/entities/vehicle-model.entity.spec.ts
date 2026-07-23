@@ -1,5 +1,11 @@
 import { getMetadataArgsStorage } from 'typeorm';
 import { VehicleModel } from './vehicle-model.entity';
+import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
+
+const resolveRelationType = (relationType: unknown): unknown =>
+  typeof relationType === 'function'
+    ? (relationType as () => unknown)()
+    : relationType;
 
 describe('VehicleModel entity', () => {
   const columns = getMetadataArgsStorage().columns.filter(
@@ -69,6 +75,14 @@ describe('VehicleModel entity', () => {
       (r) => r.target === VehicleModel && r.propertyName === 'knownIssues',
     );
     expect(relation?.relationType).toBe('one-to-many');
+    expect(resolveRelationType(relation?.type)).toBe(KnownIssue);
+
+    expect(typeof relation?.inverseSideProperty).toBe('function');
+    const inverseSide = relation!.inverseSideProperty as (
+      entity: KnownIssue,
+    ) => unknown;
+    const stub = { vehicleModel: {} } as unknown as KnownIssue;
+    expect(inverseSide(stub)).toBe(stub.vehicleModel);
   });
 
   it('maps createdAt/updatedAt to snake_case columns', () => {
