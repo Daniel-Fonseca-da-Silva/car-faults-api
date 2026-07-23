@@ -1,5 +1,11 @@
 import { getMetadataArgsStorage } from 'typeorm';
 import { Fix } from './fix.entity';
+import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
+
+const resolveRelationType = (relationType: unknown): unknown =>
+  typeof relationType === 'function'
+    ? (relationType as () => unknown)()
+    : relationType;
 
 describe('Fix entity', () => {
   const columns = getMetadataArgsStorage().columns.filter(
@@ -38,6 +44,14 @@ describe('Fix entity', () => {
     );
     expect(relation?.relationType).toBe('many-to-one');
     expect(relation?.options?.onDelete).toBe('CASCADE');
+    expect(resolveRelationType(relation?.type)).toBe(KnownIssue);
+
+    expect(typeof relation?.inverseSideProperty).toBe('function');
+    const inverseSide = relation!.inverseSideProperty as (
+      entity: KnownIssue,
+    ) => unknown;
+    const stub = { fixes: [] } as unknown as KnownIssue;
+    expect(inverseSide(stub)).toBe(stub.fixes);
   });
 
   it('maps userId to a nullable user_id column', () => {

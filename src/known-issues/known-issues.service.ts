@@ -11,6 +11,10 @@ export class KnownIssuesService {
     return this.knownIssuesRepository.findByVehicleModelId(vehicleModelId);
   }
 
+  findById(id: string): Promise<KnownIssue | null> {
+    return this.knownIssuesRepository.findById(id);
+  }
+
   saveMany(
     knownIssues: Partial<KnownIssue>[],
     manager: EntityManager,

@@ -2,10 +2,12 @@ import { Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './app.module';
 import { AuthModule } from './auth/auth.module';
+import { CommentsModule } from './comments/comments.module';
 import { DatabaseModule } from './database/database.module';
 import { FixesModule } from './fixes/fixes.module';
 import { KnownIssuesModule } from './known-issues/known-issues.module';
 import { LookupsModule } from './lookups/lookups.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { UserVehiclesModule } from './user-vehicles/user-vehicles.module';
 import { UsersModule } from './users/users.module';
 import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
@@ -34,6 +36,12 @@ class LookupsModuleStub {}
 @Module({})
 class UserVehiclesModuleStub {}
 
+@Module({})
+class ReviewsModuleStub {}
+
+@Module({})
+class CommentsModuleStub {}
+
 describe('AppModule', () => {
   let module: TestingModule;
 
@@ -57,6 +65,10 @@ describe('AppModule', () => {
       .useModule(LookupsModuleStub)
       .overrideModule(UserVehiclesModule)
       .useModule(UserVehiclesModuleStub)
+      .overrideModule(ReviewsModule)
+      .useModule(ReviewsModuleStub)
+      .overrideModule(CommentsModule)
+      .useModule(CommentsModuleStub)
       .compile();
   });
 

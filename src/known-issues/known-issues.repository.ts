@@ -17,6 +17,10 @@ export class KnownIssuesRepository {
     });
   }
 
+  findById(id: string): Promise<KnownIssue | null> {
+    return this.repository.findOne({ where: { id } });
+  }
+
   saveMany(
     knownIssues: Partial<KnownIssue>[],
     manager: EntityManager,
