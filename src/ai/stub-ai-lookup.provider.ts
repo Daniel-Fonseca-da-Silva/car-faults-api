@@ -15,6 +15,7 @@ export class StubAiLookupProvider implements AiLookupProvider {
         model: input.model,
         year: input.year,
         engine: input.engine,
+        ...(input.doors !== undefined ? { doors: input.doors } : {}),
       },
       knownIssues: [
         {

@@ -14,6 +14,7 @@ export interface VehicleLookupCriteria {
   model: string;
   year: number;
   engine: string;
+  doors?: number;
 }
 
 @Injectable()
@@ -30,13 +31,15 @@ export class VehicleModelsRepository {
   async findByLookup(
     criteria: VehicleLookupCriteria,
   ): Promise<VehicleModel | null> {
-    const { brand, model, year, engine } = criteria;
+    const { brand, model, year, engine, doors } = criteria;
+    const doorsWhere = doors !== undefined ? { doors } : {};
 
     const openEnded = await this.repository.findOne({
       where: {
         brand,
         model,
         engine,
+        ...doorsWhere,
         yearFrom: LessThanOrEqual(year),
         yearTo: IsNull(),
       },
@@ -50,6 +53,7 @@ export class VehicleModelsRepository {
         brand,
         model,
         engine,
+        ...doorsWhere,
         yearFrom: LessThanOrEqual(year),
         yearTo: MoreThanOrEqual(year),
       },

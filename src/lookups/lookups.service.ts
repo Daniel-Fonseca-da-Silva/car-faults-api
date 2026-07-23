@@ -1,4 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager } from 'typeorm';
 import { AI_LOOKUP_PROVIDER } from '../ai/ai-lookup.provider';
 import type {
@@ -11,13 +13,26 @@ import { FixSource } from '../fixes/enums/fix-source.enum';
 import { FixesService } from '../fixes/fixes.service';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
+import { errorMessage } from '../redis/redis-error.util';
+import { LOOKUP_CACHE_KEY_PREFIX } from '../redis/redis.constants';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
 
+interface LookupCriteria {
+  brand: string;
+  model: string;
+  year: number;
+  engine: string;
+  doors?: number;
+}
+
 @Injectable()
 export class LookupsService {
+  private readonly logger = new Logger(LookupsService.name);
+  private readonly cacheTtlMs: number;
+
   constructor(
     private readonly vehicleModelsService: VehicleModelsService,
     private readonly knownIssuesService: KnownIssuesService,
@@ -25,16 +40,37 @@ export class LookupsService {
     private readonly dataSource: DataSource,
     @Inject(AI_LOOKUP_PROVIDER)
     private readonly aiLookupProvider: AiLookupProvider,
-  ) {}
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    config: ConfigService,
+  ) {
+    this.cacheTtlMs = Number(
+      config.getOrThrow<string>('REDIS_LOOKUP_CACHE_TTL_MS'),
+    );
+  }
 
   async lookup(query: LookupQueryDto): Promise<LookupResponseDto> {
-    const criteria = {
+    const criteria: LookupCriteria = {
       brand: query.brand.trim(),
       model: query.model.trim(),
       year: query.year,
       engine: query.engine.trim(),
+      ...(query.doors !== undefined ? { doors: query.doors } : {}),
     };
 
+    const cacheKey = this.lookupCacheKey(criteria);
+    const cached = await this.getCached(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.lookupUncached(criteria);
+    await this.setCached(cacheKey, result);
+    return result;
+  }
+
+  private async lookupUncached(
+    criteria: LookupCriteria,
+  ): Promise<LookupResponseDto> {
     const vehicleModel = await this.vehicleModelsService.findByLookup(criteria);
     if (vehicleModel) {
       const knownIssues = await this.knownIssuesService.findByVehicleModelId(
@@ -52,8 +88,34 @@ export class LookupsService {
     return new LookupResponseDto(persisted.vehicleModel, persisted.knownIssues);
   }
 
+  private lookupCacheKey(criteria: LookupCriteria): string {
+    const doorsSuffix =
+      criteria.doors !== undefined ? `:${criteria.doors}` : '';
+    return `${LOOKUP_CACHE_KEY_PREFIX}${criteria.brand}:${criteria.model}:${criteria.year}:${criteria.engine}${doorsSuffix}`;
+  }
+
+  private async getCached(key: string): Promise<LookupResponseDto | undefined> {
+    try {
+      return await this.cache.get<LookupResponseDto>(key);
+    } catch (err) {
+      this.logger.warn(`Cache get failed for key ${key}: ${errorMessage(err)}`);
+      return undefined;
+    }
+  }
+
+  private async setCached(
+    key: string,
+    result: LookupResponseDto,
+  ): Promise<void> {
+    try {
+      await this.cache.set(key, result, this.cacheTtlMs);
+    } catch (err) {
+      this.logger.warn(`Cache set failed for key ${key}: ${errorMessage(err)}`);
+    }
+  }
+
   private async persistAiResult(
-    criteria: { brand: string; model: string; year: number; engine: string },
+    criteria: LookupCriteria,
     aiResult: AiLookupResult,
     manager: EntityManager,
   ): Promise<{ vehicleModel: VehicleModel; knownIssues: KnownIssue[] }> {
@@ -66,7 +128,7 @@ export class LookupsService {
         yearFrom: criteria.year,
         yearTo: criteria.year,
         engine: criteria.engine,
-        doors: aiResult.vehicle.doors ?? null,
+        doors: criteria.doors ?? aiResult.vehicle.doors ?? null,
         techSpecs: aiResult.vehicle.techSpecs ?? null,
       },
       manager,

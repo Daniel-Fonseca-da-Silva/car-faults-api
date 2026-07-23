@@ -8,6 +8,7 @@ import {
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 import { SkipThrottle } from '@nestjs/throttler';
+import { RedisHealthIndicator } from '../redis/redis-health.indicator';
 
 @ApiTags('health')
 @Controller('health')
@@ -17,6 +18,7 @@ export class HealthController {
     private readonly health: HealthCheckService,
     private readonly memory: MemoryHealthIndicator,
     private readonly db: TypeOrmHealthIndicator,
+    private readonly redisHealth: RedisHealthIndicator,
     private readonly config: ConfigService,
   ) {}
 
@@ -34,6 +36,7 @@ export class HealthController {
     return this.health.check([
       () => this.memory.checkHeap('memory_heap', memoryHeapLimitBytes),
       () => this.db.pingCheck('database'),
+      () => this.redisHealth.isHealthy('redis'),
     ]);
   }
 }

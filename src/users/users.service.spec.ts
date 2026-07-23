@@ -1,3 +1,4 @@
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { User } from './entities/user.entity';
@@ -16,6 +17,11 @@ describe('UsersService', () => {
     softDelete: jest.Mock;
     recover: jest.Mock;
   };
+  let cache: {
+    get: jest.Mock;
+    set: jest.Mock;
+    del: jest.Mock;
+  };
 
   beforeEach(async () => {
     usersRepository = {
@@ -28,6 +34,11 @@ describe('UsersService', () => {
       softDelete: jest.fn(),
       recover: jest.fn(),
     };
+    cache = {
+      get: jest.fn().mockResolvedValue(undefined),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,6 +46,10 @@ describe('UsersService', () => {
         {
           provide: UsersRepository,
           useValue: usersRepository,
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: cache,
         },
       ],
     }).compile();
@@ -112,9 +127,44 @@ describe('UsersService', () => {
   });
 
   describe('findById', () => {
-    it('returns the user when found', async () => {
+    it('returns the cached user without hitting the database on a cache hit', async () => {
+      const cachedUser = { id: 'id-1' } as User;
+      cache.get.mockResolvedValue(cachedUser);
+
+      const result = await usersService.findById('id-1');
+
+      expect(cache.get).toHaveBeenCalledWith('user:id-1');
+      expect(usersRepository.findById).not.toHaveBeenCalled();
+      expect(result).toBe(cachedUser);
+    });
+
+    it('fetches from the database and caches the result on a cache miss', async () => {
+      const user = { id: 'id-1' } as User;
+      cache.get.mockResolvedValue(undefined);
+      usersRepository.findById.mockResolvedValue(user);
+
+      const result = await usersService.findById('id-1');
+
+      expect(usersRepository.findById).toHaveBeenCalledWith('id-1');
+      expect(cache.set).toHaveBeenCalledWith('user:id-1', user);
+      expect(result).toBe(user);
+    });
+
+    it('falls back to the database when the cache get fails', async () => {
+      const user = { id: 'id-1' } as User;
+      cache.get.mockRejectedValue(new Error('redis unavailable'));
+      usersRepository.findById.mockResolvedValue(user);
+
+      const result = await usersService.findById('id-1');
+
+      expect(usersRepository.findById).toHaveBeenCalledWith('id-1');
+      expect(result).toBe(user);
+    });
+
+    it('does not fail the request when caching the fetched user errors', async () => {
       const user = { id: 'id-1' } as User;
       usersRepository.findById.mockResolvedValue(user);
+      cache.set.mockRejectedValue(new Error('redis unavailable'));
 
       const result = await usersService.findById('id-1');
 
@@ -222,6 +272,28 @@ describe('UsersService', () => {
       expect(result).toBe(updated);
     });
 
+    it('invalidates the cached user after a successful update', async () => {
+      const user = { id: 'id-1', name: 'Old Name' } as User;
+      usersRepository.findById.mockResolvedValue(user);
+      usersRepository.save.mockResolvedValue({ ...user, name: 'New Name' });
+
+      await usersService.update('id-1', { name: 'New Name' });
+
+      expect(cache.del).toHaveBeenCalledWith('user:id-1');
+    });
+
+    it('does not fail the request when cache invalidation errors', async () => {
+      const user = { id: 'id-1', name: 'Old Name' } as User;
+      const updated = { ...user, name: 'New Name' };
+      usersRepository.findById.mockResolvedValue(user);
+      usersRepository.save.mockResolvedValue(updated);
+      cache.del.mockRejectedValue(new Error('redis unavailable'));
+
+      const result = await usersService.update('id-1', { name: 'New Name' });
+
+      expect(result).toBe(updated);
+    });
+
     it('throws NotFoundException when the user does not exist', async () => {
       usersRepository.findById.mockResolvedValue(null);
 
@@ -229,6 +301,7 @@ describe('UsersService', () => {
         usersService.update('id-1', { name: 'New Name' }),
       ).rejects.toThrow(NotFoundException);
       expect(usersRepository.save).not.toHaveBeenCalled();
+      expect(cache.del).not.toHaveBeenCalled();
     });
   });
 
@@ -243,6 +316,15 @@ describe('UsersService', () => {
       expect(usersRepository.softDelete).toHaveBeenCalledWith('id-1');
     });
 
+    it('invalidates the cached user after a successful soft delete', async () => {
+      const user = { id: 'id-1' } as User;
+      usersRepository.findById.mockResolvedValue(user);
+
+      await usersService.softDelete('id-1');
+
+      expect(cache.del).toHaveBeenCalledWith('user:id-1');
+    });
+
     it('throws NotFoundException when the user does not exist', async () => {
       usersRepository.findById.mockResolvedValue(null);
 
@@ -250,6 +332,7 @@ describe('UsersService', () => {
         NotFoundException,
       );
       expect(usersRepository.softDelete).not.toHaveBeenCalled();
+      expect(cache.del).not.toHaveBeenCalled();
     });
   });
 });

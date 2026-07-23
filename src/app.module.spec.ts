@@ -7,6 +7,8 @@ import { DatabaseModule } from './database/database.module';
 import { FixesModule } from './fixes/fixes.module';
 import { KnownIssuesModule } from './known-issues/known-issues.module';
 import { LookupsModule } from './lookups/lookups.module';
+import { REDIS_CLIENT } from './redis/redis.constants';
+import { RedisModule } from './redis/redis.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UserVehiclesModule } from './user-vehicles/user-vehicles.module';
 import { UsersModule } from './users/users.module';
@@ -14,6 +16,17 @@ import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
 
 @Module({})
 class DatabaseModuleStub {}
+
+@Module({
+  providers: [
+    {
+      provide: REDIS_CLIENT,
+      useValue: { ping: jest.fn().mockResolvedValue('PONG') },
+    },
+  ],
+  exports: [REDIS_CLIENT],
+})
+class RedisModuleStub {}
 
 @Module({})
 class UsersModuleStub {}
@@ -51,6 +64,8 @@ describe('AppModule', () => {
     })
       .overrideModule(DatabaseModule)
       .useModule(DatabaseModuleStub)
+      .overrideModule(RedisModule)
+      .useModule(RedisModuleStub)
       .overrideModule(UsersModule)
       .useModule(UsersModuleStub)
       .overrideModule(AuthModule)

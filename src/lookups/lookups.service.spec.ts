@@ -1,3 +1,5 @@
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource, EntityManager } from 'typeorm';
 import { AI_LOOKUP_PROVIDER, AiLookupResult } from '../ai/ai-lookup.provider';
@@ -25,6 +27,10 @@ describe('LookupsService', () => {
   let fixesService: { saveMany: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let aiLookupProvider: { generateLookup: jest.Mock };
+  let cache: {
+    get: jest.Mock;
+    set: jest.Mock;
+  };
 
   const query: LookupQueryDto = {
     brand: ' Volkswagen ',
@@ -38,6 +44,7 @@ describe('LookupsService', () => {
     year: 2001,
     engine: '1.0',
   };
+  const cacheKey = 'vehicle:lookup:Volkswagen:Polo:2001:1.0';
 
   beforeEach(async () => {
     vehicleModelsService = {
@@ -51,6 +58,10 @@ describe('LookupsService', () => {
     fixesService = { saveMany: jest.fn() };
     dataSource = { transaction: jest.fn() };
     aiLookupProvider = { generateLookup: jest.fn() };
+    cache = {
+      get: jest.fn().mockResolvedValue(undefined),
+      set: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,6 +71,11 @@ describe('LookupsService', () => {
         { provide: FixesService, useValue: fixesService },
         { provide: DataSource, useValue: dataSource },
         { provide: AI_LOOKUP_PROVIDER, useValue: aiLookupProvider },
+        { provide: CACHE_MANAGER, useValue: cache },
+        {
+          provide: ConfigService,
+          useValue: { getOrThrow: jest.fn().mockReturnValue('21600000') },
+        },
       ],
     }).compile();
 
@@ -71,7 +87,22 @@ describe('LookupsService', () => {
   });
 
   describe('lookup', () => {
-    it('returns a Postgres HIT without calling the AI provider', async () => {
+    it('returns the cached result without hitting Postgres or the AI provider on a cache HIT', async () => {
+      const cached = {
+        vehicle: { id: 'vm-1' },
+        knownIssues: [],
+      };
+      cache.get.mockResolvedValue(cached);
+
+      const result = await lookupsService.lookup(query);
+
+      expect(cache.get).toHaveBeenCalledWith(cacheKey);
+      expect(vehicleModelsService.findByLookup).not.toHaveBeenCalled();
+      expect(aiLookupProvider.generateLookup).not.toHaveBeenCalled();
+      expect(result).toBe(cached);
+    });
+
+    it('returns a Postgres HIT without calling the AI provider, and caches the result', async () => {
       const vehicleModel = { id: 'vm-1', brand: 'Volkswagen' } as VehicleModel;
       const knownIssues = [
         { id: 'ki-1', fixes: [] },
@@ -91,6 +122,30 @@ describe('LookupsService', () => {
       expect(dataSource.transaction).not.toHaveBeenCalled();
       expect(result.vehicle.id).toBe('vm-1');
       expect(result.knownIssues).toHaveLength(1);
+      expect(cache.set).toHaveBeenCalledWith(cacheKey, result, 21600000);
+    });
+
+    it('falls back to Postgres when the cache get fails', async () => {
+      cache.get.mockRejectedValue(new Error('redis unavailable'));
+      const vehicleModel = { id: 'vm-1', brand: 'Volkswagen' } as VehicleModel;
+      vehicleModelsService.findByLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelId.mockResolvedValue([]);
+
+      const result = await lookupsService.lookup(query);
+
+      expect(vehicleModelsService.findByLookup).toHaveBeenCalled();
+      expect(result.vehicle.id).toBe('vm-1');
+    });
+
+    it('does not fail the request when caching the result errors', async () => {
+      const vehicleModel = { id: 'vm-1', brand: 'Volkswagen' } as VehicleModel;
+      vehicleModelsService.findByLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelId.mockResolvedValue([]);
+      cache.set.mockRejectedValue(new Error('redis unavailable'));
+
+      const result = await lookupsService.lookup(query);
+
+      expect(result.vehicle.id).toBe('vm-1');
     });
 
     it('on a Postgres MISS, calls the AI provider and persists the result in a transaction', async () => {
@@ -238,6 +293,93 @@ describe('LookupsService', () => {
 
       expect(fixesService.saveMany).not.toHaveBeenCalled();
       expect(result.knownIssues[0].fixes).toEqual([]);
+    });
+
+    it('includes doors in the cache key and lookup criteria when present in the query', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelId.mockResolvedValue([]);
+
+      const result = await lookupsService.lookup({ ...query, doors: 3 });
+
+      const doorsCacheKey = 'vehicle:lookup:Volkswagen:Polo:2001:1.0:3';
+      expect(cache.get).toHaveBeenCalledWith(doorsCacheKey);
+      expect(vehicleModelsService.findByLookup).toHaveBeenCalledWith({
+        ...normalizedCriteria,
+        doors: 3,
+      });
+      expect(cache.set).toHaveBeenCalledWith(doorsCacheKey, result, 21600000);
+    });
+
+    it('does not mix doors and no-doors cache entries', async () => {
+      cache.get.mockResolvedValue(undefined);
+      vehicleModelsService.findByLookup.mockResolvedValue(null);
+      const aiResult: AiLookupResult = {
+        vehicle: normalizedCriteria,
+        knownIssues: [],
+      };
+      aiLookupProvider.generateLookup.mockResolvedValue(aiResult);
+      const manager = {} as EntityManager;
+      vehicleModelsService.create.mockResolvedValue({ id: 'vm-1' });
+      knownIssuesService.saveMany.mockResolvedValue([]);
+      dataSource.transaction.mockImplementation(
+        (callback: (manager: EntityManager) => Promise<unknown>) =>
+          callback(manager),
+      );
+
+      await lookupsService.lookup({ ...query, doors: 5 });
+
+      expect(cache.get).toHaveBeenCalledWith(
+        'vehicle:lookup:Volkswagen:Polo:2001:1.0:5',
+      );
+    });
+
+    it('prioritizes doors from the query over the AI result when persisting', async () => {
+      vehicleModelsService.findByLookup.mockResolvedValue(null);
+      const aiResult: AiLookupResult = {
+        vehicle: { ...normalizedCriteria, doors: 5 },
+        knownIssues: [],
+      };
+      aiLookupProvider.generateLookup.mockResolvedValue(aiResult);
+
+      const manager = {} as EntityManager;
+      vehicleModelsService.create.mockResolvedValue({ id: 'vm-1' });
+      knownIssuesService.saveMany.mockResolvedValue([]);
+      dataSource.transaction.mockImplementation(
+        (callback: (manager: EntityManager) => Promise<unknown>) =>
+          callback(manager),
+      );
+
+      await lookupsService.lookup({ ...query, doors: 3 });
+
+      expect(vehicleModelsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ doors: 3 }),
+        manager,
+      );
+    });
+
+    it('falls back to the AI result doors when the query has none', async () => {
+      vehicleModelsService.findByLookup.mockResolvedValue(null);
+      const aiResult: AiLookupResult = {
+        vehicle: { ...normalizedCriteria, doors: 5 },
+        knownIssues: [],
+      };
+      aiLookupProvider.generateLookup.mockResolvedValue(aiResult);
+
+      const manager = {} as EntityManager;
+      vehicleModelsService.create.mockResolvedValue({ id: 'vm-1' });
+      knownIssuesService.saveMany.mockResolvedValue([]);
+      dataSource.transaction.mockImplementation(
+        (callback: (manager: EntityManager) => Promise<unknown>) =>
+          callback(manager),
+      );
+
+      await lookupsService.lookup(query);
+
+      expect(vehicleModelsService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ doors: 5 }),
+        manager,
+      );
     });
   });
 });

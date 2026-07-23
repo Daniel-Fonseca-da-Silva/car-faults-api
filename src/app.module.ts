@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module';
 import { KnownIssuesModule } from './known-issues/known-issues.module';
 import { LoggerModule } from './logger/logger.module';
 import { LookupsModule } from './lookups/lookups.module';
+import { RedisModule } from './redis/redis.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UserVehiclesModule } from './user-vehicles/user-vehicles.module';
 import { UsersModule } from './users/users.module';
@@ -24,6 +25,7 @@ import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
       useFactory: createThrottlerOptions,
     }),
     DatabaseModule,
+    RedisModule,
     LoggerModule,
     HealthModule,
     UsersModule,
