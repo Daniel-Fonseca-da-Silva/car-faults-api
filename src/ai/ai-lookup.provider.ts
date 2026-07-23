@@ -7,6 +7,7 @@ export interface AiLookupInput {
   model: string;
   year: number;
   engine: string;
+  doors?: number;
 }
 
 export interface AiFixResult {

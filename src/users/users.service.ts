@@ -1,8 +1,13 @@
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import {
   ConflictException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { errorMessage } from '../redis/redis-error.util';
+import { USER_CACHE_KEY_PREFIX } from '../redis/redis.constants';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './users.repository';
 
@@ -20,7 +25,12 @@ export interface UpdateUserData {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
   async create(data: CreateUserData): Promise<User> {
     const existingByEmail = await this.usersRepository.findByEmail(data.email);
@@ -42,10 +52,18 @@ export class UsersService {
   }
 
   async findById(id: string): Promise<User> {
+    const cacheKey = this.userCacheKey(id);
+    const cached = await this.getCached(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const user = await this.usersRepository.findById(id);
     if (!user) {
       throw new NotFoundException(`User ${id} not found`);
     }
+
+    await this.setCached(cacheKey, user);
     return user;
   }
 
@@ -80,7 +98,9 @@ export class UsersService {
       throw new NotFoundException(`User ${id} not found`);
     }
     Object.assign(user, data);
-    return this.usersRepository.save(user);
+    const updated = await this.usersRepository.save(user);
+    await this.evictCached(id);
+    return updated;
   }
 
   async softDelete(id: string): Promise<void> {
@@ -89,6 +109,7 @@ export class UsersService {
       throw new NotFoundException(`User ${id} not found`);
     }
     await this.usersRepository.softDelete(id);
+    await this.evictCached(id);
   }
 
   private restoreIfDeleted(user: User): Promise<User> {
@@ -96,5 +117,37 @@ export class UsersService {
       return Promise.resolve(user);
     }
     return this.usersRepository.recover(user);
+  }
+
+  private userCacheKey(id: string): string {
+    return `${USER_CACHE_KEY_PREFIX}${id}`;
+  }
+
+  private async getCached(key: string): Promise<User | undefined> {
+    try {
+      return await this.cache.get<User>(key);
+    } catch (err) {
+      this.logger.warn(`Cache get failed for key ${key}: ${errorMessage(err)}`);
+      return undefined;
+    }
+  }
+
+  private async setCached(key: string, user: User): Promise<void> {
+    try {
+      await this.cache.set(key, user);
+    } catch (err) {
+      this.logger.warn(`Cache set failed for key ${key}: ${errorMessage(err)}`);
+    }
+  }
+
+  private async evictCached(id: string): Promise<void> {
+    const key = this.userCacheKey(id);
+    try {
+      await this.cache.del(key);
+    } catch (err) {
+      this.logger.warn(
+        `Cache invalidation failed for key ${key}: ${errorMessage(err)}`,
+      );
+    }
   }
 }
