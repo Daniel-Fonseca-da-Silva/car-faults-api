@@ -24,5 +24,19 @@ describe('StubAiLookupProvider', () => {
       expect(result.knownIssues[0].severity).toBe(IssueSeverity.MEDIUM);
       expect(result.knownIssues[0].fixes).toHaveLength(1);
     });
+
+    it('echoes doors when present in the input', async () => {
+      const input = {
+        brand: 'Volkswagen',
+        model: 'Polo',
+        year: 2001,
+        engine: '1.0',
+        doors: 3,
+      };
+
+      const result = await provider.generateLookup(input);
+
+      expect(result.vehicle).toEqual(input);
+    });
   });
 });

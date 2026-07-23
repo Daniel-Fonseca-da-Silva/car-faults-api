@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { IsNull, LessThanOrEqual } from 'typeorm';
 import type { EntityManager } from 'typeorm';
 import { VehicleModel } from './entities/vehicle-model.entity';
 import { VehicleModelsRepository } from './vehicle-models.repository';
@@ -88,6 +89,40 @@ describe('VehicleModelsRepository', () => {
       const result = await vehicleModelsRepository.findByLookup(criteria);
 
       expect(result).toBeNull();
+    });
+
+    it('filters by doors when present in the criteria', async () => {
+      const vehicleModel = { id: 'vm-3' } as VehicleModel;
+      repository.findOne.mockResolvedValueOnce(vehicleModel);
+
+      const result = await vehicleModelsRepository.findByLookup({
+        ...criteria,
+        doors: 3,
+      });
+
+      expect(repository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ doors: 3 }) as unknown,
+        }),
+      );
+      expect(result).toBe(vehicleModel);
+    });
+
+    it('does not filter by doors when omitted from the criteria', async () => {
+      const vehicleModel = { id: 'vm-4' } as VehicleModel;
+      repository.findOne.mockResolvedValueOnce(vehicleModel);
+
+      await vehicleModelsRepository.findByLookup(criteria);
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: {
+          brand: criteria.brand,
+          model: criteria.model,
+          engine: criteria.engine,
+          yearFrom: LessThanOrEqual(criteria.year),
+          yearTo: IsNull(),
+        },
+      });
     });
   });
 

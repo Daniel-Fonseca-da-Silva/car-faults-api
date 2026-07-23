@@ -1,5 +1,6 @@
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { RedisHealthIndicator } from '../redis/redis-health.indicator';
 import { HealthModule } from './health.module';
 import { HealthController } from './health.controller';
 
@@ -18,5 +19,9 @@ describe('HealthModule', () => {
 
   it('should provide HealthController', () => {
     expect(module.get(HealthController)).toBeDefined();
+  });
+
+  it('should provide RedisHealthIndicator', () => {
+    expect(module.get(RedisHealthIndicator)).toBeDefined();
   });
 });

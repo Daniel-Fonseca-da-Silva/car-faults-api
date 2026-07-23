@@ -6,6 +6,7 @@ import {
   TypeOrmHealthIndicator,
   HealthCheckResult,
 } from '@nestjs/terminus';
+import { RedisHealthIndicator } from '../redis/redis-health.indicator';
 import { HealthController } from './health.controller';
 
 const MEMORY_HEAP_LIMIT_BYTES = 209715200;
@@ -15,17 +16,27 @@ describe('HealthController', () => {
   let healthCheckService: HealthCheckService;
   let memoryHealthIndicator: { checkHeap: jest.Mock };
   let typeOrmHealthIndicator: { pingCheck: jest.Mock };
+  let redisHealthIndicator: { isHealthy: jest.Mock };
 
   const healthCheckResult: HealthCheckResult = {
     status: 'ok',
-    info: { memory_heap: { status: 'up' }, database: { status: 'up' } },
+    info: {
+      memory_heap: { status: 'up' },
+      database: { status: 'up' },
+      redis: { status: 'up' },
+    },
     error: {},
-    details: { memory_heap: { status: 'up' }, database: { status: 'up' } },
+    details: {
+      memory_heap: { status: 'up' },
+      database: { status: 'up' },
+      redis: { status: 'up' },
+    },
   };
 
   beforeEach(async () => {
     memoryHealthIndicator = { checkHeap: jest.fn() };
     typeOrmHealthIndicator = { pingCheck: jest.fn() };
+    redisHealthIndicator = { isHealthy: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
@@ -43,6 +54,10 @@ describe('HealthController', () => {
         {
           provide: TypeOrmHealthIndicator,
           useValue: typeOrmHealthIndicator,
+        },
+        {
+          provide: RedisHealthIndicator,
+          useValue: redisHealthIndicator,
         },
         {
           provide: ConfigService,
@@ -100,5 +115,19 @@ describe('HealthController', () => {
 
     expect(checkSpy).toHaveBeenCalledTimes(1);
     expect(typeOrmHealthIndicator.pingCheck).toHaveBeenCalledWith('database');
+  });
+
+  it('should run the redis ping indicator passed to HealthCheckService.check', async () => {
+    const checkSpy = jest
+      .spyOn(healthCheckService, 'check')
+      .mockImplementation((indicators) => {
+        indicators.forEach((indicator) => void indicator());
+        return Promise.resolve(healthCheckResult);
+      });
+
+    await controller.check();
+
+    expect(checkSpy).toHaveBeenCalledTimes(1);
+    expect(redisHealthIndicator.isHealthy).toHaveBeenCalledWith('redis');
   });
 });

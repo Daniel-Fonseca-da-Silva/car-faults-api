@@ -48,4 +48,38 @@ describe('LookupQueryDto', () => {
 
     expect(errors.some((error) => error.property === 'year')).toBe(true);
   });
+
+  it('passes validation without doors', async () => {
+    const dto = plainToInstance(LookupQueryDto, validQuery);
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.doors).toBeUndefined();
+  });
+
+  it('passes validation and coerces doors to a number', async () => {
+    const dto = plainToInstance(LookupQueryDto, { ...validQuery, doors: '3' });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.doors).toBe(3);
+  });
+
+  it('fails validation when doors is below the minimum', async () => {
+    const dto = plainToInstance(LookupQueryDto, { ...validQuery, doors: '0' });
+
+    const errors = await validate(dto);
+
+    expect(errors.some((error) => error.property === 'doors')).toBe(true);
+  });
+
+  it('fails validation when doors is above the maximum', async () => {
+    const dto = plainToInstance(LookupQueryDto, { ...validQuery, doors: '7' });
+
+    const errors = await validate(dto);
+
+    expect(errors.some((error) => error.property === 'doors')).toBe(true);
+  });
 });
