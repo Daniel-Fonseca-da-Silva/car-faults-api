@@ -6,11 +6,12 @@ import { KnownIssuesRepository } from './known-issues.repository';
 
 describe('KnownIssuesRepository', () => {
   let knownIssuesRepository: KnownIssuesRepository;
-  let repository: { find: jest.Mock };
+  let repository: { find: jest.Mock; findOne: jest.Mock };
 
   beforeEach(async () => {
     repository = {
       find: jest.fn(),
+      findOne: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -42,6 +43,28 @@ describe('KnownIssuesRepository', () => {
         relations: { fixes: true },
       });
       expect(result).toBe(knownIssues);
+    });
+  });
+
+  describe('findById', () => {
+    it('delegates to repository.findOne by id', async () => {
+      const knownIssue = { id: 'ki-1' } as KnownIssue;
+      repository.findOne.mockResolvedValue(knownIssue);
+
+      const result = await knownIssuesRepository.findById('ki-1');
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { id: 'ki-1' },
+      });
+      expect(result).toBe(knownIssue);
+    });
+
+    it('returns null when the known issue does not exist', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      const result = await knownIssuesRepository.findById('missing');
+
+      expect(result).toBeNull();
     });
   });
 

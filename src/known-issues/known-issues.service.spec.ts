@@ -8,12 +8,14 @@ describe('KnownIssuesService', () => {
   let knownIssuesService: KnownIssuesService;
   let knownIssuesRepository: {
     findByVehicleModelId: jest.Mock;
+    findById: jest.Mock;
     saveMany: jest.Mock;
   };
 
   beforeEach(async () => {
     knownIssuesRepository = {
       findByVehicleModelId: jest.fn(),
+      findById: jest.fn(),
       saveMany: jest.fn(),
     };
 
@@ -45,6 +47,18 @@ describe('KnownIssuesService', () => {
         'vm-1',
       );
       expect(result).toBe(knownIssues);
+    });
+  });
+
+  describe('findById', () => {
+    it('delegates to the repository', async () => {
+      const knownIssue = { id: 'ki-1' } as KnownIssue;
+      knownIssuesRepository.findById.mockResolvedValue(knownIssue);
+
+      const result = await knownIssuesService.findById('ki-1');
+
+      expect(knownIssuesRepository.findById).toHaveBeenCalledWith('ki-1');
+      expect(result).toBe(knownIssue);
     });
   });
 

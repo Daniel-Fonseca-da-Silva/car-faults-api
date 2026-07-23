@@ -1,5 +1,12 @@
 import { getMetadataArgsStorage } from 'typeorm';
 import { KnownIssue } from './known-issue.entity';
+import { Fix } from '../../fixes/entities/fix.entity';
+import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
+
+const resolveRelationType = (relationType: unknown): unknown =>
+  typeof relationType === 'function'
+    ? (relationType as () => unknown)()
+    : relationType;
 
 describe('KnownIssue entity', () => {
   const columns = getMetadataArgsStorage().columns.filter(
@@ -40,6 +47,14 @@ describe('KnownIssue entity', () => {
     );
     expect(relation?.relationType).toBe('many-to-one');
     expect(relation?.options?.onDelete).toBe('CASCADE');
+    expect(resolveRelationType(relation?.type)).toBe(VehicleModel);
+
+    expect(typeof relation?.inverseSideProperty).toBe('function');
+    const inverseSide = relation!.inverseSideProperty as (
+      entity: VehicleModel,
+    ) => unknown;
+    const stub = { knownIssues: [] } as unknown as VehicleModel;
+    expect(inverseSide(stub)).toBe(stub.knownIssues);
   });
 
   it('defines title as required and description as text', () => {
@@ -77,6 +92,14 @@ describe('KnownIssue entity', () => {
       (r) => r.target === KnownIssue && r.propertyName === 'fixes',
     );
     expect(relation?.relationType).toBe('one-to-many');
+    expect(resolveRelationType(relation?.type)).toBe(Fix);
+
+    expect(typeof relation?.inverseSideProperty).toBe('function');
+    const inverseSide = relation!.inverseSideProperty as (
+      entity: Fix,
+    ) => unknown;
+    const stub = { knownIssue: {} } as unknown as Fix;
+    expect(inverseSide(stub)).toBe(stub.knownIssue);
   });
 
   it('maps createdAt/updatedAt to snake_case columns', () => {

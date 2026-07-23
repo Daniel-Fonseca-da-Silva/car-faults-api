@@ -1,5 +1,12 @@
 import { getMetadataArgsStorage } from 'typeorm';
 import { UserVehicle } from './user-vehicle.entity';
+import { User } from '../../users/entities/user.entity';
+import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
+
+const resolveRelationType = (relationType: unknown): unknown =>
+  typeof relationType === 'function'
+    ? (relationType as () => unknown)()
+    : relationType;
 
 describe('UserVehicle entity', () => {
   const columns = getMetadataArgsStorage().columns.filter(
@@ -54,6 +61,7 @@ describe('UserVehicle entity', () => {
     );
     expect(relation?.relationType).toBe('many-to-one');
     expect(relation?.options?.onDelete).toBe('CASCADE');
+    expect(resolveRelationType(relation?.type)).toBe(User);
   });
 
   it('maps vehicleModelId to a nullable vehicle_model_id column', () => {
@@ -69,6 +77,7 @@ describe('UserVehicle entity', () => {
     expect(relation?.relationType).toBe('many-to-one');
     expect(relation?.options?.nullable).toBe(true);
     expect(relation?.options?.onDelete).toBe('SET NULL');
+    expect(resolveRelationType(relation?.type)).toBe(VehicleModel);
   });
 
   it('defines brand, model, year and engine as required columns', () => {
