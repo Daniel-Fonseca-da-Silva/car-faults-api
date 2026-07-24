@@ -5,6 +5,11 @@ import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
 import { IssueSeverity } from '../../known-issues/enums/issue-severity.enum';
 import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
 
+export type FixWithVoteCounts = Fix & {
+  likes?: number;
+  dislikes?: number;
+};
+
 export class FixResponseDto {
   @ApiProperty({ example: 'b3a5c1d2-4e6f-4a8b-9c0d-1e2f3a4b5c6d' })
   id: string;
@@ -23,12 +28,20 @@ export class FixResponseDto {
   @ApiProperty({ enum: FixSource, example: FixSource.AI })
   source: FixSource;
 
-  constructor(fix: Fix) {
+  @ApiProperty({ example: 12 })
+  likes: number;
+
+  @ApiProperty({ example: 3 })
+  dislikes: number;
+
+  constructor(fix: FixWithVoteCounts) {
     this.id = fix.id;
     this.summary = fix.summary;
     this.steps = fix.steps;
     this.estimatedCostEur = fix.estimatedCostEur;
     this.source = fix.source;
+    this.likes = fix.likes ?? 0;
+    this.dislikes = fix.dislikes ?? 0;
   }
 }
 

@@ -14,11 +14,11 @@ import { FixesService } from '../fixes/fixes.service';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { errorMessage } from '../redis/redis-error.util';
-import { LOOKUP_CACHE_KEY_PREFIX } from '../redis/redis.constants';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
+import { buildLookupCacheKey } from './lookup-cache-key.util';
 
 interface LookupCriteria {
   brand: string;
@@ -76,7 +76,8 @@ export class LookupsService {
       const knownIssues = await this.knownIssuesService.findByVehicleModelId(
         vehicleModel.id,
       );
-      return new LookupResponseDto(vehicleModel, knownIssues);
+      const knownIssuesWithCounts = await this.attachFixCounts(knownIssues);
+      return new LookupResponseDto(vehicleModel, knownIssuesWithCounts);
     }
 
     const aiResult = await this.aiLookupProvider.generateLookup(criteria);
@@ -88,10 +89,19 @@ export class LookupsService {
     return new LookupResponseDto(persisted.vehicleModel, persisted.knownIssues);
   }
 
+  private async attachFixCounts(
+    knownIssues: KnownIssue[],
+  ): Promise<KnownIssue[]> {
+    return Promise.all(
+      knownIssues.map(async (knownIssue) => ({
+        ...knownIssue,
+        fixes: await this.fixesService.findByKnownIssue(knownIssue.id),
+      })),
+    );
+  }
+
   private lookupCacheKey(criteria: LookupCriteria): string {
-    const doorsSuffix =
-      criteria.doors !== undefined ? `:${criteria.doors}` : '';
-    return `${LOOKUP_CACHE_KEY_PREFIX}${criteria.brand}:${criteria.model}:${criteria.year}:${criteria.engine}${doorsSuffix}`;
+    return buildLookupCacheKey(criteria);
   }
 
   private async getCached(key: string): Promise<LookupResponseDto | undefined> {
