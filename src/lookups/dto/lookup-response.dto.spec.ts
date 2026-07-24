@@ -64,6 +64,20 @@ describe('lookup response DTOs', () => {
         source: FixSource.AI,
       });
     });
+
+    it('defaults likes/dislikes to 0 when not provided', () => {
+      const dto = new FixResponseDto(fix);
+
+      expect(dto.likes).toBe(0);
+      expect(dto.dislikes).toBe(0);
+    });
+
+    it('maps likes/dislikes when provided', () => {
+      const dto = new FixResponseDto({ ...fix, likes: 12, dislikes: 3 });
+
+      expect(dto.likes).toBe(12);
+      expect(dto.dislikes).toBe(3);
+    });
   });
 
   describe('KnownIssueResponseDto', () => {
