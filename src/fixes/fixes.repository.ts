@@ -54,7 +54,7 @@ export class FixesRepository {
       .addOrderBy('fix.created_at', 'ASC')
       .getRawAndEntities();
 
-    return this.mapCounts(entities, raw);
+    return this.mapCounts(entities, raw as RawFixCounts[]);
   }
 
   async findByIdWithCounts(
@@ -68,21 +68,15 @@ export class FixesRepository {
     if (entities.length === 0) {
       return null;
     }
-    return this.mapCounts(entities, raw)[0];
+    return this.mapCounts(entities, raw as RawFixCounts[])[0];
   }
 
   private countsQuery(userId?: string) {
     const qb = this.repository
       .createQueryBuilder('fix')
       .leftJoin('fix_votes', 'vote', 'vote.fix_id = fix.id')
-      .addSelect(
-        "COUNT(*) FILTER (WHERE vote.value = 'like')",
-        'likes',
-      )
-      .addSelect(
-        "COUNT(*) FILTER (WHERE vote.value = 'dislike')",
-        'dislikes',
-      )
+      .addSelect("COUNT(*) FILTER (WHERE vote.value = 'like')", 'likes')
+      .addSelect("COUNT(*) FILTER (WHERE vote.value = 'dislike')", 'dislikes')
       .groupBy('fix.id');
 
     if (userId) {
@@ -99,10 +93,7 @@ export class FixesRepository {
     return qb;
   }
 
-  private mapCounts(
-    entities: Fix[],
-    raw: RawFixCounts[],
-  ): FixWithCounts[] {
+  private mapCounts(entities: Fix[], raw: RawFixCounts[]): FixWithCounts[] {
     return entities.map((entity, index) => ({
       ...entity,
       likes: Number(raw[index].likes),

@@ -24,7 +24,7 @@ describe('LookupsService', () => {
     findByVehicleModelId: jest.Mock;
     saveMany: jest.Mock;
   };
-  let fixesService: { saveMany: jest.Mock };
+  let fixesService: { saveMany: jest.Mock; findByKnownIssue: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let aiLookupProvider: { generateLookup: jest.Mock };
   let cache: {
@@ -55,7 +55,10 @@ describe('LookupsService', () => {
       findByVehicleModelId: jest.fn(),
       saveMany: jest.fn(),
     };
-    fixesService = { saveMany: jest.fn() };
+    fixesService = {
+      saveMany: jest.fn(),
+      findByKnownIssue: jest.fn().mockResolvedValue([]),
+    };
     dataSource = { transaction: jest.fn() };
     aiLookupProvider = { generateLookup: jest.fn() };
     cache = {
@@ -109,6 +112,13 @@ describe('LookupsService', () => {
       ] as unknown as KnownIssue[];
       vehicleModelsService.findByLookup.mockResolvedValue(vehicleModel);
       knownIssuesService.findByVehicleModelId.mockResolvedValue(knownIssues);
+      const fixWithCounts = {
+        id: 'fix-1',
+        summary: 'Replace synchros',
+        likes: 5,
+        dislikes: 1,
+      } as unknown as Fix;
+      fixesService.findByKnownIssue.mockResolvedValue([fixWithCounts]);
 
       const result = await lookupsService.lookup(query);
 
@@ -118,10 +128,16 @@ describe('LookupsService', () => {
       expect(knownIssuesService.findByVehicleModelId).toHaveBeenCalledWith(
         'vm-1',
       );
+      expect(fixesService.findByKnownIssue).toHaveBeenCalledWith('ki-1');
       expect(aiLookupProvider.generateLookup).not.toHaveBeenCalled();
       expect(dataSource.transaction).not.toHaveBeenCalled();
       expect(result.vehicle.id).toBe('vm-1');
       expect(result.knownIssues).toHaveLength(1);
+      expect(result.knownIssues[0].fixes[0]).toMatchObject({
+        id: 'fix-1',
+        likes: 5,
+        dislikes: 1,
+      });
       expect(cache.set).toHaveBeenCalledWith(cacheKey, result, 21600000);
     });
 

@@ -10,8 +10,7 @@ export interface LookupCacheKeyCriteria {
 }
 
 export function buildLookupCacheKey(criteria: LookupCacheKeyCriteria): string {
-  const doorsSuffix =
-    criteria.doors !== undefined ? `:${criteria.doors}` : '';
+  const doorsSuffix = criteria.doors !== undefined ? `:${criteria.doors}` : '';
   return `${LOOKUP_CACHE_KEY_PREFIX}${criteria.brand}:${criteria.model}:${criteria.year}:${criteria.engine}${doorsSuffix}`;
 }
 

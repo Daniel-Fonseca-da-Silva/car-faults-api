@@ -62,9 +62,7 @@ export class FixesService {
       data.knownIssueId,
     );
     if (!knownIssue) {
-      throw new NotFoundException(
-        `Known issue ${data.knownIssueId} not found`,
-      );
+      throw new NotFoundException(`Known issue ${data.knownIssueId} not found`);
     }
 
     const fix = this.fixesRepository.create({
@@ -132,10 +130,7 @@ export class FixesService {
       throw new ForbiddenException('You cannot vote on your own fix');
     }
 
-    const existing = await this.fixVotesRepository.findByFixAndUser(
-      id,
-      userId,
-    );
+    const existing = await this.fixVotesRepository.findByFixAndUser(id, userId);
     if (existing) {
       existing.value = value;
       await this.fixVotesRepository.save(existing);
@@ -158,10 +153,7 @@ export class FixesService {
       throw new NotFoundException(`Fix ${id} not found`);
     }
 
-    const existing = await this.fixVotesRepository.findByFixAndUser(
-      id,
-      userId,
-    );
+    const existing = await this.fixVotesRepository.findByFixAndUser(id, userId);
     if (!existing) {
       throw new NotFoundException('Vote not found');
     }
@@ -190,9 +182,7 @@ export class FixesService {
   }
 
   private async evictLookupCacheForFix(fix: Fix): Promise<void> {
-    const knownIssue = await this.knownIssuesService.findById(
-      fix.knownIssueId,
-    );
+    const knownIssue = await this.knownIssuesService.findById(fix.knownIssueId);
     if (!knownIssue) {
       return;
     }
@@ -200,9 +190,8 @@ export class FixesService {
   }
 
   private async evictLookupCache(vehicleModelId: string): Promise<void> {
-    const vehicleModel = await this.vehicleModelsService.findById(
-      vehicleModelId,
-    );
+    const vehicleModel =
+      await this.vehicleModelsService.findById(vehicleModelId);
     if (!vehicleModel) {
       return;
     }
