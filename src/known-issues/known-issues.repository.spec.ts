@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import type { EntityManager } from 'typeorm';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { KnownIssue } from './entities/known-issue.entity';
 import { KnownIssuesRepository } from './known-issues.repository';
 
@@ -40,6 +41,24 @@ describe('KnownIssuesRepository', () => {
 
       expect(repository.find).toHaveBeenCalledWith({
         where: { vehicleModelId: 'vm-1' },
+        relations: { fixes: true },
+      });
+      expect(result).toBe(knownIssues);
+    });
+  });
+
+  describe('findByVehicleModelIdAndLocale', () => {
+    it('delegates to repository.find with fixes relation filtered by locale', async () => {
+      const knownIssues = [{ id: 'ki-1' }] as KnownIssue[];
+      repository.find.mockResolvedValue(knownIssues);
+
+      const result = await knownIssuesRepository.findByVehicleModelIdAndLocale(
+        'vm-1',
+        LookupLocale.PtPt,
+      );
+
+      expect(repository.find).toHaveBeenCalledWith({
+        where: { vehicleModelId: 'vm-1', locale: LookupLocale.PtPt },
         relations: { fixes: true },
       });
       expect(result).toBe(knownIssues);

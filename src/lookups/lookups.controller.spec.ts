@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
 import { LookupsController } from './lookups.controller';
@@ -30,6 +31,7 @@ describe('LookupsController', () => {
         model: 'Polo',
         year: 2001,
         engine: '1.0',
+        fuelType: FuelType.DIESEL,
       };
       const response = {
         vehicle: {},

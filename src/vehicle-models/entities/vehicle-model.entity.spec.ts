@@ -57,6 +57,13 @@ describe('VehicleModel entity', () => {
     expect(column?.options.nullable).toBe(true);
   });
 
+  it('maps fuelType to a nullable enum fuel_type column', () => {
+    const column = findColumn('fuelType');
+    expect(column?.options.name).toBe('fuel_type');
+    expect(column?.options.type).toBe('enum');
+    expect(column?.options.nullable).toBe(true);
+  });
+
   it('maps imageUrl to a nullable image_url column', () => {
     const column = findColumn('imageUrl');
     expect(column?.options.name).toBe('image_url');

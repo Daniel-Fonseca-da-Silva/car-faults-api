@@ -1,5 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
+import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { HttpAiLookupProvider } from './http-ai-lookup.provider';
 
 describe('HttpAiLookupProvider', () => {
@@ -10,8 +12,11 @@ describe('HttpAiLookupProvider', () => {
   const input = {
     brand: 'Volkswagen',
     model: 'Polo',
+    name: 'Polo 6N1',
     year: 2001,
     engine: '1.0',
+    fuelType: FuelType.DIESEL,
+    language: LookupLocale.EnGb,
   };
 
   beforeEach(() => {
