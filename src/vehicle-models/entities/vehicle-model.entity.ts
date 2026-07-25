@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
+import { FuelType } from '../enums/fuel-type.enum';
 
 @Entity('vehicle_models')
 export class VehicleModel {
@@ -33,6 +34,9 @@ export class VehicleModel {
 
   @Column({ type: 'int', nullable: true })
   doors: number | null;
+
+  @Column({ name: 'fuel_type', type: 'enum', enum: FuelType, nullable: true })
+  fuelType: FuelType | null;
 
   @Column({ name: 'image_url', type: 'varchar', nullable: true })
   imageUrl: string | null;

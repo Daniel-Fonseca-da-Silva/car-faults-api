@@ -3,6 +3,7 @@ import { FixSource } from '../../fixes/enums/fix-source.enum';
 import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
 import { IssueSeverity } from '../../known-issues/enums/issue-severity.enum';
 import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
+import { FuelType } from '../../vehicle-models/enums/fuel-type.enum';
 import {
   FixResponseDto,
   KnownIssueResponseDto,
@@ -41,11 +42,12 @@ describe('lookup response DTOs', () => {
     id: 'vm-1',
     brand: 'Volkswagen',
     model: 'Polo',
-    name: null,
+    name: 'Polo 6N1',
     yearFrom: 2001,
     yearTo: 2001,
     engine: '1.0',
     doors: 3,
+    fuelType: FuelType.DIESEL,
     imageUrl: null,
     techSpecs: { power_hp: 50 },
     createdAt: new Date('2026-01-01'),
@@ -113,10 +115,12 @@ describe('lookup response DTOs', () => {
         id: 'vm-1',
         brand: 'Volkswagen',
         model: 'Polo',
+        name: 'Polo 6N1',
         yearFrom: 2001,
         yearTo: 2001,
         engine: '1.0',
         doors: 3,
+        fuelType: FuelType.DIESEL,
         techSpecs: { power_hp: 50 },
       });
     });

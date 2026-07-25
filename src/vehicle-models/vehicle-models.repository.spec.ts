@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual } from 'typeorm';
 import type { EntityManager } from 'typeorm';
 import { VehicleModel } from './entities/vehicle-model.entity';
+import { FuelType } from './enums/fuel-type.enum';
 import { VehicleModelsRepository } from './vehicle-models.repository';
 
 describe('VehicleModelsRepository', () => {
@@ -110,6 +111,42 @@ describe('VehicleModelsRepository', () => {
 
     it('does not filter by doors when omitted from the criteria', async () => {
       const vehicleModel = { id: 'vm-4' } as VehicleModel;
+      repository.findOne.mockResolvedValueOnce(vehicleModel);
+
+      await vehicleModelsRepository.findByLookup(criteria);
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: {
+          brand: criteria.brand,
+          model: criteria.model,
+          engine: criteria.engine,
+          yearFrom: LessThanOrEqual(criteria.year),
+          yearTo: IsNull(),
+        },
+      });
+    });
+
+    it('filters by fuelType when present in the criteria', async () => {
+      const vehicleModel = { id: 'vm-5' } as VehicleModel;
+      repository.findOne.mockResolvedValueOnce(vehicleModel);
+
+      const result = await vehicleModelsRepository.findByLookup({
+        ...criteria,
+        fuelType: FuelType.DIESEL,
+      });
+
+      expect(repository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            fuelType: FuelType.DIESEL,
+          }) as unknown,
+        }),
+      );
+      expect(result).toBe(vehicleModel);
+    });
+
+    it('does not filter by fuelType when omitted from the criteria', async () => {
+      const vehicleModel = { id: 'vm-6' } as VehicleModel;
       repository.findOne.mockResolvedValueOnce(vehicleModel);
 
       await vehicleModelsRepository.findByLookup(criteria);

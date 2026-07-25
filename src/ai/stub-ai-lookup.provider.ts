@@ -13,8 +13,10 @@ export class StubAiLookupProvider implements AiLookupProvider {
       vehicle: {
         brand: input.brand,
         model: input.model,
+        name: `${input.brand} ${input.model}`,
         year: input.year,
         engine: input.engine,
+        fuelType: input.fuelType,
         ...(input.doors !== undefined ? { doors: input.doors } : {}),
       },
       knownIssues: [

@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { LookupLocale } from '../../common/enums/lookup-locale.enum';
 import { Fix } from '../../fixes/entities/fix.entity';
 import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
 import { IssueSeverity } from '../enums/issue-severity.enum';
@@ -34,6 +35,9 @@ export class KnownIssue {
 
   @Column({ type: 'enum', enum: IssueSeverity })
   severity: IssueSeverity;
+
+  @Column({ type: 'varchar', default: LookupLocale.EnGb })
+  locale: LookupLocale;
 
   @Column({ name: 'typical_km', type: 'int', nullable: true })
   typicalKm: number | null;

@@ -1,5 +1,6 @@
 import { getMetadataArgsStorage } from 'typeorm';
 import { KnownIssue } from './known-issue.entity';
+import { LookupLocale } from '../../common/enums/lookup-locale.enum';
 import { Fix } from '../../fixes/entities/fix.entity';
 import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
 
@@ -67,6 +68,12 @@ describe('KnownIssue entity', () => {
     const column = findColumn('severity');
     expect(column?.options.type).toBe('enum');
     expect(column?.options.nullable).toBeFalsy();
+  });
+
+  it('defines locale as a varchar column defaulting to en-GB', () => {
+    const column = findColumn('locale');
+    expect(column?.options.type).toBe('varchar');
+    expect(column?.options.default).toBe(LookupLocale.EnGb);
   });
 
   it('maps typicalKm to a nullable typical_km column', () => {

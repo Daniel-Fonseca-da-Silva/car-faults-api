@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { EntityManager } from 'typeorm';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { KnownIssue } from './entities/known-issue.entity';
 import { KnownIssuesRepository } from './known-issues.repository';
 import { KnownIssuesService } from './known-issues.service';
@@ -8,6 +9,7 @@ describe('KnownIssuesService', () => {
   let knownIssuesService: KnownIssuesService;
   let knownIssuesRepository: {
     findByVehicleModelId: jest.Mock;
+    findByVehicleModelIdAndLocale: jest.Mock;
     findById: jest.Mock;
     saveMany: jest.Mock;
   };
@@ -15,6 +17,7 @@ describe('KnownIssuesService', () => {
   beforeEach(async () => {
     knownIssuesRepository = {
       findByVehicleModelId: jest.fn(),
+      findByVehicleModelIdAndLocale: jest.fn(),
       findById: jest.fn(),
       saveMany: jest.fn(),
     };
@@ -46,6 +49,25 @@ describe('KnownIssuesService', () => {
       expect(knownIssuesRepository.findByVehicleModelId).toHaveBeenCalledWith(
         'vm-1',
       );
+      expect(result).toBe(knownIssues);
+    });
+  });
+
+  describe('findByVehicleModelIdAndLocale', () => {
+    it('delegates to the repository', async () => {
+      const knownIssues = [{ id: 'ki-1' }] as KnownIssue[];
+      knownIssuesRepository.findByVehicleModelIdAndLocale.mockResolvedValue(
+        knownIssues,
+      );
+
+      const result = await knownIssuesService.findByVehicleModelIdAndLocale(
+        'vm-1',
+        LookupLocale.PtPt,
+      );
+
+      expect(
+        knownIssuesRepository.findByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.PtPt);
       expect(result).toBe(knownIssues);
     });
   });

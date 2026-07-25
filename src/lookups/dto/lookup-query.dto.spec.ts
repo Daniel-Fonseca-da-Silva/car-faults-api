@@ -1,5 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { LookupLocale } from '../../common/enums/lookup-locale.enum';
+import { FuelType } from '../../vehicle-models/enums/fuel-type.enum';
 import { LookupQueryDto } from './lookup-query.dto';
 
 describe('LookupQueryDto', () => {
@@ -8,6 +10,7 @@ describe('LookupQueryDto', () => {
     model: 'Polo',
     year: '2001',
     engine: '1.0',
+    fuelType: FuelType.DIESEL,
   };
 
   it('passes validation and coerces year to a number', async () => {
@@ -81,5 +84,69 @@ describe('LookupQueryDto', () => {
     const errors = await validate(dto);
 
     expect(errors.some((error) => error.property === 'doors')).toBe(true);
+  });
+
+  it('fails validation when fuelType is missing', async () => {
+    const dto = plainToInstance(LookupQueryDto, {
+      brand: 'Volkswagen',
+      model: 'Polo',
+      year: '2001',
+      engine: '1.0',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.some((error) => error.property === 'fuelType')).toBe(true);
+  });
+
+  it('fails validation when fuelType is not a known enum value', async () => {
+    const dto = plainToInstance(LookupQueryDto, {
+      ...validQuery,
+      fuelType: 'kerosene',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.some((error) => error.property === 'fuelType')).toBe(true);
+  });
+
+  it('accepts each valid fuel type', async () => {
+    for (const fuelType of Object.values(FuelType)) {
+      const dto = plainToInstance(LookupQueryDto, { ...validQuery, fuelType });
+
+      const errors = await validate(dto);
+
+      expect(errors).toHaveLength(0);
+    }
+  });
+
+  it('passes validation without language', async () => {
+    const dto = plainToInstance(LookupQueryDto, validQuery);
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.language).toBeUndefined();
+  });
+
+  it('fails validation when language is not a known enum value', async () => {
+    const dto = plainToInstance(LookupQueryDto, {
+      ...validQuery,
+      language: 'fr-FR',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.some((error) => error.property === 'language')).toBe(true);
+  });
+
+  it('accepts each valid language', async () => {
+    for (const language of Object.values(LookupLocale)) {
+      const dto = plainToInstance(LookupQueryDto, { ...validQuery, language });
+
+      const errors = await validate(dto);
+
+      expect(errors).toHaveLength(0);
+    }
   });
 });
