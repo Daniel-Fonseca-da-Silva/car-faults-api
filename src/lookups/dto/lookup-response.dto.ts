@@ -4,6 +4,7 @@ import { FixSource } from '../../fixes/enums/fix-source.enum';
 import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
 import { IssueSeverity } from '../../known-issues/enums/issue-severity.enum';
 import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
+import { FuelType } from '../../vehicle-models/enums/fuel-type.enum';
 
 export type FixWithVoteCounts = Fix & {
   likes?: number;
@@ -104,6 +105,13 @@ export class VehicleResponseDto {
   doors: number | null;
 
   @ApiPropertyOptional({
+    enum: FuelType,
+    example: FuelType.DIESEL,
+    nullable: true,
+  })
+  fuelType: FuelType | null;
+
+  @ApiPropertyOptional({
     example: 'https://cdn.example.com/vehicles/polo.jpg',
     nullable: true,
   })
@@ -121,6 +129,7 @@ export class VehicleResponseDto {
     this.yearTo = vehicleModel.yearTo;
     this.engine = vehicleModel.engine;
     this.doors = vehicleModel.doors;
+    this.fuelType = vehicleModel.fuelType;
     this.imageUrl = vehicleModel.imageUrl;
     this.techSpecs = vehicleModel.techSpecs;
   }

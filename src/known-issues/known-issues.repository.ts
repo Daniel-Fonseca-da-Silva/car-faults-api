@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { KnownIssue } from './entities/known-issue.entity';
 
 @Injectable()
@@ -13,6 +14,16 @@ export class KnownIssuesRepository {
   findByVehicleModelId(vehicleModelId: string): Promise<KnownIssue[]> {
     return this.repository.find({
       where: { vehicleModelId },
+      relations: { fixes: true },
+    });
+  }
+
+  findByVehicleModelIdAndLocale(
+    vehicleModelId: string,
+    locale: LookupLocale,
+  ): Promise<KnownIssue[]> {
+    return this.repository.find({
+      where: { vehicleModelId, locale },
       relations: { fixes: true },
     });
   }

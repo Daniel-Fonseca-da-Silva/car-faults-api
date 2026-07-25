@@ -8,6 +8,7 @@ import {
   Repository,
 } from 'typeorm';
 import { VehicleModel } from './entities/vehicle-model.entity';
+import { FuelType } from './enums/fuel-type.enum';
 
 export interface VehicleLookupCriteria {
   brand: string;
@@ -15,6 +16,7 @@ export interface VehicleLookupCriteria {
   year: number;
   engine: string;
   doors?: number;
+  fuelType?: FuelType;
 }
 
 @Injectable()
@@ -31,8 +33,9 @@ export class VehicleModelsRepository {
   async findByLookup(
     criteria: VehicleLookupCriteria,
   ): Promise<VehicleModel | null> {
-    const { brand, model, year, engine, doors } = criteria;
+    const { brand, model, year, engine, doors, fuelType } = criteria;
     const doorsWhere = doors !== undefined ? { doors } : {};
+    const fuelTypeWhere = fuelType !== undefined ? { fuelType } : {};
 
     const openEnded = await this.repository.findOne({
       where: {
@@ -40,6 +43,7 @@ export class VehicleModelsRepository {
         model,
         engine,
         ...doorsWhere,
+        ...fuelTypeWhere,
         yearFrom: LessThanOrEqual(year),
         yearTo: IsNull(),
       },
@@ -54,6 +58,7 @@ export class VehicleModelsRepository {
         model,
         engine,
         ...doorsWhere,
+        ...fuelTypeWhere,
         yearFrom: LessThanOrEqual(year),
         yearTo: MoreThanOrEqual(year),
       },

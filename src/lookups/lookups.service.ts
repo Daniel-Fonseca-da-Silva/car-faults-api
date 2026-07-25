@@ -4,17 +4,24 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager } from 'typeorm';
 import { AI_LOOKUP_PROVIDER } from '../ai/ai-lookup.provider';
 import type {
-  AiKnownIssueResult,
   AiLookupProvider,
   AiLookupResult,
 } from '../ai/ai-lookup.provider';
+import { AI_TRANSLATE_PROVIDER } from '../ai/ai-translate.provider';
+import type {
+  AiTranslateInput,
+  AiTranslateProvider,
+} from '../ai/ai-translate.provider';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { Fix } from '../fixes/entities/fix.entity';
 import { FixSource } from '../fixes/enums/fix-source.enum';
 import { FixesService } from '../fixes/fixes.service';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
+import { IssueSeverity } from '../known-issues/enums/issue-severity.enum';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { errorMessage } from '../redis/redis-error.util';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
+import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
@@ -26,6 +33,23 @@ interface LookupCriteria {
   year: number;
   engine: string;
   doors?: number;
+  fuelType: FuelType;
+  language: LookupLocale;
+}
+
+interface PersistableFix {
+  summary: string;
+  steps: string;
+  estimatedCostEur?: number | null;
+}
+
+interface PersistableKnownIssue {
+  title: string;
+  description: string;
+  severity: IssueSeverity;
+  typicalKm?: number | null;
+  sources?: string[] | null;
+  fixes: PersistableFix[];
 }
 
 @Injectable()
@@ -40,6 +64,8 @@ export class LookupsService {
     private readonly dataSource: DataSource,
     @Inject(AI_LOOKUP_PROVIDER)
     private readonly aiLookupProvider: AiLookupProvider,
+    @Inject(AI_TRANSLATE_PROVIDER)
+    private readonly aiTranslateProvider: AiTranslateProvider,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     config: ConfigService,
   ) {
@@ -54,6 +80,8 @@ export class LookupsService {
       model: query.model.trim(),
       year: query.year,
       engine: query.engine.trim(),
+      fuelType: query.fuelType,
+      language: query.language ?? LookupLocale.EnGb,
       ...(query.doors !== undefined ? { doors: query.doors } : {}),
     };
 
@@ -72,14 +100,37 @@ export class LookupsService {
     criteria: LookupCriteria,
   ): Promise<LookupResponseDto> {
     const vehicleModel = await this.vehicleModelsService.findByLookup(criteria);
-    if (vehicleModel) {
-      const knownIssues = await this.knownIssuesService.findByVehicleModelId(
+    if (!vehicleModel) {
+      return this.generateForNewVehicle(criteria);
+    }
+
+    const localeIssues =
+      await this.knownIssuesService.findByVehicleModelIdAndLocale(
         vehicleModel.id,
+        criteria.language,
       );
-      const knownIssuesWithCounts = await this.attachFixCounts(knownIssues);
+    if (localeIssues.length > 0) {
+      const knownIssuesWithCounts = await this.attachFixCounts(localeIssues);
       return new LookupResponseDto(vehicleModel, knownIssuesWithCounts);
     }
 
+    const existingIssues = await this.knownIssuesService.findByVehicleModelId(
+      vehicleModel.id,
+    );
+    if (existingIssues.length === 0) {
+      return this.generateForExistingVehicle(vehicleModel, criteria);
+    }
+
+    return this.translateForExistingVehicle(
+      vehicleModel,
+      criteria.language,
+      existingIssues,
+    );
+  }
+
+  private async generateForNewVehicle(
+    criteria: LookupCriteria,
+  ): Promise<LookupResponseDto> {
     const aiResult = await this.aiLookupProvider.generateLookup(criteria);
 
     const persisted = await this.dataSource.transaction((manager) =>
@@ -87,6 +138,83 @@ export class LookupsService {
     );
 
     return new LookupResponseDto(persisted.vehicleModel, persisted.knownIssues);
+  }
+
+  private async generateForExistingVehicle(
+    vehicleModel: VehicleModel,
+    criteria: LookupCriteria,
+  ): Promise<LookupResponseDto> {
+    const aiResult = await this.aiLookupProvider.generateLookup(criteria);
+
+    const knownIssues = await this.dataSource.transaction((manager) =>
+      this.persistKnownIssuesAndFixes(
+        vehicleModel.id,
+        criteria.language,
+        aiResult.knownIssues,
+        manager,
+      ),
+    );
+
+    return new LookupResponseDto(vehicleModel, knownIssues);
+  }
+
+  private async translateForExistingVehicle(
+    vehicleModel: VehicleModel,
+    targetLanguage: LookupLocale,
+    existingIssues: KnownIssue[],
+  ): Promise<LookupResponseDto> {
+    const sourceLanguage = this.pickSourceLanguage(existingIssues);
+    const issuesToTranslate = existingIssues.filter(
+      (issue) => issue.locale === sourceLanguage,
+    );
+
+    const translateInput = this.buildTranslateInput(
+      sourceLanguage,
+      targetLanguage,
+      issuesToTranslate,
+    );
+    const translateResult =
+      await this.aiTranslateProvider.translate(translateInput);
+
+    const knownIssues = await this.dataSource.transaction((manager) =>
+      this.persistKnownIssuesAndFixes(
+        vehicleModel.id,
+        targetLanguage,
+        translateResult.knownIssues,
+        manager,
+      ),
+    );
+
+    return new LookupResponseDto(vehicleModel, knownIssues);
+  }
+
+  private pickSourceLanguage(issues: KnownIssue[]): LookupLocale {
+    const hasEnGb = issues.some((issue) => issue.locale === LookupLocale.EnGb);
+    return hasEnGb ? LookupLocale.EnGb : issues[0].locale;
+  }
+
+  private buildTranslateInput(
+    sourceLanguage: LookupLocale,
+    targetLanguage: LookupLocale,
+    issues: KnownIssue[],
+  ): AiTranslateInput {
+    return {
+      sourceLanguage,
+      targetLanguage,
+      knownIssues: issues.map((issue) => ({
+        title: issue.title,
+        description: issue.description,
+        severity: issue.severity,
+        typicalKm: issue.typicalKm,
+        sources: issue.sources,
+        fixes: (issue.fixes ?? []).map((fix) => ({
+          summary: fix.summary,
+          steps: fix.steps,
+          estimatedCostEur:
+            fix.estimatedCostEur != null ? Number(fix.estimatedCostEur) : null,
+        })),
+      })),
+    };
   }
 
   private async attachFixCounts(
@@ -135,47 +263,64 @@ export class LookupsService {
       {
         brand: criteria.brand,
         model: criteria.model,
+        name: aiResult.vehicle.name ?? null,
         yearFrom: criteria.year,
         yearTo: criteria.year,
         engine: criteria.engine,
         doors: criteria.doors ?? aiResult.vehicle.doors ?? null,
+        fuelType: criteria.fuelType,
         techSpecs: aiResult.vehicle.techSpecs ?? null,
       },
       manager,
     );
 
+    const knownIssues = await this.persistKnownIssuesAndFixes(
+      vehicleModel.id,
+      criteria.language,
+      aiResult.knownIssues,
+      manager,
+    );
+
+    return { vehicleModel, knownIssues };
+  }
+
+  private async persistKnownIssuesAndFixes(
+    vehicleModelId: string,
+    locale: LookupLocale,
+    aiKnownIssues: PersistableKnownIssue[],
+    manager: EntityManager,
+  ): Promise<KnownIssue[]> {
     const savedKnownIssues = await this.knownIssuesService.saveMany(
-      aiResult.knownIssues.map((issue) => ({
-        vehicleModelId: vehicleModel.id,
+      aiKnownIssues.map((issue) => ({
+        vehicleModelId,
         title: issue.title,
         description: issue.description,
         severity: issue.severity,
         typicalKm: issue.typicalKm ?? null,
         sources: issue.sources ?? null,
+        locale,
         aiGeneratedAt: new Date(),
       })),
       manager,
     );
 
     const savedFixes = await this.saveFixes(
-      aiResult.knownIssues,
+      aiKnownIssues,
       savedKnownIssues,
       manager,
     );
 
     let cursor = 0;
-    const knownIssues = savedKnownIssues.map((knownIssue, index) => {
-      const fixCount = aiResult.knownIssues[index].fixes.length;
+    return savedKnownIssues.map((knownIssue, index) => {
+      const fixCount = aiKnownIssues[index].fixes.length;
       const fixes = savedFixes.slice(cursor, cursor + fixCount);
       cursor += fixCount;
       return { ...knownIssue, fixes };
     });
-
-    return { vehicleModel, knownIssues };
   }
 
   private saveFixes(
-    aiKnownIssues: AiKnownIssueResult[],
+    aiKnownIssues: PersistableKnownIssue[],
     savedKnownIssues: KnownIssue[],
     manager: EntityManager,
   ): Promise<Fix[]> {

@@ -1,4 +1,6 @@
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { IssueSeverity } from '../known-issues/enums/issue-severity.enum';
+import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 
 export const AI_LOOKUP_PROVIDER = Symbol('AI_LOOKUP_PROVIDER');
 
@@ -8,6 +10,8 @@ export interface AiLookupInput {
   year: number;
   engine: string;
   doors?: number;
+  fuelType: FuelType;
+  language: LookupLocale;
 }
 
 export interface AiFixResult {
@@ -28,9 +32,11 @@ export interface AiKnownIssueResult {
 export interface AiVehicleResult {
   brand: string;
   model: string;
+  name: string;
   year: number;
   engine: string;
   doors?: number;
+  fuelType?: FuelType;
   techSpecs?: Record<string, unknown>;
 }
 

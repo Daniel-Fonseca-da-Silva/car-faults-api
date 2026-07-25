@@ -1,5 +1,7 @@
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { LOOKUP_CACHE_KEY_PREFIX } from '../redis/redis.constants';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
+import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 
 export interface LookupCacheKeyCriteria {
   brand: string;
@@ -7,11 +9,17 @@ export interface LookupCacheKeyCriteria {
   year: number;
   engine: string;
   doors?: number;
+  fuelType?: FuelType;
+  language?: LookupLocale;
 }
 
 export function buildLookupCacheKey(criteria: LookupCacheKeyCriteria): string {
   const doorsSuffix = criteria.doors !== undefined ? `:${criteria.doors}` : '';
-  return `${LOOKUP_CACHE_KEY_PREFIX}${criteria.brand}:${criteria.model}:${criteria.year}:${criteria.engine}${doorsSuffix}`;
+  const fuelTypeSuffix =
+    criteria.fuelType !== undefined ? `:${criteria.fuelType}` : '';
+  const languageSuffix =
+    criteria.language !== undefined ? `:${criteria.language}` : '';
+  return `${LOOKUP_CACHE_KEY_PREFIX}${criteria.brand}:${criteria.model}:${criteria.year}:${criteria.engine}${doorsSuffix}${fuelTypeSuffix}${languageSuffix}`;
 }
 
 export function buildLookupCacheKeysForVehicleModel(
@@ -30,6 +38,14 @@ export function buildLookupCacheKeysForVehicleModel(
     keys.push(buildLookupCacheKey(base));
     if (vehicleModel.doors !== null) {
       keys.push(buildLookupCacheKey({ ...base, doors: vehicleModel.doors }));
+    }
+    if (vehicleModel.fuelType !== null) {
+      keys.push(
+        buildLookupCacheKey({ ...base, fuelType: vehicleModel.fuelType }),
+      );
+    }
+    for (const language of Object.values(LookupLocale)) {
+      keys.push(buildLookupCacheKey({ ...base, language }));
     }
   }
 
