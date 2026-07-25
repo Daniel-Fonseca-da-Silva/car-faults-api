@@ -130,6 +130,7 @@ Global coverage (statements, branches, functions, lines) must stay at **90%+**. 
 
 ## License
 
-Proprietary source-available license — see [LICENSE](LICENSE).
+Proprietary — All Rights Reserved (Daniel Fonseca da Silva). See [LICENSE](LICENSE).
+Use and run allowed; modification and derivative works require written permission.
 
 You may use and run this software. You may **not** modify it or create derivative works without prior written permission from the copyright holder.
