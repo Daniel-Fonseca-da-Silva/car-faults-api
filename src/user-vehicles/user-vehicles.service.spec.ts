@@ -1,3 +1,4 @@
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
@@ -17,9 +18,11 @@ describe('UserVehiclesService', () => {
     create: jest.Mock;
     save: jest.Mock;
     delete: jest.Mock;
+    countByUserId: jest.Mock;
   };
   let vehicleModelsService: { findById: jest.Mock; findByLookup: jest.Mock };
   let knownIssuesService: { findByVehicleModelId: jest.Mock };
+  let cache: { del: jest.Mock };
 
   const userId = 'user-1';
 
@@ -45,12 +48,14 @@ describe('UserVehiclesService', () => {
       create: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
+      countByUserId: jest.fn(),
     };
     vehicleModelsService = {
       findById: jest.fn(),
       findByLookup: jest.fn(),
     };
     knownIssuesService = { findByVehicleModelId: jest.fn() };
+    cache = { del: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,6 +66,7 @@ describe('UserVehiclesService', () => {
         },
         { provide: VehicleModelsService, useValue: vehicleModelsService },
         { provide: KnownIssuesService, useValue: knownIssuesService },
+        { provide: CACHE_MANAGER, useValue: cache },
       ],
     }).compile();
 
@@ -111,6 +117,17 @@ describe('UserVehiclesService', () => {
       await expect(
         userVehiclesService.findOneByUser('uv-1', userId),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('countByUser', () => {
+    it('delegates to the repository', async () => {
+      userVehiclesRepository.countByUserId.mockResolvedValue(2);
+
+      const result = await userVehiclesService.countByUser(userId);
+
+      expect(userVehiclesRepository.countByUserId).toHaveBeenCalledWith(userId);
+      expect(result).toBe(2);
     });
   });
 
@@ -173,6 +190,7 @@ describe('UserVehiclesService', () => {
           name: null,
         }),
       );
+      expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
       expect(result).toBe(created);
     });
 
@@ -458,6 +476,7 @@ describe('UserVehiclesService', () => {
       await userVehiclesService.remove('uv-1', userId);
 
       expect(userVehiclesRepository.delete).toHaveBeenCalledWith('uv-1');
+      expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
     });
 
     it('throws NotFoundException when the vehicle does not exist', async () => {
@@ -478,6 +497,15 @@ describe('UserVehiclesService', () => {
         NotFoundException,
       );
       expect(userVehiclesRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('does not fail the request when stats cache eviction errors', async () => {
+      userVehiclesRepository.findById.mockResolvedValue(buildUserVehicle());
+      cache.del.mockRejectedValue(new Error('redis down'));
+
+      await expect(
+        userVehiclesService.remove('uv-1', userId),
+      ).resolves.toBeUndefined();
     });
   });
 });

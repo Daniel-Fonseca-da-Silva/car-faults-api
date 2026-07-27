@@ -11,6 +11,7 @@ describe('FixVotesRepository', () => {
     create: jest.Mock;
     save: jest.Mock;
     delete: jest.Mock;
+    count: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -19,6 +20,7 @@ describe('FixVotesRepository', () => {
       create: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -91,6 +93,22 @@ describe('FixVotesRepository', () => {
       await fixVotesRepository.delete('vote-1');
 
       expect(repository.delete).toHaveBeenCalledWith('vote-1');
+    });
+  });
+
+  describe('countByUserIdAndValue', () => {
+    it('counts votes scoped by userId and value', async () => {
+      repository.count.mockResolvedValue(2);
+
+      const result = await fixVotesRepository.countByUserIdAndValue(
+        'user-1',
+        FixVoteValue.LIKE,
+      );
+
+      expect(repository.count).toHaveBeenCalledWith({
+        where: { userId: 'user-1', value: FixVoteValue.LIKE },
+      });
+      expect(result).toBe(2);
     });
   });
 });

@@ -20,6 +20,10 @@ describe('UserVehiclesModule', () => {
       'providers',
       UserVehiclesModule,
     ) as unknown[];
+    const moduleExports = Reflect.getMetadata(
+      'exports',
+      UserVehiclesModule,
+    ) as unknown[];
 
     expect(imports).toHaveLength(3);
     expect(imports[0].module).toBe(TypeOrmModule);
@@ -27,5 +31,6 @@ describe('UserVehiclesModule', () => {
     expect(imports[2]).toBe(KnownIssuesModule);
     expect(controllers).toEqual([UserVehiclesController]);
     expect(providers).toEqual([UserVehiclesRepository, UserVehiclesService]);
+    expect(moduleExports).toEqual([UserVehiclesService]);
   });
 });

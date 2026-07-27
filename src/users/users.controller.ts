@@ -23,7 +23,9 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { UserStatsResponseDto } from './dto/user-stats-response.dto';
 import { User } from './entities/user.entity';
+import { UserStatsService } from './user-stats.service';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
@@ -31,7 +33,10 @@ import { UsersService } from './users.service';
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly userStatsService: UserStatsService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: "Get the authenticated user's profile" })
@@ -39,6 +44,16 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   getProfile(@Req() req: Request): UserResponseDto {
     return new UserResponseDto(req.user as User);
+  }
+
+  @Get('me/stats')
+  @ApiOperation({ summary: "Get the authenticated user's activity stats" })
+  @ApiOkResponse({ type: UserStatsResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  async getMyStats(@Req() req: Request): Promise<UserStatsResponseDto> {
+    const user = req.user as User;
+    const stats = await this.userStatsService.getStats(user.id);
+    return new UserStatsResponseDto(stats);
   }
 
   @Patch('me')

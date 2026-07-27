@@ -12,6 +12,7 @@ describe('UserVehiclesRepository', () => {
     create: jest.Mock;
     save: jest.Mock;
     delete: jest.Mock;
+    count: jest.Mock;
   };
 
   const uniqueKey = {
@@ -29,6 +30,7 @@ describe('UserVehiclesRepository', () => {
       create: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -136,6 +138,19 @@ describe('UserVehiclesRepository', () => {
       await userVehiclesRepository.delete('uv-1');
 
       expect(repository.delete).toHaveBeenCalledWith('uv-1');
+    });
+  });
+
+  describe('countByUserId', () => {
+    it('counts vehicles scoped by userId', async () => {
+      repository.count.mockResolvedValue(3);
+
+      const result = await userVehiclesRepository.countByUserId('user-1');
+
+      expect(repository.count).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+      });
+      expect(result).toBe(3);
     });
   });
 });
