@@ -1,10 +1,15 @@
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import {
   ConflictException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
+import { errorMessage } from '../redis/redis-error.util';
+import { userStatsCacheKey } from '../redis/redis.constants';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { UserVehicle } from './entities/user-vehicle.entity';
 import { UserVehiclesRepository } from './user-vehicles.repository';
@@ -46,14 +51,21 @@ interface LookupLink {
 
 @Injectable()
 export class UserVehiclesService {
+  private readonly logger = new Logger(UserVehiclesService.name);
+
   constructor(
     private readonly userVehiclesRepository: UserVehiclesRepository,
     private readonly vehicleModelsService: VehicleModelsService,
     private readonly knownIssuesService: KnownIssuesService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   findAllByUser(userId: string): Promise<UserVehicle[]> {
     return this.userVehiclesRepository.findAllByUserId(userId);
+  }
+
+  countByUser(userId: string): Promise<number> {
+    return this.userVehiclesRepository.countByUserId(userId);
   }
 
   findOneByUser(id: string, userId: string): Promise<UserVehicle> {
@@ -108,7 +120,9 @@ export class UserVehiclesService {
       doors,
       name: data.name ?? null,
     });
-    return this.userVehiclesRepository.save(userVehicle);
+    const saved = await this.userVehiclesRepository.save(userVehicle);
+    await this.evictStatsCache(userId);
+    return saved;
   }
 
   async update(
@@ -178,6 +192,18 @@ export class UserVehiclesService {
   async remove(id: string, userId: string): Promise<void> {
     await this.getOwned(id, userId);
     await this.userVehiclesRepository.delete(id);
+    await this.evictStatsCache(userId);
+  }
+
+  private async evictStatsCache(userId: string): Promise<void> {
+    const key = userStatsCacheKey(userId);
+    try {
+      await this.cache.del(key);
+    } catch (err) {
+      this.logger.warn(
+        `Cache invalidation failed for key ${key}: ${errorMessage(err)}`,
+      );
+    }
   }
 
   private async getOwned(id: string, userId: string): Promise<UserVehicle> {

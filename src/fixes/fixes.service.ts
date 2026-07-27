@@ -11,6 +11,7 @@ import { EntityManager } from 'typeorm';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { buildLookupCacheKeysForVehicleModel } from '../lookups/lookup-cache-key.util';
 import { errorMessage } from '../redis/redis-error.util';
+import { userStatsCacheKey } from '../redis/redis.constants';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { Fix } from './entities/fix.entity';
 import { FixSource } from './enums/fix-source.enum';
@@ -55,6 +56,10 @@ export class FixesService {
       knownIssueId,
       userId,
     );
+  }
+
+  countVotesByUser(userId: string, value: FixVoteValue): Promise<number> {
+    return this.fixVotesRepository.countByUserIdAndValue(userId, value);
   }
 
   async create(userId: string, data: CreateFixData): Promise<FixWithCounts> {
@@ -144,6 +149,7 @@ export class FixesService {
     }
 
     await this.evictLookupCacheForFix(fix);
+    await this.evictCacheKey(userStatsCacheKey(userId));
     return this.getWithCounts(id, userId);
   }
 
@@ -160,6 +166,7 @@ export class FixesService {
 
     await this.fixVotesRepository.delete(existing.id);
     await this.evictLookupCacheForFix(fix);
+    await this.evictCacheKey(userStatsCacheKey(userId));
   }
 
   private async getOwned(id: string, userId: string): Promise<Fix> {

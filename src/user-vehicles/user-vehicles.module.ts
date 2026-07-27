@@ -15,5 +15,6 @@ import { UserVehiclesService } from './user-vehicles.service';
   ],
   controllers: [UserVehiclesController],
   providers: [UserVehiclesRepository, UserVehiclesService],
+  exports: [UserVehiclesService],
 })
 export class UserVehiclesModule {}

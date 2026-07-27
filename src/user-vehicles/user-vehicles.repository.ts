@@ -22,6 +22,10 @@ export class UserVehiclesRepository {
     return this.repository.find({ where: { userId } });
   }
 
+  countByUserId(userId: string): Promise<number> {
+    return this.repository.count({ where: { userId } });
+  }
+
   findById(id: string): Promise<UserVehicle | null> {
     return this.repository.findOne({ where: { id } });
   }
