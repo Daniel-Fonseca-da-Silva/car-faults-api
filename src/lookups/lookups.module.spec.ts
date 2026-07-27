@@ -1,3 +1,4 @@
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 import { AiModule } from '../ai/ai.module';
 import { FixesModule } from '../fixes/fixes.module';
 import { KnownIssuesModule } from '../known-issues/known-issues.module';
@@ -23,6 +24,7 @@ describe('LookupsModule', () => {
       KnownIssuesModule,
       FixesModule,
       AiModule,
+      ActivityLogModule,
     ]);
     expect(controllers).toEqual([LookupsController]);
     expect(providers).toEqual([LookupsService]);

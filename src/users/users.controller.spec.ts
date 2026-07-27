@@ -3,12 +3,14 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
+import { UserStats, UserStatsService } from './user-stats.service';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
 describe('UsersController', () => {
   let usersController: UsersController;
   let usersService: { update: jest.Mock; softDelete: jest.Mock };
+  let userStatsService: { getStats: jest.Mock };
 
   const user = {
     id: 'id-1',
@@ -21,10 +23,14 @@ describe('UsersController', () => {
 
   beforeEach(async () => {
     usersService = { update: jest.fn(), softDelete: jest.fn() };
+    userStatsService = { getStats: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [{ provide: UsersService, useValue: usersService }],
+      providers: [
+        { provide: UsersService, useValue: usersService },
+        { provide: UserStatsService, useValue: userStatsService },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })
@@ -48,6 +54,26 @@ describe('UsersController', () => {
         email: user.email,
         name: user.name,
       });
+    });
+  });
+
+  describe('getMyStats', () => {
+    it("returns the authenticated user's aggregated stats", async () => {
+      const req = { user } as unknown as Request;
+      const stats: UserStats = {
+        searchesCount: 4,
+        defectsConsultedCount: 2,
+        savedVehiclesCount: 3,
+        votesCount: 5,
+        dislikesCount: 1,
+        favoritedVehiclesCount: 2,
+      };
+      userStatsService.getStats.mockResolvedValue(stats);
+
+      const result = await usersController.getMyStats(req);
+
+      expect(userStatsService.getStats).toHaveBeenCalledWith(user.id);
+      expect(result).toEqual(stats);
     });
   });
 

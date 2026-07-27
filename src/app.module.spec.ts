@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ActivityLogModule } from './activity-log/activity-log.module';
 import { AppModule } from './app.module';
 import { AuthModule } from './auth/auth.module';
 import { CommentsModule } from './comments/comments.module';
@@ -33,6 +34,9 @@ class UsersModuleStub {}
 
 @Module({})
 class AuthModuleStub {}
+
+@Module({})
+class ActivityLogModuleStub {}
 
 @Module({})
 class VehicleModelsModuleStub {}
@@ -70,6 +74,8 @@ describe('AppModule', () => {
       .useModule(UsersModuleStub)
       .overrideModule(AuthModule)
       .useModule(AuthModuleStub)
+      .overrideModule(ActivityLogModule)
+      .useModule(ActivityLogModuleStub)
       .overrideModule(VehicleModelsModule)
       .useModule(VehicleModelsModuleStub)
       .overrideModule(KnownIssuesModule)

@@ -32,6 +32,7 @@ describe('FixesService', () => {
     create: jest.Mock;
     save: jest.Mock;
     delete: jest.Mock;
+    countByUserIdAndValue: jest.Mock;
   };
   let knownIssuesService: { findById: jest.Mock };
   let vehicleModelsService: { findById: jest.Mock };
@@ -76,6 +77,7 @@ describe('FixesService', () => {
       create: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
+      countByUserIdAndValue: jest.fn(),
     };
     knownIssuesService = { findById: jest.fn() };
     vehicleModelsService = { findById: jest.fn() };
@@ -116,6 +118,23 @@ describe('FixesService', () => {
 
       expect(fixesRepository.saveMany).toHaveBeenCalledWith(data, manager);
       expect(result).toBe(saved);
+    });
+  });
+
+  describe('countVotesByUser', () => {
+    it('delegates to the fix votes repository', async () => {
+      fixVotesRepository.countByUserIdAndValue.mockResolvedValue(3);
+
+      const result = await fixesService.countVotesByUser(
+        userId,
+        FixVoteValue.LIKE,
+      );
+
+      expect(fixVotesRepository.countByUserIdAndValue).toHaveBeenCalledWith(
+        userId,
+        FixVoteValue.LIKE,
+      );
+      expect(result).toBe(3);
     });
   });
 
@@ -315,7 +334,7 @@ describe('FixesService', () => {
         value: FixVoteValue.LIKE,
       });
       expect(fixVotesRepository.save).toHaveBeenCalledWith(createdVote);
-      expect(cache.del).toHaveBeenCalled();
+      expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
       expect(result).toBe(withCounts);
     });
 
@@ -372,7 +391,7 @@ describe('FixesService', () => {
       await fixesService.removeVote('fix-1', userId);
 
       expect(fixVotesRepository.delete).toHaveBeenCalledWith('vote-1');
-      expect(cache.del).toHaveBeenCalled();
+      expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
     });
   });
 
