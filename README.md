@@ -2,7 +2,7 @@
 
 Backend for **Car Faults** — a SaaS focused on **chronic reliability by vehicle model**: what typically fails on a given make / model / year / engine, how severe it is, typical cost and how it gets fixed.
 
-Initial market: **Portugal** (later ES/FR). Product languages: `pt-PT` and `en-GB`.
+Initial market: **Portugal** (later ES/FR). Product languages: `pt-PT`, `en-GB` and `es-ES`.
 
 ## What we are
 
