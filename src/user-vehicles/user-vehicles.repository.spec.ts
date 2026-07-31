@@ -11,7 +11,7 @@ describe('UserVehiclesRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
     count: jest.Mock;
   };
 
@@ -29,7 +29,7 @@ describe('UserVehiclesRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
       count: jest.fn(),
     };
 
@@ -133,13 +133,13 @@ describe('UserVehiclesRepository', () => {
     });
   });
 
-  describe('delete', () => {
-    it('delegates to repository.delete', async () => {
-      repository.delete.mockResolvedValue(undefined);
+  describe('softDelete', () => {
+    it('delegates to repository.softDelete', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
 
-      await userVehiclesRepository.delete('uv-1');
+      await userVehiclesRepository.softDelete('uv-1');
 
-      expect(repository.delete).toHaveBeenCalledWith('uv-1');
+      expect(repository.softDelete).toHaveBeenCalledWith('uv-1');
     });
   });
 

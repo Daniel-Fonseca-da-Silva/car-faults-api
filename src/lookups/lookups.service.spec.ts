@@ -11,6 +11,7 @@ import { FixesService } from '../fixes/fixes.service';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
 import { IssueSeverity } from '../known-issues/enums/issue-severity.enum';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
+import { TurnstileService } from '../turnstile/turnstile.service';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
@@ -36,6 +37,7 @@ describe('LookupsService', () => {
     get: jest.Mock;
     set: jest.Mock;
   };
+  let turnstileService: { assertValid: jest.Mock };
 
   const query: LookupQueryDto = {
     brand: ' Volkswagen ',
@@ -85,6 +87,7 @@ describe('LookupsService', () => {
       get: jest.fn().mockResolvedValue(undefined),
       set: jest.fn().mockResolvedValue(undefined),
     };
+    turnstileService = { assertValid: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -96,6 +99,7 @@ describe('LookupsService', () => {
         { provide: AI_LOOKUP_PROVIDER, useValue: aiLookupProvider },
         { provide: AI_TRANSLATE_PROVIDER, useValue: aiTranslateProvider },
         { provide: CACHE_MANAGER, useValue: cache },
+        { provide: TurnstileService, useValue: turnstileService },
         {
           provide: ConfigService,
           useValue: { getOrThrow: jest.fn().mockReturnValue('21600000') },
@@ -726,6 +730,101 @@ describe('LookupsService', () => {
         manager,
       );
       expect(result.vehicle.id).toBe('vm-1');
+    });
+  });
+
+  describe('turnstile gating', () => {
+    it('does not check the token on a Postgres HIT', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([
+        { id: 'ki-1', locale: LookupLocale.EnGb, fixes: [] },
+      ]);
+
+      await lookupsService.lookup(query);
+
+      expect(turnstileService.assertValid).not.toHaveBeenCalled();
+    });
+
+    it('checks the token before generating a new vehicle via AI', async () => {
+      vehicleModelsService.findByLookup.mockResolvedValue(null);
+      aiLookupProvider.generateLookup.mockResolvedValue({
+        vehicle: aiVehicleResult,
+        knownIssues: [],
+      });
+      vehicleModelsService.create.mockResolvedValue({ id: 'vm-1' });
+      knownIssuesService.saveMany.mockResolvedValue([]);
+      dataSource.transaction.mockImplementation(
+        (callback: (manager: EntityManager) => Promise<unknown>) =>
+          callback(manager),
+      );
+
+      await lookupsService.lookup(query, 'turnstile-token');
+
+      expect(turnstileService.assertValid).toHaveBeenCalledWith(
+        'turnstile-token',
+      );
+    });
+
+    it('propagates the ForbiddenException and skips the AI call when the token is invalid', async () => {
+      vehicleModelsService.findByLookup.mockResolvedValue(null);
+      const forbidden = new Error('TURNSTILE_REQUIRED');
+      turnstileService.assertValid.mockRejectedValue(forbidden);
+
+      await expect(lookupsService.lookup(query)).rejects.toThrow(forbidden);
+
+      expect(aiLookupProvider.generateLookup).not.toHaveBeenCalled();
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('checks the token before generating issues for an existing vehicle via AI', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([]);
+      knownIssuesService.findByVehicleModelId.mockResolvedValue([]);
+      aiLookupProvider.generateLookup.mockResolvedValue({
+        vehicle: aiVehicleResult,
+        knownIssues: [],
+      });
+      knownIssuesService.saveMany.mockResolvedValue([]);
+      dataSource.transaction.mockImplementation(
+        (callback: (manager: EntityManager) => Promise<unknown>) =>
+          callback(manager),
+      );
+
+      await lookupsService.lookup(query, 'turnstile-token');
+
+      expect(turnstileService.assertValid).toHaveBeenCalledWith(
+        'turnstile-token',
+      );
+    });
+
+    it('checks the token before translating existing issues via AI', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([]);
+      knownIssuesService.findByVehicleModelId.mockResolvedValue([
+        {
+          id: 'ki-en-1',
+          locale: LookupLocale.EnGb,
+          fixes: [],
+        },
+      ]);
+      aiTranslateProvider.translate.mockResolvedValue({ knownIssues: [] });
+      knownIssuesService.saveMany.mockResolvedValue([]);
+      dataSource.transaction.mockImplementation(
+        (callback: (manager: EntityManager) => Promise<unknown>) =>
+          callback(manager),
+      );
+
+      await lookupsService.lookup(
+        { ...query, language: LookupLocale.PtPt },
+        'turnstile-token',
+      );
+
+      expect(turnstileService.assertValid).toHaveBeenCalledWith(
+        'turnstile-token',
+      );
     });
   });
 });

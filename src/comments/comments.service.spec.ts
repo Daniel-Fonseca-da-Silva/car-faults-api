@@ -12,7 +12,7 @@ describe('CommentsService', () => {
     findById: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
   };
   let knownIssuesService: { findById: jest.Mock };
 
@@ -33,7 +33,7 @@ describe('CommentsService', () => {
       findById: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
     };
     knownIssuesService = { findById: jest.fn() };
 
@@ -140,7 +140,7 @@ describe('CommentsService', () => {
 
       await commentsService.remove('comment-1', userId);
 
-      expect(commentsRepository.delete).toHaveBeenCalledWith('comment-1');
+      expect(commentsRepository.softDelete).toHaveBeenCalledWith('comment-1');
     });
 
     it('throws NotFoundException when the comment does not exist', async () => {
@@ -149,7 +149,7 @@ describe('CommentsService', () => {
       await expect(commentsService.remove('comment-1', userId)).rejects.toThrow(
         NotFoundException,
       );
-      expect(commentsRepository.delete).not.toHaveBeenCalled();
+      expect(commentsRepository.softDelete).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when the comment belongs to another user', async () => {
@@ -160,7 +160,7 @@ describe('CommentsService', () => {
       await expect(commentsService.remove('comment-1', userId)).rejects.toThrow(
         NotFoundException,
       );
-      expect(commentsRepository.delete).not.toHaveBeenCalled();
+      expect(commentsRepository.softDelete).not.toHaveBeenCalled();
     });
   });
 });

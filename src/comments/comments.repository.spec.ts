@@ -10,7 +10,7 @@ describe('CommentsRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -19,7 +19,7 @@ describe('CommentsRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -94,13 +94,13 @@ describe('CommentsRepository', () => {
     });
   });
 
-  describe('delete', () => {
-    it('delegates to repository.delete', async () => {
-      repository.delete.mockResolvedValue(undefined);
+  describe('softDelete', () => {
+    it('delegates to repository.softDelete', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
 
-      await commentsRepository.delete('comment-1');
+      await commentsRepository.softDelete('comment-1');
 
-      expect(repository.delete).toHaveBeenCalledWith('comment-1');
+      expect(repository.softDelete).toHaveBeenCalledWith('comment-1');
     });
   });
 });

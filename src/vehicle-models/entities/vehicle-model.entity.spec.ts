@@ -96,4 +96,8 @@ describe('VehicleModel entity', () => {
     expect(findColumn('createdAt')?.options.name).toBe('created_at');
     expect(findColumn('updatedAt')?.options.name).toBe('updated_at');
   });
+
+  it('maps deletedAt to a deleted_at column', () => {
+    expect(findColumn('deletedAt')?.options.name).toBe('deleted_at');
+  });
 });

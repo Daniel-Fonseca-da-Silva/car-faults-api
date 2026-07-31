@@ -11,7 +11,7 @@ describe('FixesRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
     createQueryBuilder: jest.Mock;
   };
   let queryBuilder: {
@@ -40,7 +40,7 @@ describe('FixesRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
 
@@ -116,13 +116,13 @@ describe('FixesRepository', () => {
     });
   });
 
-  describe('delete', () => {
-    it('delegates to repository.delete', async () => {
-      repository.delete.mockResolvedValue(undefined);
+  describe('softDelete', () => {
+    it('delegates to repository.softDelete', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
 
-      await fixesRepository.delete('fix-1');
+      await fixesRepository.softDelete('fix-1');
 
-      expect(repository.delete).toHaveBeenCalledWith('fix-1');
+      expect(repository.softDelete).toHaveBeenCalledWith('fix-1');
     });
   });
 

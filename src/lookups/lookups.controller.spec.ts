@@ -60,8 +60,19 @@ describe('LookupsController', () => {
 
       const result = await lookupsController.lookup(anonymousReq, query);
 
-      expect(lookupsService.lookup).toHaveBeenCalledWith(query);
+      expect(lookupsService.lookup).toHaveBeenCalledWith(query, undefined);
       expect(result).toBe(response);
+    });
+
+    it('forwards the x-turnstile-token header to the service', async () => {
+      lookupsService.lookup.mockResolvedValue(response);
+
+      await lookupsController.lookup(anonymousReq, query, 'turnstile-token');
+
+      expect(lookupsService.lookup).toHaveBeenCalledWith(
+        query,
+        'turnstile-token',
+      );
     });
 
     it('does not record a search when the request is anonymous', async () => {

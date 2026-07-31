@@ -13,7 +13,7 @@ describe('ReviewsService', () => {
     findByUserAndKnownIssue: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
   };
   let knownIssuesService: { findById: jest.Mock };
 
@@ -36,7 +36,7 @@ describe('ReviewsService', () => {
       findByUserAndKnownIssue: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
     };
     knownIssuesService = { findById: jest.fn() };
 
@@ -171,7 +171,7 @@ describe('ReviewsService', () => {
 
       await reviewsService.remove('review-1', userId);
 
-      expect(reviewsRepository.delete).toHaveBeenCalledWith('review-1');
+      expect(reviewsRepository.softDelete).toHaveBeenCalledWith('review-1');
     });
 
     it('throws NotFoundException when the review does not exist', async () => {
@@ -180,7 +180,7 @@ describe('ReviewsService', () => {
       await expect(reviewsService.remove('review-1', userId)).rejects.toThrow(
         NotFoundException,
       );
-      expect(reviewsRepository.delete).not.toHaveBeenCalled();
+      expect(reviewsRepository.softDelete).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when the review belongs to another user', async () => {
@@ -191,7 +191,7 @@ describe('ReviewsService', () => {
       await expect(reviewsService.remove('review-1', userId)).rejects.toThrow(
         NotFoundException,
       );
-      expect(reviewsRepository.delete).not.toHaveBeenCalled();
+      expect(reviewsRepository.softDelete).not.toHaveBeenCalled();
     });
   });
 });
