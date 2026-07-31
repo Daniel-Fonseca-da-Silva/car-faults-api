@@ -39,8 +39,8 @@ export class FixesRepository {
     return this.repository.save(fix);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.repository.delete(id);
+  async softDelete(id: string): Promise<void> {
+    await this.repository.softDelete(id);
   }
 
   async findByKnownIssueIdWithCounts(

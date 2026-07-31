@@ -27,7 +27,7 @@ export class FixVotesRepository {
     return this.repository.save(vote);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.repository.delete(id);
+  async softDelete(id: string): Promise<void> {
+    await this.repository.softDelete(id);
   }
 }

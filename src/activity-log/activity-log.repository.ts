@@ -32,12 +32,12 @@ export class ActivityLogRepository {
     });
   }
 
-  async deleteFavorite(userId: string, resourceId: string): Promise<void> {
-    await this.repository.delete({
-      userId,
-      resourceId,
-      type: ActivityLogType.VEHICLE_FAVORITE,
-    });
+  async softDelete(criteria: {
+    userId: string;
+    resourceId: string;
+    type: ActivityLogType;
+  }): Promise<void> {
+    await this.repository.softDelete(criteria);
   }
 
   countByUserAndType(userId: string, type: ActivityLogType): Promise<number> {

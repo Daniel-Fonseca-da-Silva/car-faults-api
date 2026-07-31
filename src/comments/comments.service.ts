@@ -51,7 +51,7 @@ export class CommentsService {
 
   async remove(id: string, userId: string): Promise<void> {
     await this.getOwned(id, userId);
-    await this.commentsRepository.delete(id);
+    await this.commentsRepository.softDelete(id);
   }
 
   private async getOwned(id: string, userId: string): Promise<Comment> {

@@ -118,7 +118,7 @@ export class FixesService {
 
   async remove(id: string, userId: string): Promise<void> {
     const fix = await this.getOwned(id, userId);
-    await this.fixesRepository.delete(id);
+    await this.fixesRepository.softDelete(id);
     await this.evictLookupCacheForFix(fix);
   }
 
@@ -164,7 +164,7 @@ export class FixesService {
       throw new NotFoundException('Vote not found');
     }
 
-    await this.fixVotesRepository.delete(existing.id);
+    await this.fixVotesRepository.softDelete(existing.id);
     await this.evictLookupCacheForFix(fix);
     await this.evictCacheKey(userStatsCacheKey(userId));
   }
