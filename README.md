@@ -122,11 +122,11 @@ npm run test
 # e2e tests
 npm run test:e2e
 
-# coverage
-npm run test:cov
+# coverage (prints a Coverage summary at the end)
+npm run test:coverage
 ```
 
-Global coverage (statements, branches, functions, lines) must stay at **90%+**. PRs and pushes to `main` run `npm run test:cov` in CI and fail below that threshold.
+Global coverage (statements, branches, functions, lines) must stay at **90%+**. `npm run test:cov` is a legacy alias for `npm run test:coverage`. PRs and pushes to `main` run `npm run test:cov` in CI and fail below that threshold.
 
 ## License
 
