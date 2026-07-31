@@ -89,6 +89,7 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
     ]);
   });
 
@@ -103,6 +104,7 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
     ]);
   });
 
@@ -117,12 +119,15 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2002:1.0:es-ES',
       'vehicle:lookup:Volkswagen:Polo:2003:1.0',
       'vehicle:lookup:Volkswagen:Polo:2003:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2003:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2003:1.0:es-ES',
     ]);
   });
 
@@ -139,10 +144,12 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:3',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:3',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2002:1.0:es-ES',
     ]);
   });
 
@@ -159,10 +166,12 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:diesel',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:diesel',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2002:1.0:es-ES',
     ]);
   });
 
@@ -181,6 +190,7 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:diesel',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
+      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
     ]);
   });
 });

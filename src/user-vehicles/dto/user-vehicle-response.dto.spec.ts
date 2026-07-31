@@ -1,5 +1,6 @@
 import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
 import { IssueSeverity } from '../../known-issues/enums/issue-severity.enum';
+import { FuelType } from '../../vehicle-models/enums/fuel-type.enum';
 import { UserVehicle } from '../entities/user-vehicle.entity';
 import {
   UserVehicleDetailResponseDto,
@@ -17,6 +18,7 @@ describe('user vehicle response DTOs', () => {
     engine: '1.0',
     name: 'Meu Polo',
     doors: 3,
+    vehicleModel: { fuelType: FuelType.GASOLINE },
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
   } as unknown as UserVehicle;
@@ -48,7 +50,19 @@ describe('user vehicle response DTOs', () => {
         engine: '1.0',
         name: 'Meu Polo',
         doors: 3,
+        fuelType: FuelType.GASOLINE,
       });
+    });
+
+    it('maps fuelType to null when there is no linked vehicle model', () => {
+      const unlinkedUserVehicle = {
+        ...userVehicle,
+        vehicleModel: null,
+      } as unknown as UserVehicle;
+
+      const dto = new UserVehicleResponseDto(unlinkedUserVehicle);
+
+      expect(dto.fuelType).toBeNull();
     });
   });
 
