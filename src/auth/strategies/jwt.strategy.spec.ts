@@ -49,4 +49,34 @@ describe('JwtStrategy', () => {
       );
     });
   });
+
+  describe('jwtFromRequest extractor', () => {
+    function extract(req: unknown): string | null {
+      const options = jwtStrategy as unknown as {
+        _jwtFromRequest: (req: unknown) => string | null;
+      };
+      return options._jwtFromRequest(req);
+    }
+
+    it('extracts the token from the access_token cookie', () => {
+      const req = { cookies: { access_token: 'cookie-jwt' }, headers: {} };
+
+      expect(extract(req)).toBe('cookie-jwt');
+    });
+
+    it('falls back to the Authorization bearer header when there is no cookie', () => {
+      const req = {
+        cookies: {},
+        headers: { authorization: 'Bearer header-jwt' },
+      };
+
+      expect(extract(req)).toBe('header-jwt');
+    });
+
+    it('returns null when neither the cookie nor the header carry a token', () => {
+      const req = { cookies: {}, headers: {} };
+
+      expect(extract(req)).toBeNull();
+    });
+  });
 });
