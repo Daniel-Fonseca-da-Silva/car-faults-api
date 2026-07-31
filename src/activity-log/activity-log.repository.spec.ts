@@ -10,7 +10,7 @@ describe('ActivityLogRepository', () => {
     create: jest.Mock;
     save: jest.Mock;
     findOne: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
     count: jest.Mock;
   };
 
@@ -19,7 +19,7 @@ describe('ActivityLogRepository', () => {
       create: jest.fn(),
       save: jest.fn(),
       findOne: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
       count: jest.fn(),
     };
 
@@ -86,13 +86,17 @@ describe('ActivityLogRepository', () => {
     });
   });
 
-  describe('deleteFavorite', () => {
-    it('deletes by userId, resourceId and the vehicle_favorite type', async () => {
-      repository.delete.mockResolvedValue(undefined);
+  describe('softDelete', () => {
+    it('soft-deletes by userId, resourceId and type', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
 
-      await activityLogRepository.deleteFavorite('user-1', 'vehicle-1');
+      await activityLogRepository.softDelete({
+        userId: 'user-1',
+        resourceId: 'vehicle-1',
+        type: ActivityLogType.VEHICLE_FAVORITE,
+      });
 
-      expect(repository.delete).toHaveBeenCalledWith({
+      expect(repository.softDelete).toHaveBeenCalledWith({
         userId: 'user-1',
         resourceId: 'vehicle-1',
         type: ActivityLogType.VEHICLE_FAVORITE,

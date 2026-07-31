@@ -73,7 +73,7 @@ export class ReviewsService {
 
   async remove(id: string, userId: string): Promise<void> {
     await this.getOwned(id, userId);
-    await this.reviewsRepository.delete(id);
+    await this.reviewsRepository.softDelete(id);
   }
 
   private async getOwned(id: string, userId: string): Promise<Review> {

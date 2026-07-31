@@ -8,6 +8,11 @@ export const authThrottlerOptions = {
   limit: Number(process.env.THROTTLE_AUTH_LIMIT),
 };
 
+export const lookupsThrottlerOptions = {
+  ttl: Number(process.env.THROTTLE_LOOKUPS_TTL_MS),
+  limit: Number(process.env.THROTTLE_LOOKUPS_LIMIT),
+};
+
 export function createThrottlerOptions(
   config: ConfigService,
 ): ThrottlerModuleOptions {

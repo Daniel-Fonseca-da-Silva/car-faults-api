@@ -12,7 +12,7 @@ describe('ActivityLogService', () => {
     create: jest.Mock;
     save: jest.Mock;
     findFavorite: jest.Mock;
-    deleteFavorite: jest.Mock;
+    softDelete: jest.Mock;
     countByUserAndType: jest.Mock;
   };
   let cache: { del: jest.Mock };
@@ -24,7 +24,7 @@ describe('ActivityLogService', () => {
       create: jest.fn(),
       save: jest.fn(),
       findFavorite: jest.fn(),
-      deleteFavorite: jest.fn(),
+      softDelete: jest.fn(),
       countByUserAndType: jest.fn(),
     };
     cache = { del: jest.fn().mockResolvedValue(undefined) };
@@ -150,7 +150,7 @@ describe('ActivityLogService', () => {
       await expect(
         activityLogService.unfavoriteVehicle(userId, 'vm-1'),
       ).rejects.toThrow(NotFoundException);
-      expect(activityLogRepository.deleteFavorite).not.toHaveBeenCalled();
+      expect(activityLogRepository.softDelete).not.toHaveBeenCalled();
     });
 
     it('deletes the favorite and evicts the stats cache', async () => {
@@ -160,10 +160,11 @@ describe('ActivityLogService', () => {
 
       await activityLogService.unfavoriteVehicle(userId, 'vm-1');
 
-      expect(activityLogRepository.deleteFavorite).toHaveBeenCalledWith(
+      expect(activityLogRepository.softDelete).toHaveBeenCalledWith({
         userId,
-        'vm-1',
-      );
+        resourceId: 'vm-1',
+        type: ActivityLogType.VEHICLE_FAVORITE,
+      });
       expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
     });
   });

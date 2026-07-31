@@ -17,7 +17,7 @@ describe('UserVehiclesService', () => {
     findByUniqueKey: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
     countByUserId: jest.Mock;
   };
   let vehicleModelsService: { findById: jest.Mock; findByLookup: jest.Mock };
@@ -47,7 +47,7 @@ describe('UserVehiclesService', () => {
       findByUniqueKey: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
       countByUserId: jest.fn(),
     };
     vehicleModelsService = {
@@ -475,7 +475,7 @@ describe('UserVehiclesService', () => {
 
       await userVehiclesService.remove('uv-1', userId);
 
-      expect(userVehiclesRepository.delete).toHaveBeenCalledWith('uv-1');
+      expect(userVehiclesRepository.softDelete).toHaveBeenCalledWith('uv-1');
       expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
     });
 
@@ -485,7 +485,7 @@ describe('UserVehiclesService', () => {
       await expect(userVehiclesService.remove('uv-1', userId)).rejects.toThrow(
         NotFoundException,
       );
-      expect(userVehiclesRepository.delete).not.toHaveBeenCalled();
+      expect(userVehiclesRepository.softDelete).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when the vehicle belongs to another user', async () => {
@@ -496,7 +496,7 @@ describe('UserVehiclesService', () => {
       await expect(userVehiclesService.remove('uv-1', userId)).rejects.toThrow(
         NotFoundException,
       );
-      expect(userVehiclesRepository.delete).not.toHaveBeenCalled();
+      expect(userVehiclesRepository.softDelete).not.toHaveBeenCalled();
     });
 
     it('does not fail the request when stats cache eviction errors', async () => {

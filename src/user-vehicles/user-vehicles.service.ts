@@ -191,7 +191,7 @@ export class UserVehiclesService {
 
   async remove(id: string, userId: string): Promise<void> {
     await this.getOwned(id, userId);
-    await this.userVehiclesRepository.delete(id);
+    await this.userVehiclesRepository.softDelete(id);
     await this.evictStatsCache(userId);
   }
 

@@ -23,7 +23,7 @@ describe('FixesService', () => {
     findById: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
     findByKnownIssueIdWithCounts: jest.Mock;
     findByIdWithCounts: jest.Mock;
   };
@@ -31,7 +31,7 @@ describe('FixesService', () => {
     findByFixAndUser: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
     countByUserIdAndValue: jest.Mock;
   };
   let knownIssuesService: { findById: jest.Mock };
@@ -68,7 +68,7 @@ describe('FixesService', () => {
       findById: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
       findByKnownIssueIdWithCounts: jest.fn(),
       findByIdWithCounts: jest.fn(),
     };
@@ -76,7 +76,7 @@ describe('FixesService', () => {
       findByFixAndUser: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
       countByUserIdAndValue: jest.fn(),
     };
     knownIssuesService = { findById: jest.fn() };
@@ -270,7 +270,7 @@ describe('FixesService', () => {
 
       await fixesService.remove('fix-1', userId);
 
-      expect(fixesRepository.delete).toHaveBeenCalledWith('fix-1');
+      expect(fixesRepository.softDelete).toHaveBeenCalledWith('fix-1');
       expect(cache.del).toHaveBeenCalled();
     });
 
@@ -280,7 +280,7 @@ describe('FixesService', () => {
       await expect(fixesService.remove('fix-1', userId)).rejects.toThrow(
         NotFoundException,
       );
-      expect(fixesRepository.delete).not.toHaveBeenCalled();
+      expect(fixesRepository.softDelete).not.toHaveBeenCalled();
     });
   });
 
@@ -390,7 +390,7 @@ describe('FixesService', () => {
 
       await fixesService.removeVote('fix-1', userId);
 
-      expect(fixVotesRepository.delete).toHaveBeenCalledWith('vote-1');
+      expect(fixVotesRepository.softDelete).toHaveBeenCalledWith('vote-1');
       expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
     });
   });
@@ -402,7 +402,7 @@ describe('FixesService', () => {
 
       await fixesService.remove('fix-1', userId);
 
-      expect(fixesRepository.delete).toHaveBeenCalledWith('fix-1');
+      expect(fixesRepository.softDelete).toHaveBeenCalledWith('fix-1');
       expect(vehicleModelsService.findById).not.toHaveBeenCalled();
       expect(cache.del).not.toHaveBeenCalled();
     });
@@ -413,7 +413,7 @@ describe('FixesService', () => {
 
       await fixesService.remove('fix-1', userId);
 
-      expect(fixesRepository.delete).toHaveBeenCalledWith('fix-1');
+      expect(fixesRepository.softDelete).toHaveBeenCalledWith('fix-1');
       expect(cache.del).not.toHaveBeenCalled();
     });
 
@@ -424,7 +424,7 @@ describe('FixesService', () => {
       await expect(
         fixesService.remove('fix-1', userId),
       ).resolves.toBeUndefined();
-      expect(fixesRepository.delete).toHaveBeenCalledWith('fix-1');
+      expect(fixesRepository.softDelete).toHaveBeenCalledWith('fix-1');
     });
   });
 });

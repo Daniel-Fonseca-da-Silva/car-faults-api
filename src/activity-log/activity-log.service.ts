@@ -82,7 +82,11 @@ export class ActivityLogService {
       throw new NotFoundException('Favorite not found');
     }
 
-    await this.activityLogRepository.deleteFavorite(userId, vehicleModelId);
+    await this.activityLogRepository.softDelete({
+      userId,
+      resourceId: vehicleModelId,
+      type: ActivityLogType.VEHICLE_FAVORITE,
+    });
     await this.evictStatsCache(userId);
   }
 

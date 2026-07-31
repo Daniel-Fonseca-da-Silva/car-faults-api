@@ -10,7 +10,7 @@ describe('FixVotesRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
     count: jest.Mock;
   };
 
@@ -19,7 +19,7 @@ describe('FixVotesRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
       count: jest.fn(),
     };
 
@@ -86,13 +86,13 @@ describe('FixVotesRepository', () => {
     });
   });
 
-  describe('delete', () => {
-    it('delegates to repository.delete', async () => {
-      repository.delete.mockResolvedValue(undefined);
+  describe('softDelete', () => {
+    it('delegates to repository.softDelete', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
 
-      await fixVotesRepository.delete('vote-1');
+      await fixVotesRepository.softDelete('vote-1');
 
-      expect(repository.delete).toHaveBeenCalledWith('vote-1');
+      expect(repository.softDelete).toHaveBeenCalledWith('vote-1');
     });
   });
 

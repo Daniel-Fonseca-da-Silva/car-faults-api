@@ -11,7 +11,7 @@ describe('ReviewsRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    delete: jest.Mock;
+    softDelete: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -20,7 +20,7 @@ describe('ReviewsRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      delete: jest.fn(),
+      softDelete: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -130,13 +130,13 @@ describe('ReviewsRepository', () => {
     });
   });
 
-  describe('delete', () => {
-    it('delegates to repository.delete', async () => {
-      repository.delete.mockResolvedValue(undefined);
+  describe('softDelete', () => {
+    it('delegates to repository.softDelete', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
 
-      await reviewsRepository.delete('review-1');
+      await reviewsRepository.softDelete('review-1');
 
-      expect(repository.delete).toHaveBeenCalledWith('review-1');
+      expect(repository.softDelete).toHaveBeenCalledWith('review-1');
     });
   });
 });
