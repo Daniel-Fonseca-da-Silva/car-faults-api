@@ -1,4 +1,13 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiOkResponse,
   ApiOperation,
@@ -6,21 +15,28 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import {
   authThrottlerOptions,
   THROTTLER_DEFAULT_NAME,
 } from '../common/throttler/throttler-options.factory';
 import { User } from '../users/entities/user.entity';
+import {
+  ACCESS_TOKEN_COOKIE_NAME,
+  createAccessTokenCookieOptions,
+} from './access-token-cookie.factory';
 import { AuthService } from './auth.service';
-import { AuthResponseDto } from './dto/auth-response.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { resolveLocale } from './locale.util';
 
 @ApiTags('auth')
 @Controller('auth')
 @Throttle({ [THROTTLER_DEFAULT_NAME]: authThrottlerOptions })
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Get('google')
   @UseGuards(GoogleAuthGuard)
@@ -37,11 +53,32 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback' })
   @ApiOkResponse({
-    description: 'User authenticated, returns access token and profile',
-    type: AuthResponseDto,
+    description:
+      'Sets an httpOnly access token cookie and redirects to the web app',
   })
   @ApiUnauthorizedResponse({ description: 'Google authentication failed' })
-  googleCallback(@Req() req: Request): AuthResponseDto {
-    return this.authService.login(req.user as User);
+  googleCallback(@Req() req: Request, @Res() res: Response): void {
+    const { accessToken } = this.authService.login(req.user as User);
+    const maxAge = this.authService.resolveAccessTokenExpiryMs(accessToken);
+
+    res.cookie(ACCESS_TOKEN_COOKIE_NAME, accessToken, {
+      ...createAccessTokenCookieOptions(this.config),
+      maxAge,
+    });
+
+    const locale = resolveLocale(req.query.state);
+    const webAppUrl = this.config.getOrThrow<string>('WEB_APP_URL');
+    res.redirect(`${webAppUrl}/${locale}/auth/callback?token=${accessToken}`);
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'Log out and clear the access token cookie' })
+  @ApiOkResponse({ description: 'Access token cookie cleared' })
+  logout(@Res() res: Response): void {
+    res.clearCookie(
+      ACCESS_TOKEN_COOKIE_NAME,
+      createAccessTokenCookieOptions(this.config),
+    );
+    res.status(HttpStatus.NO_CONTENT).send();
   }
 }

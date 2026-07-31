@@ -42,4 +42,9 @@ export class AuthService {
       user: new UserResponseDto(user),
     });
   }
+
+  resolveAccessTokenExpiryMs(accessToken: string): number {
+    const { exp } = this.jwtService.decode<{ exp: number }>(accessToken);
+    return Math.max(exp * 1000 - Date.now(), 0);
+  }
 }
