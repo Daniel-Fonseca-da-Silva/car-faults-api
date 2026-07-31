@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
 import { KnownIssueResponseDto } from '../../lookups/dto/lookup-response.dto';
+import { FuelType } from '../../vehicle-models/enums/fuel-type.enum';
 import { UserVehicle } from '../entities/user-vehicle.entity';
 
 export class UserVehicleResponseDto {
@@ -31,6 +32,13 @@ export class UserVehicleResponseDto {
   @ApiPropertyOptional({ example: 3, nullable: true })
   doors: number | null;
 
+  @ApiPropertyOptional({
+    enum: FuelType,
+    example: FuelType.DIESEL,
+    nullable: true,
+  })
+  fuelType: FuelType | null;
+
   @ApiProperty({ example: '2026-07-17T10:00:00.000Z' })
   createdAt: Date;
 
@@ -46,6 +54,7 @@ export class UserVehicleResponseDto {
     this.engine = userVehicle.engine;
     this.name = userVehicle.name;
     this.doors = userVehicle.doors;
+    this.fuelType = userVehicle.vehicleModel?.fuelType ?? null;
     this.createdAt = userVehicle.createdAt;
     this.updatedAt = userVehicle.updatedAt;
   }

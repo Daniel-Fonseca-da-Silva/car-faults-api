@@ -196,7 +196,7 @@ describe('LookupsService', () => {
       vehicleModelsService.findByLookup.mockResolvedValue(null);
 
       const aiResult: AiLookupResult = {
-        vehicle: { ...aiVehicleResult, doors: 3, techSpecs: { hp: 50 } },
+        vehicle: { ...aiVehicleResult, doors: 3, techSpecs: { power_hp: 50 } },
         knownIssues: [
           {
             title: 'Gearbox',
@@ -253,7 +253,7 @@ describe('LookupsService', () => {
           engine: '1.0',
           doors: 3,
           fuelType: FuelType.DIESEL,
-          techSpecs: { hp: 50 },
+          techSpecs: { power_hp: 50 },
         },
         manager,
       );

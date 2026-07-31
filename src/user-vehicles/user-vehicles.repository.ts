@@ -19,7 +19,10 @@ export class UserVehiclesRepository {
   ) {}
 
   findAllByUserId(userId: string): Promise<UserVehicle[]> {
-    return this.repository.find({ where: { userId } });
+    return this.repository.find({
+      where: { userId },
+      relations: { vehicleModel: true },
+    });
   }
 
   countByUserId(userId: string): Promise<number> {
@@ -27,7 +30,10 @@ export class UserVehiclesRepository {
   }
 
   findById(id: string): Promise<UserVehicle | null> {
-    return this.repository.findOne({ where: { id } });
+    return this.repository.findOne({
+      where: { id },
+      relations: { vehicleModel: true },
+    });
   }
 
   findByUniqueKey(

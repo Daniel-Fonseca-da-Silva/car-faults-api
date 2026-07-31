@@ -59,6 +59,7 @@ describe('UserVehiclesRepository', () => {
 
       expect(repository.find).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
+        relations: { vehicleModel: true },
       });
       expect(result).toBe(userVehicles);
     });
@@ -73,6 +74,7 @@ describe('UserVehiclesRepository', () => {
 
       expect(repository.findOne).toHaveBeenCalledWith({
         where: { id: 'uv-1' },
+        relations: { vehicleModel: true },
       });
       expect(result).toBe(userVehicle);
     });
