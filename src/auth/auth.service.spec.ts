@@ -10,7 +10,7 @@ describe('AuthService', () => {
     findOptionalByGoogleId: jest.Mock;
     create: jest.Mock;
   };
-  let jwtService: { sign: jest.Mock };
+  let jwtService: { sign: jest.Mock; decode: jest.Mock };
 
   const profile = {
     googleId: 'google-1',
@@ -24,7 +24,7 @@ describe('AuthService', () => {
       findOptionalByGoogleId: jest.fn(),
       create: jest.fn(),
     };
-    jwtService = { sign: jest.fn() };
+    jwtService = { sign: jest.fn(), decode: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -93,6 +93,29 @@ describe('AuthService', () => {
         email: user.email,
         name: user.name,
       });
+    });
+  });
+
+  describe('resolveAccessTokenExpiryMs', () => {
+    it('returns the milliseconds remaining until the token expiry', () => {
+      const now = new Date('2026-01-01T00:00:00.000Z').getTime();
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+      jwtService.decode.mockReturnValue({ exp: now / 1000 + 3600 });
+
+      const result = authService.resolveAccessTokenExpiryMs('signed-jwt');
+
+      expect(jwtService.decode).toHaveBeenCalledWith('signed-jwt');
+      expect(result).toBe(3600000);
+    });
+
+    it('never returns a negative value for an already expired token', () => {
+      const now = new Date('2026-01-01T00:00:00.000Z').getTime();
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+      jwtService.decode.mockReturnValue({ exp: now / 1000 - 3600 });
+
+      const result = authService.resolveAccessTokenExpiryMs('signed-jwt');
+
+      expect(result).toBe(0);
     });
   });
 });
