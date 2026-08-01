@@ -103,6 +103,10 @@ docker compose ps   # postgres should be "healthy"
 
 The app runs locally (outside Docker) and connects to Postgres using the `DATABASE_*` variables in `.env`.
 
+### Storage (Cloudflare R2)
+
+Comment images upload to Cloudflare R2 via `POST /v1/storage/comment-images` (JWT, multipart, `image/jpeg|png|webp`, max 5 MB). Configure the `R2_*` variables in `.env`; `R2_PUBLIC_BASE_URL` is also the value comment `imageUrl`s must resolve under.
+
 ### Useful URLs
 
 | Resource | URL |
