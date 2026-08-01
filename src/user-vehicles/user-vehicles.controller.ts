@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -32,6 +33,7 @@ import {
   UserVehicleDetailResponseDto,
   UserVehicleResponseDto,
 } from './dto/user-vehicle-response.dto';
+import { UserVehiclesQueryDto } from './dto/user-vehicles-query.dto';
 import { UserVehiclesService } from './user-vehicles.service';
 
 @ApiTags('user-vehicles')
@@ -45,11 +47,18 @@ export class UserVehiclesController {
   @ApiOperation({ summary: "List the authenticated user's garage" })
   @ApiOkResponse({ type: [UserVehicleResponseDto] })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
-  async findAll(@Req() req: Request): Promise<UserVehicleResponseDto[]> {
+  async findAll(
+    @Req() req: Request,
+    @Query() query: UserVehiclesQueryDto,
+  ): Promise<UserVehicleResponseDto[]> {
     const user = req.user as User;
-    const userVehicles = await this.userVehiclesService.findAllByUser(user.id);
-    return userVehicles.map(
-      (userVehicle) => new UserVehicleResponseDto(userVehicle),
+    const items = await this.userVehiclesService.findAllByUserWithIssueCounts(
+      user.id,
+      query.language,
+    );
+    return items.map(
+      ({ userVehicle, knownIssuesCount }) =>
+        new UserVehicleResponseDto(userVehicle, knownIssuesCount),
     );
   }
 
@@ -63,14 +72,17 @@ export class UserVehiclesController {
   async findOne(
     @Req() req: Request,
     @Param('id') id: string,
+    @Query() query: UserVehiclesQueryDto,
   ): Promise<UserVehicleDetailResponseDto> {
     const user = req.user as User;
     const userVehicle = await this.userVehiclesService.findOneByUser(
       id,
       user.id,
     );
-    const knownIssues =
-      await this.userVehiclesService.findKnownIssues(userVehicle);
+    const knownIssues = await this.userVehiclesService.findKnownIssues(
+      userVehicle,
+      query.language,
+    );
     return new UserVehicleDetailResponseDto(userVehicle, knownIssues);
   }
 
@@ -92,7 +104,9 @@ export class UserVehiclesController {
       user.id,
       createUserVehicleDto,
     );
-    return new UserVehicleResponseDto(userVehicle);
+    const knownIssuesCount =
+      await this.userVehiclesService.countKnownIssues(userVehicle);
+    return new UserVehicleResponseDto(userVehicle, knownIssuesCount);
   }
 
   @Patch(':id')
@@ -116,7 +130,9 @@ export class UserVehiclesController {
       user.id,
       updateUserVehicleDto,
     );
-    return new UserVehicleResponseDto(userVehicle);
+    const knownIssuesCount =
+      await this.userVehiclesService.countKnownIssues(userVehicle);
+    return new UserVehicleResponseDto(userVehicle, knownIssuesCount);
   }
 
   @Delete(':id')

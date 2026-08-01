@@ -94,6 +94,14 @@ export class ActivityLogService {
     return this.activityLogRepository.countByUserAndType(userId, type);
   }
 
+  async isFavorited(userId: string, vehicleModelId: string): Promise<boolean> {
+    const existing = await this.activityLogRepository.findFavorite(
+      userId,
+      vehicleModelId,
+    );
+    return existing !== null;
+  }
+
   private async evictStatsCache(userId: string): Promise<void> {
     const key = userStatsCacheKey(userId);
     try {

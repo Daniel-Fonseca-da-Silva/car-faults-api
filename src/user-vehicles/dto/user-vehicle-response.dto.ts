@@ -39,13 +39,22 @@ export class UserVehicleResponseDto {
   })
   fuelType: FuelType | null;
 
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/vehicle-models/vw-polo.webp',
+    nullable: true,
+  })
+  imageUrl: string | null;
+
+  @ApiProperty({ example: 3 })
+  knownIssuesCount: number;
+
   @ApiProperty({ example: '2026-07-17T10:00:00.000Z' })
   createdAt: Date;
 
   @ApiProperty({ example: '2026-07-17T10:00:00.000Z' })
   updatedAt: Date;
 
-  constructor(userVehicle: UserVehicle) {
+  constructor(userVehicle: UserVehicle, knownIssuesCount: number) {
     this.id = userVehicle.id;
     this.vehicleModelId = userVehicle.vehicleModelId;
     this.brand = userVehicle.brand;
@@ -55,6 +64,8 @@ export class UserVehicleResponseDto {
     this.name = userVehicle.name;
     this.doors = userVehicle.doors;
     this.fuelType = userVehicle.vehicleModel?.fuelType ?? null;
+    this.imageUrl = userVehicle.vehicleModel?.imageUrl ?? null;
+    this.knownIssuesCount = knownIssuesCount;
     this.createdAt = userVehicle.createdAt;
     this.updatedAt = userVehicle.updatedAt;
   }
@@ -65,7 +76,7 @@ export class UserVehicleDetailResponseDto extends UserVehicleResponseDto {
   knownIssues: KnownIssueResponseDto[];
 
   constructor(userVehicle: UserVehicle, knownIssues: KnownIssue[]) {
-    super(userVehicle);
+    super(userVehicle, knownIssues.length);
     this.knownIssues = knownIssues.map(
       (knownIssue) => new KnownIssueResponseDto(knownIssue),
     );
