@@ -186,6 +186,28 @@ describe('ActivityLogService', () => {
     });
   });
 
+  describe('isFavorited', () => {
+    it('returns true when a favorite exists', async () => {
+      activityLogRepository.findFavorite.mockResolvedValue({ id: 'log-1' });
+
+      await expect(
+        activityLogService.isFavorited(userId, 'vm-1'),
+      ).resolves.toBe(true);
+      expect(activityLogRepository.findFavorite).toHaveBeenCalledWith(
+        userId,
+        'vm-1',
+      );
+    });
+
+    it('returns false when no favorite exists', async () => {
+      activityLogRepository.findFavorite.mockResolvedValue(null);
+
+      await expect(
+        activityLogService.isFavorited(userId, 'vm-1'),
+      ).resolves.toBe(false);
+    });
+  });
+
   describe('cache eviction failure handling', () => {
     it('logs a warning and does not throw when cache deletion fails on a write path', async () => {
       activityLogRepository.findFavorite.mockResolvedValue(null);

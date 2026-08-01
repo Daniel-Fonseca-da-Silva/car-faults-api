@@ -7,12 +7,13 @@ import { KnownIssuesRepository } from './known-issues.repository';
 
 describe('KnownIssuesRepository', () => {
   let knownIssuesRepository: KnownIssuesRepository;
-  let repository: { find: jest.Mock; findOne: jest.Mock };
+  let repository: { find: jest.Mock; findOne: jest.Mock; count: jest.Mock };
 
   beforeEach(async () => {
     repository = {
       find: jest.fn(),
       findOne: jest.fn(),
+      count: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -62,6 +63,35 @@ describe('KnownIssuesRepository', () => {
         relations: { fixes: true },
       });
       expect(result).toBe(knownIssues);
+    });
+  });
+
+  describe('countByVehicleModelId', () => {
+    it('delegates to repository.count filtered by vehicle model', async () => {
+      repository.count.mockResolvedValue(3);
+
+      const result = await knownIssuesRepository.countByVehicleModelId('vm-1');
+
+      expect(repository.count).toHaveBeenCalledWith({
+        where: { vehicleModelId: 'vm-1' },
+      });
+      expect(result).toBe(3);
+    });
+  });
+
+  describe('countByVehicleModelIdAndLocale', () => {
+    it('delegates to repository.count filtered by vehicle model and locale', async () => {
+      repository.count.mockResolvedValue(2);
+
+      const result = await knownIssuesRepository.countByVehicleModelIdAndLocale(
+        'vm-1',
+        LookupLocale.PtPt,
+      );
+
+      expect(repository.count).toHaveBeenCalledWith({
+        where: { vehicleModelId: 'vm-1', locale: LookupLocale.PtPt },
+      });
+      expect(result).toBe(2);
     });
   });
 

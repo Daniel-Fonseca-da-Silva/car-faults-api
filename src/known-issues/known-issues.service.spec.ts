@@ -10,6 +10,8 @@ describe('KnownIssuesService', () => {
   let knownIssuesRepository: {
     findByVehicleModelId: jest.Mock;
     findByVehicleModelIdAndLocale: jest.Mock;
+    countByVehicleModelId: jest.Mock;
+    countByVehicleModelIdAndLocale: jest.Mock;
     findById: jest.Mock;
     saveMany: jest.Mock;
   };
@@ -18,6 +20,8 @@ describe('KnownIssuesService', () => {
     knownIssuesRepository = {
       findByVehicleModelId: jest.fn(),
       findByVehicleModelIdAndLocale: jest.fn(),
+      countByVehicleModelId: jest.fn(),
+      countByVehicleModelIdAndLocale: jest.fn(),
       findById: jest.fn(),
       saveMany: jest.fn(),
     };
@@ -69,6 +73,35 @@ describe('KnownIssuesService', () => {
         knownIssuesRepository.findByVehicleModelIdAndLocale,
       ).toHaveBeenCalledWith('vm-1', LookupLocale.PtPt);
       expect(result).toBe(knownIssues);
+    });
+  });
+
+  describe('countByVehicleModelId', () => {
+    it('delegates to the repository', async () => {
+      knownIssuesRepository.countByVehicleModelId.mockResolvedValue(3);
+
+      const result = await knownIssuesService.countByVehicleModelId('vm-1');
+
+      expect(knownIssuesRepository.countByVehicleModelId).toHaveBeenCalledWith(
+        'vm-1',
+      );
+      expect(result).toBe(3);
+    });
+  });
+
+  describe('countByVehicleModelIdAndLocale', () => {
+    it('delegates to the repository', async () => {
+      knownIssuesRepository.countByVehicleModelIdAndLocale.mockResolvedValue(2);
+
+      const result = await knownIssuesService.countByVehicleModelIdAndLocale(
+        'vm-1',
+        LookupLocale.PtPt,
+      );
+
+      expect(
+        knownIssuesRepository.countByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.PtPt);
+      expect(result).toBe(2);
     });
   });
 
