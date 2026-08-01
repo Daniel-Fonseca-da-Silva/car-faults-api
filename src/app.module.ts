@@ -14,6 +14,7 @@ import { LoggerModule } from './logger/logger.module';
 import { LookupsModule } from './lookups/lookups.module';
 import { RedisModule } from './redis/redis.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { StorageModule } from './storage/storage.module';
 import { UserVehiclesModule } from './user-vehicles/user-vehicles.module';
 import { UsersModule } from './users/users.module';
 import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
@@ -38,6 +39,7 @@ import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
     LookupsModule,
     UserVehiclesModule,
     ReviewsModule,
+    StorageModule,
     CommentsModule,
   ],
   controllers: [],

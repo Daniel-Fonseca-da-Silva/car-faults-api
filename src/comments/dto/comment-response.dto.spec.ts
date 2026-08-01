@@ -25,6 +25,25 @@ describe('CommentResponseDto', () => {
     });
   });
 
+  it('defaults imageUrl to null when the comment has no image', () => {
+    const dto = new CommentResponseDto(comment);
+
+    expect(dto.imageUrl).toBeNull();
+  });
+
+  it('includes imageUrl when the comment has an image', () => {
+    const withImage = {
+      ...comment,
+      imageUrl: 'https://cdn.example.com/comments/user-1/uuid.jpg',
+    } as Comment;
+
+    const dto = new CommentResponseDto(withImage);
+
+    expect(dto.imageUrl).toBe(
+      'https://cdn.example.com/comments/user-1/uuid.jpg',
+    );
+  });
+
   it('defaults userName/userAvatarUrl to null when the user relation is not loaded', () => {
     const dto = new CommentResponseDto(comment);
 
