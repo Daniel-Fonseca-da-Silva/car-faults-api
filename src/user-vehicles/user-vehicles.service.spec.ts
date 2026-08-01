@@ -1,6 +1,7 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
@@ -21,7 +22,12 @@ describe('UserVehiclesService', () => {
     countByUserId: jest.Mock;
   };
   let vehicleModelsService: { findById: jest.Mock; findByLookup: jest.Mock };
-  let knownIssuesService: { findByVehicleModelId: jest.Mock };
+  let knownIssuesService: {
+    findByVehicleModelId: jest.Mock;
+    findByVehicleModelIdAndLocale: jest.Mock;
+    countByVehicleModelId: jest.Mock;
+    countByVehicleModelIdAndLocale: jest.Mock;
+  };
   let cache: { del: jest.Mock };
 
   const userId = 'user-1';
@@ -54,7 +60,12 @@ describe('UserVehiclesService', () => {
       findById: jest.fn(),
       findByLookup: jest.fn(),
     };
-    knownIssuesService = { findByVehicleModelId: jest.fn() };
+    knownIssuesService = {
+      findByVehicleModelId: jest.fn(),
+      findByVehicleModelIdAndLocale: jest.fn(),
+      countByVehicleModelId: jest.fn(),
+      countByVehicleModelIdAndLocale: jest.fn(),
+    };
     cache = { del: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -88,6 +99,87 @@ describe('UserVehiclesService', () => {
         userId,
       );
       expect(result).toBe(userVehicles);
+    });
+  });
+
+  describe('findAllByUserWithIssueCounts', () => {
+    it('pairs each vehicle with its known issues count from the catalog, defaulting to en-GB', async () => {
+      const linked = buildUserVehicle({ id: 'uv-1', vehicleModelId: 'vm-1' });
+      const unlinked = buildUserVehicle({ id: 'uv-2', vehicleModelId: null });
+      userVehiclesRepository.findAllByUserId.mockResolvedValue([
+        linked,
+        unlinked,
+      ]);
+      knownIssuesService.countByVehicleModelIdAndLocale.mockResolvedValue(3);
+
+      const result =
+        await userVehiclesService.findAllByUserWithIssueCounts(userId);
+
+      expect(
+        knownIssuesService.countByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.EnGb);
+      expect(
+        knownIssuesService.countByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([
+        { userVehicle: linked, knownIssuesCount: 3 },
+        { userVehicle: unlinked, knownIssuesCount: 0 },
+      ]);
+    });
+
+    it('propagates the given locale', async () => {
+      const linked = buildUserVehicle({ id: 'uv-1', vehicleModelId: 'vm-1' });
+      userVehiclesRepository.findAllByUserId.mockResolvedValue([linked]);
+      knownIssuesService.countByVehicleModelIdAndLocale.mockResolvedValue(2);
+
+      await userVehiclesService.findAllByUserWithIssueCounts(
+        userId,
+        LookupLocale.PtPt,
+      );
+
+      expect(
+        knownIssuesService.countByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.PtPt);
+    });
+  });
+
+  describe('countKnownIssues', () => {
+    it('returns 0 without querying the catalog when the vehicle has no vehicleModelId', async () => {
+      const result = await userVehiclesService.countKnownIssues(
+        buildUserVehicle({ vehicleModelId: null }),
+      );
+
+      expect(result).toBe(0);
+      expect(
+        knownIssuesService.countByVehicleModelIdAndLocale,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('delegates to KnownIssuesService with en-GB by default', async () => {
+      knownIssuesService.countByVehicleModelIdAndLocale.mockResolvedValue(3);
+
+      const result = await userVehiclesService.countKnownIssues(
+        buildUserVehicle({ vehicleModelId: 'vm-1' }),
+      );
+
+      expect(
+        knownIssuesService.countByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.EnGb);
+      expect(result).toBe(3);
+    });
+
+    it('delegates to KnownIssuesService with the given locale', async () => {
+      knownIssuesService.countByVehicleModelIdAndLocale.mockResolvedValue(1);
+
+      const result = await userVehiclesService.countKnownIssues(
+        buildUserVehicle({ vehicleModelId: 'vm-1' }),
+        LookupLocale.PtPt,
+      );
+
+      expect(
+        knownIssuesService.countByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.PtPt);
+      expect(result).toBe(1);
     });
   });
 
@@ -138,20 +230,41 @@ describe('UserVehiclesService', () => {
       );
 
       expect(result).toEqual([]);
-      expect(knownIssuesService.findByVehicleModelId).not.toHaveBeenCalled();
+      expect(
+        knownIssuesService.findByVehicleModelIdAndLocale,
+      ).not.toHaveBeenCalled();
     });
 
-    it('delegates to KnownIssuesService when the vehicle is linked to the catalog', async () => {
+    it('delegates to KnownIssuesService with en-GB by default', async () => {
       const knownIssues = [{ id: 'ki-1' }] as KnownIssue[];
-      knownIssuesService.findByVehicleModelId.mockResolvedValue(knownIssues);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue(
+        knownIssues,
+      );
 
       const result = await userVehiclesService.findKnownIssues(
         buildUserVehicle({ vehicleModelId: 'vm-1' }),
       );
 
-      expect(knownIssuesService.findByVehicleModelId).toHaveBeenCalledWith(
-        'vm-1',
+      expect(
+        knownIssuesService.findByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.EnGb);
+      expect(result).toBe(knownIssues);
+    });
+
+    it('delegates to KnownIssuesService with the given locale', async () => {
+      const knownIssues = [{ id: 'ki-2' }] as KnownIssue[];
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue(
+        knownIssues,
       );
+
+      const result = await userVehiclesService.findKnownIssues(
+        buildUserVehicle({ vehicleModelId: 'vm-1' }),
+        LookupLocale.PtPt,
+      );
+
+      expect(
+        knownIssuesService.findByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.PtPt);
       expect(result).toBe(knownIssues);
     });
   });

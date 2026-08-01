@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateUserVehicleDto } from './dto/create-user-vehicle.dto';
@@ -12,9 +13,10 @@ import { UserVehiclesService } from './user-vehicles.service';
 describe('UserVehiclesController', () => {
   let userVehiclesController: UserVehiclesController;
   let userVehiclesService: {
-    findAllByUser: jest.Mock;
+    findAllByUserWithIssueCounts: jest.Mock;
     findOneByUser: jest.Mock;
     findKnownIssues: jest.Mock;
+    countKnownIssues: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
     remove: jest.Mock;
@@ -39,9 +41,10 @@ describe('UserVehiclesController', () => {
 
   beforeEach(async () => {
     userVehiclesService = {
-      findAllByUser: jest.fn(),
+      findAllByUserWithIssueCounts: jest.fn(),
       findOneByUser: jest.fn(),
       findKnownIssues: jest.fn(),
+      countKnownIssues: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
@@ -65,14 +68,34 @@ describe('UserVehiclesController', () => {
   });
 
   describe('findAll', () => {
-    it("returns the authenticated user's serialized garage", async () => {
-      userVehiclesService.findAllByUser.mockResolvedValue([userVehicle]);
+    it("returns the authenticated user's serialized garage with issue counts, defaulting locale to undefined", async () => {
+      userVehiclesService.findAllByUserWithIssueCounts.mockResolvedValue([
+        { userVehicle, knownIssuesCount: 2 },
+      ]);
 
-      const result = await userVehiclesController.findAll(req);
+      const result = await userVehiclesController.findAll(req, {});
 
-      expect(userVehiclesService.findAllByUser).toHaveBeenCalledWith('user-1');
+      expect(
+        userVehiclesService.findAllByUserWithIssueCounts,
+      ).toHaveBeenCalledWith('user-1', undefined);
       expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({ id: 'uv-1', brand: 'Volkswagen' });
+      expect(result[0]).toMatchObject({
+        id: 'uv-1',
+        brand: 'Volkswagen',
+        knownIssuesCount: 2,
+      });
+    });
+
+    it('propagates the requested language', async () => {
+      userVehiclesService.findAllByUserWithIssueCounts.mockResolvedValue([]);
+
+      await userVehiclesController.findAll(req, {
+        language: LookupLocale.PtPt,
+      });
+
+      expect(
+        userVehiclesService.findAllByUserWithIssueCounts,
+      ).toHaveBeenCalledWith('user-1', LookupLocale.PtPt);
     });
   });
 
@@ -82,7 +105,7 @@ describe('UserVehiclesController', () => {
       userVehiclesService.findOneByUser.mockResolvedValue(userVehicle);
       userVehiclesService.findKnownIssues.mockResolvedValue(knownIssues);
 
-      const result = await userVehiclesController.findOne(req, 'uv-1');
+      const result = await userVehiclesController.findOne(req, 'uv-1', {});
 
       expect(userVehiclesService.findOneByUser).toHaveBeenCalledWith(
         'uv-1',
@@ -90,9 +113,24 @@ describe('UserVehiclesController', () => {
       );
       expect(userVehiclesService.findKnownIssues).toHaveBeenCalledWith(
         userVehicle,
+        undefined,
       );
       expect(result).toMatchObject({ id: 'uv-1' });
       expect(result.knownIssues).toHaveLength(1);
+    });
+
+    it('propagates the requested language', async () => {
+      userVehiclesService.findOneByUser.mockResolvedValue(userVehicle);
+      userVehiclesService.findKnownIssues.mockResolvedValue([]);
+
+      await userVehiclesController.findOne(req, 'uv-1', {
+        language: LookupLocale.PtPt,
+      });
+
+      expect(userVehiclesService.findKnownIssues).toHaveBeenCalledWith(
+        userVehicle,
+        LookupLocale.PtPt,
+      );
     });
   });
 
@@ -105,11 +143,15 @@ describe('UserVehiclesController', () => {
         engine: '1.0',
       };
       userVehiclesService.create.mockResolvedValue(userVehicle);
+      userVehiclesService.countKnownIssues.mockResolvedValue(0);
 
       const result = await userVehiclesController.create(req, dto);
 
       expect(userVehiclesService.create).toHaveBeenCalledWith('user-1', dto);
-      expect(result).toMatchObject({ id: 'uv-1' });
+      expect(userVehiclesService.countKnownIssues).toHaveBeenCalledWith(
+        userVehicle,
+      );
+      expect(result).toMatchObject({ id: 'uv-1', knownIssuesCount: 0 });
     });
   });
 
@@ -118,6 +160,7 @@ describe('UserVehiclesController', () => {
       const dto: UpdateUserVehicleDto = { name: 'Meu Polo' };
       const updated = { ...userVehicle, name: 'Meu Polo' };
       userVehiclesService.update.mockResolvedValue(updated);
+      userVehiclesService.countKnownIssues.mockResolvedValue(2);
 
       const result = await userVehiclesController.update(req, 'uv-1', dto);
 
@@ -126,7 +169,14 @@ describe('UserVehiclesController', () => {
         'user-1',
         dto,
       );
-      expect(result).toMatchObject({ id: 'uv-1', name: 'Meu Polo' });
+      expect(userVehiclesService.countKnownIssues).toHaveBeenCalledWith(
+        updated,
+      );
+      expect(result).toMatchObject({
+        id: 'uv-1',
+        name: 'Meu Polo',
+        knownIssuesCount: 2,
+      });
     });
   });
 

@@ -12,6 +12,20 @@ export class KnownIssuesService {
     return this.knownIssuesRepository.findByVehicleModelId(vehicleModelId);
   }
 
+  countByVehicleModelId(vehicleModelId: string): Promise<number> {
+    return this.knownIssuesRepository.countByVehicleModelId(vehicleModelId);
+  }
+
+  countByVehicleModelIdAndLocale(
+    vehicleModelId: string,
+    locale: LookupLocale,
+  ): Promise<number> {
+    return this.knownIssuesRepository.countByVehicleModelIdAndLocale(
+      vehicleModelId,
+      locale,
+    );
+  }
+
   findByVehicleModelIdAndLocale(
     vehicleModelId: string,
     locale: LookupLocale,

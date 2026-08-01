@@ -14,6 +14,7 @@ describe('ActivityLogController', () => {
     recordDefectConsulted: jest.Mock;
     favoriteVehicle: jest.Mock;
     unfavoriteVehicle: jest.Mock;
+    isFavorited: jest.Mock;
   };
 
   const user = { id: 'user-1' } as User;
@@ -34,6 +35,7 @@ describe('ActivityLogController', () => {
       recordDefectConsulted: jest.fn(),
       favoriteVehicle: jest.fn(),
       unfavoriteVehicle: jest.fn(),
+      isFavorited: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -96,6 +98,31 @@ describe('ActivityLogController', () => {
       expect(result).toMatchObject({
         id: 'log-1',
         type: ActivityLogType.VEHICLE_FAVORITE,
+      });
+    });
+  });
+
+  describe('getFavoriteStatus', () => {
+    it('returns favorited: true when the service reports a favorite', async () => {
+      activityLogService.isFavorited.mockResolvedValue(true);
+
+      const result = await activityLogController.getFavoriteStatus(req, 'vm-1');
+
+      expect(activityLogService.isFavorited).toHaveBeenCalledWith(
+        'user-1',
+        'vm-1',
+      );
+      expect(result).toMatchObject({ vehicleModelId: 'vm-1', favorited: true });
+    });
+
+    it('returns favorited: false when the service reports no favorite', async () => {
+      activityLogService.isFavorited.mockResolvedValue(false);
+
+      const result = await activityLogController.getFavoriteStatus(req, 'vm-1');
+
+      expect(result).toMatchObject({
+        vehicleModelId: 'vm-1',
+        favorited: false,
       });
     });
   });

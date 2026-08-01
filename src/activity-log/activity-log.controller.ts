@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -26,6 +27,7 @@ import { User } from '../users/entities/user.entity';
 import { ActivityLogService } from './activity-log.service';
 import { ActivityLogResponseDto } from './dto/activity-log-response.dto';
 import { CreateActivityLogDto } from './dto/create-activity-log.dto';
+import { FavoriteStatusResponseDto } from './dto/favorite-status-response.dto';
 import { ActivityLogType } from './enums/activity-log-type.enum';
 
 @ApiTags('activity-logs')
@@ -59,6 +61,25 @@ export class ActivityLogController {
             createActivityLogDto.resourceId,
           );
     return new ActivityLogResponseDto(activityLog);
+  }
+
+  @Get('favorites/:vehicleModelId')
+  @ApiOperation({
+    summary:
+      "Check whether a vehicle model is in the authenticated user's favorites",
+  })
+  @ApiOkResponse({ type: FavoriteStatusResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  async getFavoriteStatus(
+    @Req() req: Request,
+    @Param('vehicleModelId') vehicleModelId: string,
+  ): Promise<FavoriteStatusResponseDto> {
+    const user = req.user as User;
+    const favorited = await this.activityLogService.isFavorited(
+      user.id,
+      vehicleModelId,
+    );
+    return new FavoriteStatusResponseDto(vehicleModelId, favorited);
   }
 
   @Delete('favorites/:vehicleModelId')

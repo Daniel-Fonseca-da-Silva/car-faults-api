@@ -18,7 +18,10 @@ describe('user vehicle response DTOs', () => {
     engine: '1.0',
     name: 'Meu Polo',
     doors: 3,
-    vehicleModel: { fuelType: FuelType.GASOLINE },
+    vehicleModel: {
+      fuelType: FuelType.GASOLINE,
+      imageUrl: 'https://cdn.example.com/vehicle-models/vw-polo.webp',
+    },
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
   } as unknown as UserVehicle;
@@ -39,7 +42,7 @@ describe('user vehicle response DTOs', () => {
 
   describe('UserVehicleResponseDto', () => {
     it('maps the user vehicle fields', () => {
-      const dto = new UserVehicleResponseDto(userVehicle);
+      const dto = new UserVehicleResponseDto(userVehicle, 3);
 
       expect(dto).toMatchObject({
         id: 'uv-1',
@@ -51,18 +54,22 @@ describe('user vehicle response DTOs', () => {
         name: 'Meu Polo',
         doors: 3,
         fuelType: FuelType.GASOLINE,
+        imageUrl: 'https://cdn.example.com/vehicle-models/vw-polo.webp',
+        knownIssuesCount: 3,
       });
     });
 
-    it('maps fuelType to null when there is no linked vehicle model', () => {
+    it('maps fuelType and imageUrl to null when there is no linked vehicle model', () => {
       const unlinkedUserVehicle = {
         ...userVehicle,
         vehicleModel: null,
       } as unknown as UserVehicle;
 
-      const dto = new UserVehicleResponseDto(unlinkedUserVehicle);
+      const dto = new UserVehicleResponseDto(unlinkedUserVehicle, 0);
 
       expect(dto.fuelType).toBeNull();
+      expect(dto.imageUrl).toBeNull();
+      expect(dto.knownIssuesCount).toBe(0);
     });
   });
 
@@ -76,12 +83,14 @@ describe('user vehicle response DTOs', () => {
         id: 'ki-1',
         title: 'Problematic gearbox',
       });
+      expect(dto.knownIssuesCount).toBe(1);
     });
 
     it('maps to an empty known issues list when none are given', () => {
       const dto = new UserVehicleDetailResponseDto(userVehicle, []);
 
       expect(dto.knownIssues).toEqual([]);
+      expect(dto.knownIssuesCount).toBe(0);
     });
   });
 });

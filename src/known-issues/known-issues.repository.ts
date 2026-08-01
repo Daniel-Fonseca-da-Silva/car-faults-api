@@ -18,6 +18,17 @@ export class KnownIssuesRepository {
     });
   }
 
+  countByVehicleModelId(vehicleModelId: string): Promise<number> {
+    return this.repository.count({ where: { vehicleModelId } });
+  }
+
+  countByVehicleModelIdAndLocale(
+    vehicleModelId: string,
+    locale: LookupLocale,
+  ): Promise<number> {
+    return this.repository.count({ where: { vehicleModelId, locale } });
+  }
+
   findByVehicleModelIdAndLocale(
     vehicleModelId: string,
     locale: LookupLocale,

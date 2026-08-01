@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { errorMessage } from '../redis/redis-error.util';
@@ -64,6 +65,31 @@ export class UserVehiclesService {
     return this.userVehiclesRepository.findAllByUserId(userId);
   }
 
+  async findAllByUserWithIssueCounts(
+    userId: string,
+    locale: LookupLocale = LookupLocale.EnGb,
+  ): Promise<Array<{ userVehicle: UserVehicle; knownIssuesCount: number }>> {
+    const userVehicles = await this.findAllByUser(userId);
+    return Promise.all(
+      userVehicles.map(async (userVehicle) => ({
+        userVehicle,
+        knownIssuesCount: await this.countKnownIssues(userVehicle, locale),
+      })),
+    );
+  }
+
+  countKnownIssues(
+    userVehicle: UserVehicle,
+    locale: LookupLocale = LookupLocale.EnGb,
+  ): Promise<number> {
+    return userVehicle.vehicleModelId
+      ? this.knownIssuesService.countByVehicleModelIdAndLocale(
+          userVehicle.vehicleModelId,
+          locale,
+        )
+      : Promise.resolve(0);
+  }
+
   countByUser(userId: string): Promise<number> {
     return this.userVehiclesRepository.countByUserId(userId);
   }
@@ -72,12 +98,16 @@ export class UserVehiclesService {
     return this.getOwned(id, userId);
   }
 
-  findKnownIssues(userVehicle: UserVehicle): Promise<KnownIssue[]> {
+  findKnownIssues(
+    userVehicle: UserVehicle,
+    locale: LookupLocale = LookupLocale.EnGb,
+  ): Promise<KnownIssue[]> {
     if (!userVehicle.vehicleModelId) {
       return Promise.resolve([]);
     }
-    return this.knownIssuesService.findByVehicleModelId(
+    return this.knownIssuesService.findByVehicleModelIdAndLocale(
       userVehicle.vehicleModelId,
+      locale,
     );
   }
 
