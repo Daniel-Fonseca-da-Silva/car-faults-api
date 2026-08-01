@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpStatus,
@@ -26,6 +27,8 @@ import {
   createAccessTokenCookieOptions,
 } from './access-token-cookie.factory';
 import { AuthService } from './auth.service';
+import { AccessTokenResponseDto } from './dto/access-token-response.dto';
+import { ExchangeSessionCodeDto } from './dto/exchange-session-code.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { resolveLocale } from './locale.util';
 
@@ -57,7 +60,10 @@ export class AuthController {
       'Sets an httpOnly access token cookie and redirects to the web app',
   })
   @ApiUnauthorizedResponse({ description: 'Google authentication failed' })
-  googleCallback(@Req() req: Request, @Res() res: Response): void {
+  async googleCallback(
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const { accessToken } = this.authService.login(req.user as User);
     const maxAge = this.authService.resolveAccessTokenExpiryMs(accessToken);
 
@@ -66,9 +72,23 @@ export class AuthController {
       maxAge,
     });
 
+    const code = await this.authService.createExchangeCode(accessToken);
     const locale = resolveLocale(req.query.state);
     const webAppUrl = this.config.getOrThrow<string>('WEB_APP_URL');
-    res.redirect(`${webAppUrl}/${locale}/auth/callback?token=${accessToken}`);
+    res.redirect(`${webAppUrl}/${locale}/auth/callback?code=${code}`);
+  }
+
+  @Post('session/exchange')
+  @ApiOperation({
+    summary: 'Exchange a one-time OAuth code for the access token',
+  })
+  @ApiOkResponse({ type: AccessTokenResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid or expired code' })
+  async exchangeSessionCode(
+    @Body() dto: ExchangeSessionCodeDto,
+  ): Promise<AccessTokenResponseDto> {
+    const accessToken = await this.authService.consumeExchangeCode(dto.code);
+    return new AccessTokenResponseDto({ accessToken });
   }
 
   @Post('logout')
