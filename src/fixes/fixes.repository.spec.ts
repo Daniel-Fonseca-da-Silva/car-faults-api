@@ -170,10 +170,10 @@ describe('FixesRepository', () => {
         { userId: 'user-1' },
       );
       expect(queryBuilder.addSelect).toHaveBeenCalledWith(
-        'my_vote.value',
+        'MAX(my_vote.value)',
         'myVote',
       );
-      expect(queryBuilder.addGroupBy).toHaveBeenCalledWith('my_vote.value');
+      expect(queryBuilder.addGroupBy).not.toHaveBeenCalled();
     });
   });
 

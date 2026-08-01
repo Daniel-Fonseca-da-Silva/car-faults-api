@@ -33,6 +33,9 @@ export class Comment {
   @Column({ type: 'text' })
   body: string;
 
+  @Column({ name: 'image_url', type: 'text', nullable: true })
+  imageUrl: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

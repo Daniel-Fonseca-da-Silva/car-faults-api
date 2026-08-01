@@ -71,6 +71,13 @@ describe('Comment entity', () => {
     expect(column?.options.nullable).toBeFalsy();
   });
 
+  it('maps imageUrl to a nullable image_url column', () => {
+    const column = findColumn('imageUrl');
+    expect(column?.options.name).toBe('image_url');
+    expect(column?.options.type).toBe('text');
+    expect(column?.options.nullable).toBe(true);
+  });
+
   it('maps createdAt/updatedAt to snake_case columns', () => {
     expect(findColumn('createdAt')?.options.name).toBe('created_at');
     expect(findColumn('updatedAt')?.options.name).toBe('updated_at');

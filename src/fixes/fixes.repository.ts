@@ -85,9 +85,7 @@ export class FixesRepository {
         'my_vote',
         'my_vote.fix_id = fix.id AND my_vote.user_id = :userId',
         { userId },
-      )
-        .addSelect('my_vote.value', 'myVote')
-        .addGroupBy('my_vote.value');
+      ).addSelect('MAX(my_vote.value)', 'myVote');
     }
 
     return qb;

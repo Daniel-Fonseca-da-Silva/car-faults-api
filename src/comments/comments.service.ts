@@ -1,15 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
+import { R2StorageService } from '../storage/r2-storage.service';
 import { CommentsRepository } from './comments.repository';
 import { Comment } from './entities/comment.entity';
 
 export interface CreateCommentData {
   knownIssueId: string;
   body: string;
+  imageUrl?: string | null;
 }
 
 export interface UpdateCommentData {
   body: string;
+  imageUrl?: string | null;
 }
 
 @Injectable()
@@ -17,6 +20,7 @@ export class CommentsService {
   constructor(
     private readonly commentsRepository: CommentsRepository,
     private readonly knownIssuesService: KnownIssuesService,
+    private readonly r2StorageService: R2StorageService,
   ) {}
 
   findByKnownIssue(knownIssueId: string): Promise<Comment[]> {
@@ -35,6 +39,7 @@ export class CommentsService {
       userId,
       knownIssueId: data.knownIssueId,
       body: data.body,
+      imageUrl: data.imageUrl ?? null,
     });
     return this.commentsRepository.save(comment);
   }
@@ -45,12 +50,21 @@ export class CommentsService {
     data: UpdateCommentData,
   ): Promise<Comment> {
     const comment = await this.getOwned(id, userId);
+
+    if (data.imageUrl !== undefined && data.imageUrl !== comment.imageUrl) {
+      await this.r2StorageService.deleteByPublicUrl(comment.imageUrl);
+      comment.imageUrl = data.imageUrl;
+    }
+
     comment.body = data.body;
     return this.commentsRepository.save(comment);
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    await this.getOwned(id, userId);
+    const comment = await this.getOwned(id, userId);
+    if (comment.imageUrl) {
+      await this.r2StorageService.deleteByPublicUrl(comment.imageUrl);
+    }
     await this.commentsRepository.softDelete(id);
   }
 

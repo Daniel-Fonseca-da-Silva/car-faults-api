@@ -1,5 +1,6 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { KnownIssuesModule } from '../known-issues/known-issues.module';
+import { StorageModule } from '../storage/storage.module';
 import { CommentsController } from './comments.controller';
 import { CommentsModule } from './comments.module';
 import { CommentsRepository } from './comments.repository';
@@ -19,9 +20,10 @@ describe('CommentsModule', () => {
       CommentsModule,
     ) as unknown[];
 
-    expect(imports).toHaveLength(2);
+    expect(imports).toHaveLength(3);
     expect(imports[0].module).toBe(TypeOrmModule);
     expect(imports[1]).toBe(KnownIssuesModule);
+    expect(imports[2]).toBe(StorageModule);
     expect(controllers).toEqual([CommentsController]);
     expect(providers).toEqual([CommentsRepository, CommentsService]);
   });

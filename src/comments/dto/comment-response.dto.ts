@@ -14,6 +14,12 @@ export class CommentResponseDto {
   @ApiProperty({ example: 'Had the same issue at 90k km.' })
   body: string;
 
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/comments/user-1/uuid.jpg',
+    nullable: true,
+  })
+  imageUrl: string | null;
+
   @ApiPropertyOptional({ example: 'Jane Doe', nullable: true })
   userName: string | null;
 
@@ -34,6 +40,7 @@ export class CommentResponseDto {
     this.userId = comment.userId;
     this.knownIssueId = comment.knownIssueId;
     this.body = comment.body;
+    this.imageUrl = comment.imageUrl ?? null;
     this.userName = comment.user?.name ?? null;
     this.userAvatarUrl = comment.user?.avatarUrl ?? null;
     this.createdAt = comment.createdAt;

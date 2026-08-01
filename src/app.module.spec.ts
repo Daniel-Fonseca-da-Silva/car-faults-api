@@ -11,6 +11,7 @@ import { LookupsModule } from './lookups/lookups.module';
 import { REDIS_CLIENT } from './redis/redis.constants';
 import { RedisModule } from './redis/redis.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { StorageModule } from './storage/storage.module';
 import { UserVehiclesModule } from './user-vehicles/user-vehicles.module';
 import { UsersModule } from './users/users.module';
 import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
@@ -59,6 +60,9 @@ class ReviewsModuleStub {}
 @Module({})
 class CommentsModuleStub {}
 
+@Module({})
+class StorageModuleStub {}
+
 describe('AppModule', () => {
   let module: TestingModule;
 
@@ -90,6 +94,8 @@ describe('AppModule', () => {
       .useModule(ReviewsModuleStub)
       .overrideModule(CommentsModule)
       .useModule(CommentsModuleStub)
+      .overrideModule(StorageModule)
+      .useModule(StorageModuleStub)
       .compile();
   });
 
