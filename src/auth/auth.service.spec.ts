@@ -1,3 +1,4 @@
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { User } from '../users/entities/user.entity';
@@ -11,6 +12,7 @@ describe('AuthService', () => {
     create: jest.Mock;
   };
   let jwtService: { sign: jest.Mock; decode: jest.Mock };
+  let cache: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
 
   const profile = {
     googleId: 'google-1',
@@ -25,12 +27,14 @@ describe('AuthService', () => {
       create: jest.fn(),
     };
     jwtService = { sign: jest.fn(), decode: jest.fn() };
+    cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UsersService, useValue: usersService },
         { provide: JwtService, useValue: jwtService },
+        { provide: CACHE_MANAGER, useValue: cache },
       ],
     }).compile();
 
@@ -116,6 +120,59 @@ describe('AuthService', () => {
       const result = authService.resolveAccessTokenExpiryMs('signed-jwt');
 
       expect(result).toBe(0);
+    });
+  });
+
+  describe('createExchangeCode', () => {
+    it('stores the access token under a generated code with a 60s TTL', async () => {
+      const code = await authService.createExchangeCode('signed-jwt');
+
+      expect(code).toEqual(expect.any(String));
+      expect(cache.set).toHaveBeenCalledWith(
+        `oauth:code:${code}`,
+        'signed-jwt',
+        60_000,
+      );
+    });
+
+    it('generates a different code on each call', async () => {
+      const first = await authService.createExchangeCode('signed-jwt');
+      const second = await authService.createExchangeCode('signed-jwt');
+
+      expect(first).not.toBe(second);
+    });
+  });
+
+  describe('consumeExchangeCode', () => {
+    it('returns the access token and deletes the code on a hit', async () => {
+      cache.get.mockResolvedValue('signed-jwt');
+
+      const result = await authService.consumeExchangeCode('xyz');
+
+      expect(cache.get).toHaveBeenCalledWith('oauth:code:xyz');
+      expect(cache.del).toHaveBeenCalledWith('oauth:code:xyz');
+      expect(result).toBe('signed-jwt');
+    });
+
+    it('throws UnauthorizedException when the code is missing or expired', async () => {
+      cache.get.mockResolvedValue(undefined);
+
+      await expect(authService.consumeExchangeCode('missing')).rejects.toThrow(
+        'Invalid or expired code',
+      );
+      expect(cache.del).not.toHaveBeenCalled();
+    });
+
+    it('rejects reuse of an already-consumed code', async () => {
+      cache.get
+        .mockResolvedValueOnce('signed-jwt')
+        .mockResolvedValueOnce(undefined);
+
+      await authService.consumeExchangeCode('xyz');
+
+      await expect(authService.consumeExchangeCode('xyz')).rejects.toThrow(
+        'Invalid or expired code',
+      );
     });
   });
 });
