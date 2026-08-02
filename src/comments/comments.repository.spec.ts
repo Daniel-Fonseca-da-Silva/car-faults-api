@@ -11,6 +11,7 @@ describe('CommentsRepository', () => {
     create: jest.Mock;
     save: jest.Mock;
     softDelete: jest.Mock;
+    count: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -20,6 +21,7 @@ describe('CommentsRepository', () => {
       create: jest.fn(),
       save: jest.fn(),
       softDelete: jest.fn(),
+      count: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -101,6 +103,17 @@ describe('CommentsRepository', () => {
       await commentsRepository.softDelete('comment-1');
 
       expect(repository.softDelete).toHaveBeenCalledWith('comment-1');
+    });
+  });
+
+  describe('countAll', () => {
+    it('delegates to repository.count', async () => {
+      repository.count.mockResolvedValue(42);
+
+      const result = await commentsRepository.countAll();
+
+      expect(repository.count).toHaveBeenCalledWith();
+      expect(result).toBe(42);
     });
   });
 });

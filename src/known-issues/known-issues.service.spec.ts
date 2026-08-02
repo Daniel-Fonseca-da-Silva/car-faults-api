@@ -14,6 +14,8 @@ describe('KnownIssuesService', () => {
     countByVehicleModelIdAndLocale: jest.Mock;
     findById: jest.Mock;
     saveMany: jest.Mock;
+    countAll: jest.Mock;
+    findTopByCommentCount: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -24,6 +26,8 @@ describe('KnownIssuesService', () => {
       countByVehicleModelIdAndLocale: jest.fn(),
       findById: jest.fn(),
       saveMany: jest.fn(),
+      countAll: jest.fn(),
+      findTopByCommentCount: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -131,6 +135,35 @@ describe('KnownIssuesService', () => {
         manager,
       );
       expect(result).toBe(saved);
+    });
+  });
+
+  describe('countAll', () => {
+    it('delegates to the repository', async () => {
+      knownIssuesRepository.countAll.mockResolvedValue(34000);
+
+      const result = await knownIssuesService.countAll();
+
+      expect(knownIssuesRepository.countAll).toHaveBeenCalledWith();
+      expect(result).toBe(34000);
+    });
+  });
+
+  describe('findTopByCommentCount', () => {
+    it('delegates to the repository', async () => {
+      const rows = [{ id: 'ki-1' }];
+      knownIssuesRepository.findTopByCommentCount.mockResolvedValue(rows);
+
+      const result = await knownIssuesService.findTopByCommentCount(
+        LookupLocale.EnGb,
+        6,
+      );
+
+      expect(knownIssuesRepository.findTopByCommentCount).toHaveBeenCalledWith(
+        LookupLocale.EnGb,
+        6,
+      );
+      expect(result).toBe(rows);
     });
   });
 });
