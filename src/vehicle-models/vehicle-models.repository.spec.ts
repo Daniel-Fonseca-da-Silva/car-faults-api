@@ -12,6 +12,7 @@ describe('VehicleModelsRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    count: jest.Mock;
   };
 
   const criteria = {
@@ -26,6 +27,7 @@ describe('VehicleModelsRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      count: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -201,6 +203,17 @@ describe('VehicleModelsRepository', () => {
       expect(managerRepository.save).toHaveBeenCalledWith(vehicleModel);
       expect(repository.save).not.toHaveBeenCalled();
       expect(result).toBe(vehicleModel);
+    });
+  });
+
+  describe('countAll', () => {
+    it('delegates to repository.count', async () => {
+      repository.count.mockResolvedValue(8400);
+
+      const result = await vehicleModelsRepository.countAll();
+
+      expect(repository.count).toHaveBeenCalledWith();
+      expect(result).toBe(8400);
     });
   });
 });

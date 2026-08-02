@@ -27,6 +27,10 @@ export class CommentsService {
     return this.commentsRepository.findByKnownIssueId(knownIssueId);
   }
 
+  countAll(): Promise<number> {
+    return this.commentsRepository.countAll();
+  }
+
   async create(userId: string, data: CreateCommentData): Promise<Comment> {
     const knownIssue = await this.knownIssuesService.findById(
       data.knownIssueId,

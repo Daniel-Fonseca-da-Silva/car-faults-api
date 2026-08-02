@@ -19,6 +19,10 @@ describe('CommentsModule', () => {
       'providers',
       CommentsModule,
     ) as unknown[];
+    const moduleExports = Reflect.getMetadata(
+      'exports',
+      CommentsModule,
+    ) as unknown[];
 
     expect(imports).toHaveLength(3);
     expect(imports[0].module).toBe(TypeOrmModule);
@@ -26,5 +30,6 @@ describe('CommentsModule', () => {
     expect(imports[2]).toBe(StorageModule);
     expect(controllers).toEqual([CommentsController]);
     expect(providers).toEqual([CommentsRepository, CommentsService]);
+    expect(moduleExports).toEqual([CommentsService]);
   });
 });

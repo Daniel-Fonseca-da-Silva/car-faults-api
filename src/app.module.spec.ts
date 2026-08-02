@@ -8,6 +8,7 @@ import { DatabaseModule } from './database/database.module';
 import { FixesModule } from './fixes/fixes.module';
 import { KnownIssuesModule } from './known-issues/known-issues.module';
 import { LookupsModule } from './lookups/lookups.module';
+import { PlatformModule } from './platform/platform.module';
 import { REDIS_CLIENT } from './redis/redis.constants';
 import { RedisModule } from './redis/redis.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -63,6 +64,9 @@ class CommentsModuleStub {}
 @Module({})
 class StorageModuleStub {}
 
+@Module({})
+class PlatformModuleStub {}
+
 describe('AppModule', () => {
   let module: TestingModule;
 
@@ -96,6 +100,8 @@ describe('AppModule', () => {
       .useModule(CommentsModuleStub)
       .overrideModule(StorageModule)
       .useModule(StorageModuleStub)
+      .overrideModule(PlatformModule)
+      .useModule(PlatformModuleStub)
       .compile();
   });
 
