@@ -78,4 +78,8 @@ export class VehicleModelsRepository {
       : this.repository;
     return repository.save(vehicleModel);
   }
+
+  countAll(): Promise<number> {
+    return this.repository.count();
+  }
 }

@@ -33,4 +33,8 @@ export class CommentsRepository {
   async softDelete(id: string): Promise<void> {
     await this.repository.softDelete(id);
   }
+
+  countAll(): Promise<number> {
+    return this.repository.count();
+  }
 }

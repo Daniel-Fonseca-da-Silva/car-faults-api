@@ -27,4 +27,8 @@ export class VehicleModelsService {
     const vehicleModel = this.vehicleModelsRepository.create(data);
     return this.vehicleModelsRepository.save(vehicleModel, manager);
   }
+
+  countAll(): Promise<number> {
+    return this.vehicleModelsRepository.countAll();
+  }
 }

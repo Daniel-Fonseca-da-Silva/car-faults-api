@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { KnownIssue } from './entities/known-issue.entity';
-import { KnownIssuesRepository } from './known-issues.repository';
+import { KnownIssuesRepository, TopFaultRow } from './known-issues.repository';
 
 @Injectable()
 export class KnownIssuesService {
@@ -45,5 +45,16 @@ export class KnownIssuesService {
     manager: EntityManager,
   ): Promise<KnownIssue[]> {
     return this.knownIssuesRepository.saveMany(knownIssues, manager);
+  }
+
+  countAll(): Promise<number> {
+    return this.knownIssuesRepository.countAll();
+  }
+
+  findTopByCommentCount(
+    locale: LookupLocale,
+    limit: number,
+  ): Promise<TopFaultRow[]> {
+    return this.knownIssuesRepository.findTopByCommentCount(locale, limit);
   }
 }
