@@ -1,4 +1,5 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { VehicleModelsModule } from '../vehicle-models/vehicle-models.module';
 import { KnownIssuesModule } from './known-issues.module';
 import { KnownIssuesRepository } from './known-issues.repository';
 import { KnownIssuesService } from './known-issues.service';
@@ -17,8 +18,9 @@ describe('KnownIssuesModule', () => {
       KnownIssuesModule,
     ) as unknown[];
 
-    expect(imports).toHaveLength(1);
+    expect(imports).toHaveLength(2);
     expect(imports[0].module).toBe(TypeOrmModule);
+    expect(imports[1]).toBe(VehicleModelsModule);
     expect(providers).toEqual([KnownIssuesRepository, KnownIssuesService]);
     expect(moduleExports).toEqual([KnownIssuesService]);
   });

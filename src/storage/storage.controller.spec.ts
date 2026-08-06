@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
 import { R2StorageService } from './r2-storage.service';
@@ -32,6 +33,8 @@ describe('StorageController', () => {
       providers: [{ provide: R2StorageService, useValue: r2StorageService }],
     })
       .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(AdminGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
@@ -75,6 +78,25 @@ describe('StorageController', () => {
         expect.any(Buffer),
         'image/png',
       );
+    });
+  });
+
+  describe('uploadVehicleImage', () => {
+    it('uploads the file under a vehicles/ key with the right extension', async () => {
+      r2StorageService.upload.mockResolvedValue(
+        'https://cdn.example.com/vehicles/uuid.jpg',
+      );
+
+      const result = await controller.uploadVehicleImage(buildFile());
+
+      expect(r2StorageService.upload).toHaveBeenCalledWith(
+        expect.stringMatching(/^vehicles\/.+\.jpg$/),
+        expect.any(Buffer),
+        'image/jpeg',
+      );
+      expect(result).toEqual({
+        url: 'https://cdn.example.com/vehicles/uuid.jpg',
+      });
     });
   });
 });

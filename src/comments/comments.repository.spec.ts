@@ -8,6 +8,7 @@ describe('CommentsRepository', () => {
   let repository: {
     find: jest.Mock;
     findOne: jest.Mock;
+    count: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     softDelete: jest.Mock;
@@ -17,6 +18,7 @@ describe('CommentsRepository', () => {
     repository = {
       find: jest.fn(),
       findOne: jest.fn(),
+      count: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
       softDelete: jest.fn(),
@@ -66,6 +68,17 @@ describe('CommentsRepository', () => {
         where: { id: 'comment-1' },
       });
       expect(result).toBe(comment);
+    });
+  });
+
+  describe('countAll', () => {
+    it('delegates to repository.count', async () => {
+      repository.count.mockResolvedValue(7);
+
+      const result = await commentsRepository.countAll();
+
+      expect(repository.count).toHaveBeenCalledWith();
+      expect(result).toBe(7);
     });
   });
 

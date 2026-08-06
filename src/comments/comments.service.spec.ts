@@ -11,6 +11,7 @@ describe('CommentsService', () => {
   let commentsRepository: {
     findByKnownIssueId: jest.Mock;
     findById: jest.Mock;
+    countAll: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     softDelete: jest.Mock;
@@ -34,6 +35,7 @@ describe('CommentsService', () => {
     commentsRepository = {
       findByKnownIssueId: jest.fn(),
       findById: jest.fn(),
+      countAll: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
       softDelete: jest.fn(),
@@ -70,6 +72,17 @@ describe('CommentsService', () => {
         'ki-1',
       );
       expect(result).toBe(comments);
+    });
+  });
+
+  describe('countAll', () => {
+    it('delegates to the repository', async () => {
+      commentsRepository.countAll.mockResolvedValue(9);
+
+      const result = await commentsService.countAll();
+
+      expect(commentsRepository.countAll).toHaveBeenCalledWith();
+      expect(result).toBe(9);
     });
   });
 

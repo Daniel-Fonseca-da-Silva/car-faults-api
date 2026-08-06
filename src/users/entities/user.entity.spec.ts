@@ -55,6 +55,12 @@ describe('User entity', () => {
     expect(column?.options.nullable).toBe(true);
   });
 
+  it('defines role as an enum column defaulting to user', () => {
+    const column = findColumn('role');
+    expect(column?.options.type).toBe('enum');
+    expect(column?.options.default).toBe('user');
+  });
+
   it('does not define a gender column', () => {
     expect(findColumn('gender')).toBeUndefined();
   });

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ActivityLogModule } from './activity-log/activity-log.module';
+import { AdminModule } from './admin/admin.module';
 import { AppModule } from './app.module';
 import { AuthModule } from './auth/auth.module';
 import { CommentsModule } from './comments/comments.module';
@@ -8,6 +9,7 @@ import { DatabaseModule } from './database/database.module';
 import { FixesModule } from './fixes/fixes.module';
 import { KnownIssuesModule } from './known-issues/known-issues.module';
 import { LookupsModule } from './lookups/lookups.module';
+import { PlatformModule } from './platform/platform.module';
 import { REDIS_CLIENT } from './redis/redis.constants';
 import { RedisModule } from './redis/redis.module';
 import { ReviewsModule } from './reviews/reviews.module';
@@ -63,6 +65,12 @@ class CommentsModuleStub {}
 @Module({})
 class StorageModuleStub {}
 
+@Module({})
+class AdminModuleStub {}
+
+@Module({})
+class PlatformModuleStub {}
+
 describe('AppModule', () => {
   let module: TestingModule;
 
@@ -96,6 +104,10 @@ describe('AppModule', () => {
       .useModule(CommentsModuleStub)
       .overrideModule(StorageModule)
       .useModule(StorageModuleStub)
+      .overrideModule(AdminModule)
+      .useModule(AdminModuleStub)
+      .overrideModule(PlatformModule)
+      .useModule(PlatformModuleStub)
       .compile();
   });
 
