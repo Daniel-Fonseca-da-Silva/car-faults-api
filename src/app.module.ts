@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ActivityLogModule } from './activity-log/activity-log.module';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { CommentsModule } from './comments/comments.module';
 import { createThrottlerOptions } from './common/throttler/throttler-options.factory';
@@ -12,6 +13,7 @@ import { HealthModule } from './health/health.module';
 import { KnownIssuesModule } from './known-issues/known-issues.module';
 import { LoggerModule } from './logger/logger.module';
 import { LookupsModule } from './lookups/lookups.module';
+import { PlatformModule } from './platform/platform.module';
 import { RedisModule } from './redis/redis.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { StorageModule } from './storage/storage.module';
@@ -41,6 +43,8 @@ import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
     ReviewsModule,
     StorageModule,
     CommentsModule,
+    AdminModule,
+    PlatformModule,
   ],
   controllers: [],
   providers: [

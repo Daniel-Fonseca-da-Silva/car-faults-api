@@ -22,6 +22,10 @@ export class CommentsRepository {
     return this.repository.findOne({ where: { id } });
   }
 
+  countAll(): Promise<number> {
+    return this.repository.count();
+  }
+
   create(data: Partial<Comment>): Comment {
     return this.repository.create(data);
   }

@@ -16,19 +16,29 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiConsumes,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
 import { UploadCommentImageResponseDto } from './dto/upload-comment-image-response.dto';
+import { UploadVehicleImageResponseDto } from './dto/upload-vehicle-image-response.dto';
 import { R2StorageService } from './r2-storage.service';
 
 export const COMMENT_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 export const COMMENT_IMAGE_MIME_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+export const VEHICLE_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+export const VEHICLE_IMAGE_MIME_EXTENSIONS: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
@@ -71,6 +81,45 @@ export class StorageController {
     const user = req.user as User;
     const extension = COMMENT_IMAGE_MIME_EXTENSIONS[file.mimetype];
     const key = `comments/${user.id}/${randomUUID()}.${extension}`;
+    const url = await this.r2StorageService.upload(
+      key,
+      file.buffer,
+      file.mimetype,
+    );
+    return { url };
+  }
+
+  @Post('vehicle-images')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOperation({ summary: 'Upload a catalog photo for a vehicle model' })
+  @ApiOkResponse({ type: UploadVehicleImageResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiForbiddenResponse({ description: 'Admin access required' })
+  @ApiBadRequestResponse({ description: 'Invalid file' })
+  async uploadVehicleImage(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: VEHICLE_IMAGE_MAX_SIZE_BYTES }),
+          new FileTypeValidator({
+            fileType: /^image\/(jpeg|png|webp)$/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ): Promise<UploadVehicleImageResponseDto> {
+    const extension = VEHICLE_IMAGE_MIME_EXTENSIONS[file.mimetype];
+    const key = `vehicles/${randomUUID()}.${extension}`;
     const url = await this.r2StorageService.upload(
       key,
       file.buffer,

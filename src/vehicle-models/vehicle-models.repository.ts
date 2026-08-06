@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   EntityManager,
+  ILike,
   IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
@@ -19,6 +20,13 @@ export interface VehicleLookupCriteria {
   fuelType?: FuelType;
 }
 
+export interface VehicleModelPaginationCriteria {
+  page: number;
+  limit: number;
+  brand?: string;
+  model?: string;
+}
+
 @Injectable()
 export class VehicleModelsRepository {
   constructor(
@@ -28,6 +36,10 @@ export class VehicleModelsRepository {
 
   findById(id: string): Promise<VehicleModel | null> {
     return this.repository.findOne({ where: { id } });
+  }
+
+  countAll(): Promise<number> {
+    return this.repository.count();
   }
 
   async findByLookup(
@@ -77,5 +89,23 @@ export class VehicleModelsRepository {
       ? manager.getRepository(VehicleModel)
       : this.repository;
     return repository.save(vehicleModel);
+  }
+
+  async findPaginated(
+    criteria: VehicleModelPaginationCriteria,
+  ): Promise<[VehicleModel[], number]> {
+    return this.repository.findAndCount({
+      where: {
+        ...(criteria.brand ? { brand: ILike(`%${criteria.brand}%`) } : {}),
+        ...(criteria.model ? { model: ILike(`%${criteria.model}%`) } : {}),
+      },
+      order: { brand: 'ASC', model: 'ASC', yearFrom: 'ASC' },
+      skip: (criteria.page - 1) * criteria.limit,
+      take: criteria.limit,
+    });
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.repository.softDelete(id);
   }
 }
