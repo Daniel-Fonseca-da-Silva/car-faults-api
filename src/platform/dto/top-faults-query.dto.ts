@@ -2,13 +2,15 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { LookupLocale } from '../../common/enums/lookup-locale.enum';
-
-export const TOP_FAULTS_DEFAULT_LIMIT = 6;
-export const TOP_FAULTS_MAX_LIMIT = 12;
+import {
+  TOP_FAULTS_DEFAULT_LIMIT,
+  TOP_FAULTS_MAX_LIMIT,
+  TOP_FAULTS_MIN_LIMIT,
+} from '../platform.constants';
 
 export class TopFaultsQueryDto {
   @ApiPropertyOptional({
-    description: 'Optional. Defaults to en-GB when omitted.',
+    description: 'Defaults to en-GB when omitted.',
     enum: LookupLocale,
     example: LookupLocale.EnGb,
   })
@@ -17,15 +19,13 @@ export class TopFaultsQueryDto {
   locale?: LookupLocale;
 
   @ApiPropertyOptional({
+    description: `Defaults to ${TOP_FAULTS_DEFAULT_LIMIT}, max ${TOP_FAULTS_MAX_LIMIT}.`,
     example: TOP_FAULTS_DEFAULT_LIMIT,
-    minimum: 1,
-    maximum: TOP_FAULTS_MAX_LIMIT,
-    default: TOP_FAULTS_DEFAULT_LIMIT,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1)
+  @Min(TOP_FAULTS_MIN_LIMIT)
   @Max(TOP_FAULTS_MAX_LIMIT)
   limit?: number;
 }

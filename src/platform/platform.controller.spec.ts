@@ -1,38 +1,39 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { IssueSeverity } from '../known-issues/enums/issue-severity.enum';
-import { KnownIssueWithCommentCount } from '../known-issues/known-issues.repository';
-import { TOP_FAULTS_DEFAULT_LIMIT } from './dto/top-faults-query.dto';
+import { TopFaultRow } from '../known-issues/known-issues.repository';
+import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { PlatformController } from './platform.controller';
+import { TOP_FAULTS_DEFAULT_LIMIT } from './platform.constants';
 import { PlatformService } from './platform.service';
 
 describe('PlatformController', () => {
   let platformController: PlatformController;
   let platformService: { getStats: jest.Mock; getTopFaults: jest.Mock };
 
-  const stats = { reportsCount: 128, vehiclesCount: 42, faultsCount: 96 };
+  const stats = {
+    reportsCount: 128340,
+    vehiclesCount: 8400,
+    faultsCount: 34000,
+  };
 
-  const topFaults = [
-    {
-      id: 'ki-1',
-      title: 'Problematic gearbox',
-      severity: IssueSeverity.HIGH,
-      commentCount: 5,
-      vehicleModel: {
-        brand: 'Volkswagen',
-        model: 'Polo',
-        yearFrom: 1994,
-        engine: '1.0',
-        fuelType: null,
-        doors: null,
-      },
-    },
-  ] as unknown as KnownIssueWithCommentCount[];
+  const topFaultRow: TopFaultRow = {
+    id: 'ki-1',
+    title: 'Timing chain tensioner wear',
+    severity: IssueSeverity.HIGH,
+    reportCount: 412,
+    vehicleBrand: 'Volkswagen',
+    vehicleModel: 'Golf',
+    vehicleYearFrom: 2015,
+    vehicleEngine: '1.6 TDI',
+    vehicleFuelType: FuelType.DIESEL,
+    vehicleDoors: 5,
+  };
 
   beforeEach(async () => {
     platformService = {
       getStats: jest.fn().mockResolvedValue(stats),
-      getTopFaults: jest.fn().mockResolvedValue(topFaults),
+      getTopFaults: jest.fn().mockResolvedValue([topFaultRow]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -48,7 +49,7 @@ describe('PlatformController', () => {
   });
 
   describe('getStats', () => {
-    it('delegates to the service and wraps the result in the response DTO', async () => {
+    it('returns the platform stats', async () => {
       const result = await platformController.getStats();
 
       expect(platformService.getStats).toHaveBeenCalledWith();
@@ -57,26 +58,42 @@ describe('PlatformController', () => {
   });
 
   describe('getTopFaults', () => {
-    it('defaults the locale to en-GB and the limit when omitted', async () => {
+    it('defaults locale to en-GB and limit to the configured default when omitted', async () => {
       const result = await platformController.getTopFaults({});
 
       expect(platformService.getTopFaults).toHaveBeenCalledWith(
         LookupLocale.EnGb,
         TOP_FAULTS_DEFAULT_LIMIT,
       );
-      expect(result.items).toHaveLength(1);
-      expect(result.items[0]).toMatchObject({
-        id: 'ki-1',
-        faultTitle: 'Problematic gearbox',
-        severity: IssueSeverity.HIGH,
-        reportCount: 5,
-        vehicle: {
-          brand: 'Volkswagen',
-          model: 'Polo',
-          yearFrom: 1994,
-          engine: '1.0',
-        },
+      expect(result).toEqual({
+        items: [
+          {
+            id: 'ki-1',
+            faultTitle: 'Timing chain tensioner wear',
+            severity: IssueSeverity.HIGH,
+            reportCount: 412,
+            vehicle: {
+              brand: 'Volkswagen',
+              model: 'Golf',
+              yearFrom: 2015,
+              engine: '1.6 TDI',
+              fuelType: FuelType.DIESEL,
+              doors: 5,
+            },
+          },
+        ],
       });
+    });
+
+    it('omits fuelType and doors from the vehicle when the vehicle model has none on record', async () => {
+      platformService.getTopFaults.mockResolvedValue([
+        { ...topFaultRow, vehicleFuelType: null, vehicleDoors: null },
+      ]);
+
+      const result = await platformController.getTopFaults({});
+
+      expect(result.items[0].vehicle.fuelType).toBeUndefined();
+      expect(result.items[0].vehicle.doors).toBeUndefined();
     });
 
     it('passes through the given locale and limit', async () => {
@@ -89,6 +106,14 @@ describe('PlatformController', () => {
         LookupLocale.PtPt,
         12,
       );
+    });
+
+    it('returns an empty items array when there are no top faults', async () => {
+      platformService.getTopFaults.mockResolvedValue([]);
+
+      const result = await platformController.getTopFaults({});
+
+      expect(result).toEqual({ items: [] });
     });
   });
 });

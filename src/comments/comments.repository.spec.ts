@@ -71,17 +71,6 @@ describe('CommentsRepository', () => {
     });
   });
 
-  describe('countAll', () => {
-    it('delegates to repository.count', async () => {
-      repository.count.mockResolvedValue(7);
-
-      const result = await commentsRepository.countAll();
-
-      expect(repository.count).toHaveBeenCalledWith();
-      expect(result).toBe(7);
-    });
-  });
-
   describe('create', () => {
     it('delegates to repository.create', () => {
       const data = { userId: 'user-1', knownIssueId: 'ki-1', body: 'Hi' };
@@ -114,6 +103,17 @@ describe('CommentsRepository', () => {
       await commentsRepository.softDelete('comment-1');
 
       expect(repository.softDelete).toHaveBeenCalledWith('comment-1');
+    });
+  });
+
+  describe('countAll', () => {
+    it('delegates to repository.count', async () => {
+      repository.count.mockResolvedValue(42);
+
+      const result = await commentsRepository.countAll();
+
+      expect(repository.count).toHaveBeenCalledWith();
+      expect(result).toBe(42);
     });
   });
 });

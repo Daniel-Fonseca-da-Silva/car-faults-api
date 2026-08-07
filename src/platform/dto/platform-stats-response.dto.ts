@@ -1,14 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PlatformStats } from '../platform.service';
+
+export interface PlatformStats {
+  reportsCount: number;
+  vehiclesCount: number;
+  faultsCount: number;
+}
 
 export class PlatformStatsResponseDto {
-  @ApiProperty({ example: 128 })
+  @ApiProperty({ example: 128340 })
   reportsCount: number;
 
-  @ApiProperty({ example: 42 })
+  @ApiProperty({ example: 8400 })
   vehiclesCount: number;
 
-  @ApiProperty({ example: 96 })
+  @ApiProperty({ example: 34000 })
   faultsCount: number;
 
   constructor(stats: PlatformStats) {

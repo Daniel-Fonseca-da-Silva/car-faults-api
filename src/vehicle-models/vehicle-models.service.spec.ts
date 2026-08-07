@@ -215,12 +215,12 @@ describe('VehicleModelsService', () => {
 
   describe('countAll', () => {
     it('delegates to the repository', async () => {
-      vehicleModelsRepository.countAll.mockResolvedValue(11);
+      vehicleModelsRepository.countAll.mockResolvedValue(8400);
 
       const result = await vehicleModelsService.countAll();
 
       expect(vehicleModelsRepository.countAll).toHaveBeenCalledWith();
-      expect(result).toBe(11);
+      expect(result).toBe(8400);
     });
   });
 });

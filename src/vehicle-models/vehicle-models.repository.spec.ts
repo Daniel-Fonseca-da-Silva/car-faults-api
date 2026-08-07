@@ -260,12 +260,12 @@ describe('VehicleModelsRepository', () => {
 
   describe('countAll', () => {
     it('delegates to repository.count', async () => {
-      repository.count.mockResolvedValue(11);
+      repository.count.mockResolvedValue(8400);
 
       const result = await vehicleModelsRepository.countAll();
 
       expect(repository.count).toHaveBeenCalledWith();
-      expect(result).toBe(11);
+      expect(result).toBe(8400);
     });
   });
 });

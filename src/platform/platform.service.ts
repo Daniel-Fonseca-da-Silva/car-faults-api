@@ -1,9 +1,9 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CommentsService } from '../comments/comments.service';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
-import { KnownIssueWithCommentCount } from '../known-issues/known-issues.repository';
+import { CommentsService } from '../comments/comments.service';
+import { TopFaultRow } from '../known-issues/known-issues.repository';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { errorMessage } from '../redis/redis-error.util';
 import {
@@ -11,12 +11,7 @@ import {
   platformTopFaultsCacheKey,
 } from '../redis/redis.constants';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
-
-export interface PlatformStats {
-  reportsCount: number;
-  vehiclesCount: number;
-  faultsCount: number;
-}
+import { PlatformStats } from './dto/platform-stats-response.dto';
 
 @Injectable()
 export class PlatformService {
@@ -57,19 +52,19 @@ export class PlatformService {
   async getTopFaults(
     locale: LookupLocale,
     limit: number,
-  ): Promise<KnownIssueWithCommentCount[]> {
+  ): Promise<TopFaultRow[]> {
     const cacheKey = platformTopFaultsCacheKey(locale, limit);
-    const cached = await this.getCached<KnownIssueWithCommentCount[]>(cacheKey);
+    const cached = await this.getCached<TopFaultRow[]>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    const topFaults = await this.knownIssuesService.findTopByCommentCount(
+    const items = await this.knownIssuesService.findTopByCommentCount(
       locale,
       limit,
     );
-    await this.setCached(cacheKey, topFaults);
-    return topFaults;
+    await this.setCached(cacheKey, items);
+    return items;
   }
 
   private async getCached<T>(key: string): Promise<T | undefined> {
@@ -81,7 +76,7 @@ export class PlatformService {
     }
   }
 
-  private async setCached(key: string, value: unknown): Promise<void> {
+  private async setCached<T>(key: string, value: T): Promise<void> {
     try {
       await this.cache.set(key, value, this.cacheTtlMs);
     } catch (err) {

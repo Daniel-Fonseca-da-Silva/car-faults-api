@@ -6,7 +6,7 @@ import { PlatformController } from './platform.controller';
 import { PlatformService } from './platform.service';
 
 @Module({
-  imports: [CommentsModule, KnownIssuesModule, VehicleModelsModule],
+  imports: [CommentsModule, VehicleModelsModule, KnownIssuesModule],
   controllers: [PlatformController],
   providers: [PlatformService],
 })

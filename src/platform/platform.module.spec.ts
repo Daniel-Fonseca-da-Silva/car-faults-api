@@ -19,8 +19,8 @@ describe('PlatformModule', () => {
 
     expect(imports).toEqual([
       CommentsModule,
-      KnownIssuesModule,
       VehicleModelsModule,
+      KnownIssuesModule,
     ]);
     expect(controllers).toEqual([PlatformController]);
     expect(providers).toEqual([PlatformService]);

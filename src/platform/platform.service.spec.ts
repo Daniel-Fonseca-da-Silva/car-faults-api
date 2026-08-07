@@ -1,12 +1,14 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CommentsService } from '../comments/comments.service';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
-import { KnownIssueWithCommentCount } from '../known-issues/known-issues.repository';
+import { CommentsService } from '../comments/comments.service';
+import { IssueSeverity } from '../known-issues/enums/issue-severity.enum';
+import { TopFaultRow } from '../known-issues/known-issues.repository';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
+import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
-import { PlatformService, PlatformStats } from './platform.service';
+import { PlatformService } from './platform.service';
 
 describe('PlatformService', () => {
   let platformService: PlatformService;
@@ -18,15 +20,25 @@ describe('PlatformService', () => {
   };
   let cache: { get: jest.Mock; set: jest.Mock };
 
-  const stats: PlatformStats = {
-    reportsCount: 128,
-    vehiclesCount: 42,
-    faultsCount: 96,
+  const stats = {
+    reportsCount: 128340,
+    vehiclesCount: 8400,
+    faultsCount: 34000,
   };
+  const statsCacheKey = 'platform:stats';
 
-  const topFaults = [
-    { id: 'ki-1', commentCount: 5 },
-  ] as unknown as KnownIssueWithCommentCount[];
+  const topFaultRow: TopFaultRow = {
+    id: 'ki-1',
+    title: 'Timing chain tensioner wear',
+    severity: IssueSeverity.HIGH,
+    reportCount: 412,
+    vehicleBrand: 'Volkswagen',
+    vehicleModel: 'Golf',
+    vehicleYearFrom: 2015,
+    vehicleEngine: '1.6 TDI',
+    vehicleFuelType: FuelType.DIESEL,
+    vehicleDoors: 5,
+  };
 
   beforeEach(async () => {
     commentsService = {
@@ -37,7 +49,7 @@ describe('PlatformService', () => {
     };
     knownIssuesService = {
       countAll: jest.fn().mockResolvedValue(stats.faultsCount),
-      findTopByCommentCount: jest.fn().mockResolvedValue(topFaults),
+      findTopByCommentCount: jest.fn().mockResolvedValue([topFaultRow]),
     };
     cache = {
       get: jest.fn().mockResolvedValue(undefined),
@@ -66,25 +78,25 @@ describe('PlatformService', () => {
   });
 
   describe('getStats', () => {
-    it('returns the cached stats without hitting the counters on a cache HIT', async () => {
+    it('returns the cached stats without hitting the data sources on a cache HIT', async () => {
       cache.get.mockResolvedValue(stats);
 
       const result = await platformService.getStats();
 
-      expect(cache.get).toHaveBeenCalledWith('platform:stats');
+      expect(cache.get).toHaveBeenCalledWith(statsCacheKey);
       expect(commentsService.countAll).not.toHaveBeenCalled();
       expect(vehicleModelsService.countAll).not.toHaveBeenCalled();
       expect(knownIssuesService.countAll).not.toHaveBeenCalled();
       expect(result).toBe(stats);
     });
 
-    it('aggregates counts from all domains and caches the result on a cache MISS', async () => {
+    it('aggregates counts from all data sources and caches the result on a cache MISS', async () => {
       const result = await platformService.getStats();
 
       expect(commentsService.countAll).toHaveBeenCalledWith();
       expect(vehicleModelsService.countAll).toHaveBeenCalledWith();
       expect(knownIssuesService.countAll).toHaveBeenCalledWith();
-      expect(cache.set).toHaveBeenCalledWith('platform:stats', stats, 300000);
+      expect(cache.set).toHaveBeenCalledWith(statsCacheKey, stats, 300000);
       expect(result).toEqual(stats);
     });
 
@@ -107,46 +119,50 @@ describe('PlatformService', () => {
   });
 
   describe('getTopFaults', () => {
-    it('returns the cached top faults without querying on a cache HIT', async () => {
-      cache.get.mockResolvedValue(topFaults);
+    const cacheKey = 'platform:top-faults:en-GB:6';
+
+    it('returns the cached items without querying the repository on a cache HIT', async () => {
+      cache.get.mockResolvedValue([topFaultRow]);
 
       const result = await platformService.getTopFaults(LookupLocale.EnGb, 6);
 
-      expect(cache.get).toHaveBeenCalledWith('platform:top-faults:en-GB:6');
+      expect(cache.get).toHaveBeenCalledWith(cacheKey);
       expect(knownIssuesService.findTopByCommentCount).not.toHaveBeenCalled();
-      expect(result).toBe(topFaults);
+      expect(result).toEqual([topFaultRow]);
     });
 
-    it('queries and caches the top faults for the given locale and limit on a cache MISS', async () => {
-      const result = await platformService.getTopFaults(LookupLocale.PtPt, 12);
+    it('queries and caches the result on a cache MISS', async () => {
+      const result = await platformService.getTopFaults(LookupLocale.EnGb, 6);
 
       expect(knownIssuesService.findTopByCommentCount).toHaveBeenCalledWith(
-        LookupLocale.PtPt,
-        12,
+        LookupLocale.EnGb,
+        6,
       );
-      expect(cache.set).toHaveBeenCalledWith(
-        'platform:top-faults:pt-PT:12',
-        topFaults,
-        300000,
-      );
-      expect(result).toBe(topFaults);
+      expect(cache.set).toHaveBeenCalledWith(cacheKey, [topFaultRow], 300000);
+      expect(result).toEqual([topFaultRow]);
     });
 
-    it('falls back to the query when the cache get fails', async () => {
+    it('uses a distinct cache key per locale and limit', async () => {
+      await platformService.getTopFaults(LookupLocale.PtPt, 12);
+
+      expect(cache.get).toHaveBeenCalledWith('platform:top-faults:pt-PT:12');
+    });
+
+    it('falls back to the repository when the cache get fails', async () => {
       cache.get.mockRejectedValue(new Error('redis down'));
 
       const result = await platformService.getTopFaults(LookupLocale.EnGb, 6);
 
       expect(knownIssuesService.findTopByCommentCount).toHaveBeenCalled();
-      expect(result).toBe(topFaults);
+      expect(result).toEqual([topFaultRow]);
     });
 
-    it('does not fail the request when caching the top faults errors', async () => {
+    it('does not fail the request when caching the result errors', async () => {
       cache.set.mockRejectedValue(new Error('redis down'));
 
       const result = await platformService.getTopFaults(LookupLocale.EnGb, 6);
 
-      expect(result).toBe(topFaults);
+      expect(result).toEqual([topFaultRow]);
     });
   });
 });

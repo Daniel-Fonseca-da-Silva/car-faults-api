@@ -77,12 +77,12 @@ describe('CommentsService', () => {
 
   describe('countAll', () => {
     it('delegates to the repository', async () => {
-      commentsRepository.countAll.mockResolvedValue(9);
+      commentsRepository.countAll.mockResolvedValue(42);
 
       const result = await commentsService.countAll();
 
       expect(commentsRepository.countAll).toHaveBeenCalledWith();
-      expect(result).toBe(9);
+      expect(result).toBe(42);
     });
   });
 

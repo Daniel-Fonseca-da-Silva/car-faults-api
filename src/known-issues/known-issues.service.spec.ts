@@ -265,23 +265,19 @@ describe('KnownIssuesService', () => {
 
   describe('countAll', () => {
     it('delegates to the repository', async () => {
-      knownIssuesRepository.countAll.mockResolvedValue(5);
+      knownIssuesRepository.countAll.mockResolvedValue(34000);
 
       const result = await knownIssuesService.countAll();
 
       expect(knownIssuesRepository.countAll).toHaveBeenCalledWith();
-      expect(result).toBe(5);
+      expect(result).toBe(34000);
     });
   });
 
   describe('findTopByCommentCount', () => {
     it('delegates to the repository', async () => {
-      const knownIssues = [
-        { id: 'ki-1', commentCount: 5 },
-      ] as unknown as KnownIssue[];
-      knownIssuesRepository.findTopByCommentCount.mockResolvedValue(
-        knownIssues,
-      );
+      const rows = [{ id: 'ki-1' }];
+      knownIssuesRepository.findTopByCommentCount.mockResolvedValue(rows);
 
       const result = await knownIssuesService.findTopByCommentCount(
         LookupLocale.EnGb,
@@ -292,7 +288,7 @@ describe('KnownIssuesService', () => {
         LookupLocale.EnGb,
         6,
       );
-      expect(result).toBe(knownIssues);
+      expect(result).toBe(rows);
     });
   });
 });
