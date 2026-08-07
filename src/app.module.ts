@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ActivityLogModule } from './activity-log/activity-log.module';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { CommentsModule } from './comments/comments.module';
 import { createThrottlerOptions } from './common/throttler/throttler-options.factory';
@@ -42,6 +43,7 @@ import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
     ReviewsModule,
     StorageModule,
     CommentsModule,
+    AdminModule,
     PlatformModule,
   ],
   controllers: [],

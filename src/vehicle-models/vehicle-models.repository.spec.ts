@@ -12,7 +12,9 @@ describe('VehicleModelsRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    findAndCount: jest.Mock;
     count: jest.Mock;
+    softDelete: jest.Mock;
   };
 
   const criteria = {
@@ -27,7 +29,9 @@ describe('VehicleModelsRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      findAndCount: jest.fn(),
       count: jest.fn(),
+      softDelete: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -203,6 +207,54 @@ describe('VehicleModelsRepository', () => {
       expect(managerRepository.save).toHaveBeenCalledWith(vehicleModel);
       expect(repository.save).not.toHaveBeenCalled();
       expect(result).toBe(vehicleModel);
+    });
+  });
+
+  describe('findPaginated', () => {
+    it('paginates without brand/model filters', async () => {
+      const vehicleModels = [{ id: 'vm-1' }] as VehicleModel[];
+      repository.findAndCount.mockResolvedValue([vehicleModels, 1]);
+
+      const result = await vehicleModelsRepository.findPaginated({
+        page: 1,
+        limit: 20,
+      });
+
+      expect(repository.findAndCount).toHaveBeenCalledWith({
+        where: {},
+        order: { brand: 'ASC', model: 'ASC', yearFrom: 'ASC' },
+        skip: 0,
+        take: 20,
+      });
+      expect(result).toEqual([vehicleModels, 1]);
+    });
+
+    it('filters by brand and model and paginates the offset', async () => {
+      repository.findAndCount.mockResolvedValue([[], 0]);
+
+      await vehicleModelsRepository.findPaginated({
+        page: 3,
+        limit: 10,
+        brand: 'Volkswagen',
+        model: 'Polo',
+      });
+
+      expect(repository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 20,
+          take: 10,
+        }),
+      );
+    });
+  });
+
+  describe('softDelete', () => {
+    it('delegates to repository.softDelete', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
+
+      await vehicleModelsRepository.softDelete('vm-1');
+
+      expect(repository.softDelete).toHaveBeenCalledWith('vm-1');
     });
   });
 

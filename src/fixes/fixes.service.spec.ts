@@ -427,4 +427,107 @@ describe('FixesService', () => {
       expect(fixesRepository.softDelete).toHaveBeenCalledWith('fix-1');
     });
   });
+
+  describe('findById', () => {
+    it('delegates to the repository', async () => {
+      const fix = buildFix();
+      fixesRepository.findById.mockResolvedValue(fix);
+
+      const result = await fixesService.findById('fix-1');
+
+      expect(fixesRepository.findById).toHaveBeenCalledWith('fix-1');
+      expect(result).toBe(fix);
+    });
+  });
+
+  describe('adminCreate', () => {
+    it('creates a fix with no userId and AI source, then evicts the cache', async () => {
+      const created = buildFix({ userId: null, source: FixSource.AI });
+      fixesRepository.create.mockReturnValue(created);
+      fixesRepository.save.mockResolvedValue(created);
+      fixesRepository.findByIdWithCounts.mockResolvedValue({
+        ...created,
+        likes: 0,
+        dislikes: 0,
+        myVote: null,
+      });
+
+      const result = await fixesService.adminCreate({
+        knownIssueId: 'ki-1',
+        summary: 'Replace synchros',
+        steps: 'Remove gearbox and replace synchro rings.',
+      });
+
+      expect(fixesRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: null, source: FixSource.AI }),
+      );
+      expect(cache.del).toHaveBeenCalled();
+      expect(result.source).toBe(FixSource.AI);
+    });
+
+    it('throws NotFoundException when the known issue does not exist', async () => {
+      knownIssuesService.findById.mockResolvedValue(null);
+
+      await expect(
+        fixesService.adminCreate({
+          knownIssueId: 'missing',
+          summary: 'Replace synchros',
+          steps: 'Remove gearbox.',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('adminUpdate', () => {
+    it('updates the fix regardless of ownership and evicts the cache', async () => {
+      const fix = buildFix({ userId: 'someone-else' });
+      fixesRepository.findById.mockResolvedValue(fix);
+      fixesRepository.save.mockImplementation((entity: Fix) =>
+        Promise.resolve(entity),
+      );
+      fixesRepository.findByIdWithCounts.mockResolvedValue({
+        ...fix,
+        summary: 'Updated summary',
+        likes: 0,
+        dislikes: 0,
+        myVote: null,
+      });
+
+      const result = await fixesService.adminUpdate('fix-1', {
+        summary: 'Updated summary',
+      });
+
+      expect(result.summary).toBe('Updated summary');
+      expect(cache.del).toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the fix does not exist', async () => {
+      fixesRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        fixesService.adminUpdate('missing', { summary: 'x' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('adminRemove', () => {
+    it('removes the fix regardless of ownership and evicts the cache', async () => {
+      const fix = buildFix({ userId: 'someone-else' });
+      fixesRepository.findById.mockResolvedValue(fix);
+      fixesRepository.softDelete.mockResolvedValue(undefined);
+
+      await fixesService.adminRemove('fix-1');
+
+      expect(fixesRepository.softDelete).toHaveBeenCalledWith('fix-1');
+      expect(cache.del).toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the fix does not exist', async () => {
+      fixesRepository.findById.mockResolvedValue(null);
+
+      await expect(fixesService.adminRemove('missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
 });

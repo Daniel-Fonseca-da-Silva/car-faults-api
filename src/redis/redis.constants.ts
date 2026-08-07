@@ -1,3 +1,5 @@
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
+
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 export const USER_CACHE_KEY_PREFIX = 'user:';
 export const LOOKUP_CACHE_KEY_PREFIX = 'vehicle:lookup:';
@@ -15,7 +17,7 @@ export function oauthCodeCacheKey(code: string): string {
 }
 
 export function platformTopFaultsCacheKey(
-  locale: string,
+  locale: LookupLocale,
   limit: number,
 ): string {
   return `${PLATFORM_TOP_FAULTS_CACHE_KEY_PREFIX}${locale}:${limit}`;

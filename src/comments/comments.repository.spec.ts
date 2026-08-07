@@ -8,20 +8,20 @@ describe('CommentsRepository', () => {
   let repository: {
     find: jest.Mock;
     findOne: jest.Mock;
+    count: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     softDelete: jest.Mock;
-    count: jest.Mock;
   };
 
   beforeEach(async () => {
     repository = {
       find: jest.fn(),
       findOne: jest.fn(),
+      count: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
       softDelete: jest.fn(),
-      count: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({

@@ -71,11 +71,30 @@ export class KnownIssuesRepository {
     return this.repository.findOne({ where: { id } });
   }
 
+  findByIdWithFixes(id: string): Promise<KnownIssue | null> {
+    return this.repository.findOne({
+      where: { id },
+      relations: { fixes: true },
+    });
+  }
+
   saveMany(
     knownIssues: Partial<KnownIssue>[],
     manager: EntityManager,
   ): Promise<KnownIssue[]> {
     return manager.getRepository(KnownIssue).save(knownIssues);
+  }
+
+  create(data: Partial<KnownIssue>): KnownIssue {
+    return this.repository.create(data);
+  }
+
+  save(knownIssue: KnownIssue): Promise<KnownIssue> {
+    return this.repository.save(knownIssue);
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.repository.softDelete(id);
   }
 
   countAll(): Promise<number> {

@@ -11,10 +11,10 @@ describe('CommentsService', () => {
   let commentsRepository: {
     findByKnownIssueId: jest.Mock;
     findById: jest.Mock;
+    countAll: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     softDelete: jest.Mock;
-    countAll: jest.Mock;
   };
   let knownIssuesService: { findById: jest.Mock };
   let r2StorageService: { deleteByPublicUrl: jest.Mock };
@@ -35,10 +35,10 @@ describe('CommentsService', () => {
     commentsRepository = {
       findByKnownIssueId: jest.fn(),
       findById: jest.fn(),
+      countAll: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
       softDelete: jest.fn(),
-      countAll: jest.fn(),
     };
     knownIssuesService = { findById: jest.fn() };
     r2StorageService = {

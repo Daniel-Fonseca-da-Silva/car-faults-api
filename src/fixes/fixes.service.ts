@@ -32,6 +32,19 @@ export interface UpdateFixData {
   estimatedCostEur?: number;
 }
 
+export interface AdminCreateFixData {
+  knownIssueId: string;
+  summary: string;
+  steps: string;
+  estimatedCostEur?: number;
+}
+
+export interface AdminUpdateFixData {
+  summary?: string;
+  steps?: string;
+  estimatedCostEur?: number;
+}
+
 @Injectable()
 export class FixesService {
   private readonly logger = new Logger(FixesService.name);
@@ -167,6 +180,67 @@ export class FixesService {
     await this.fixVotesRepository.softDelete(existing.id);
     await this.evictLookupCacheForFix(fix);
     await this.evictCacheKey(userStatsCacheKey(userId));
+  }
+
+  findById(id: string): Promise<Fix | null> {
+    return this.fixesRepository.findById(id);
+  }
+
+  async adminCreate(data: AdminCreateFixData): Promise<FixWithCounts> {
+    const knownIssue = await this.knownIssuesService.findById(
+      data.knownIssueId,
+    );
+    if (!knownIssue) {
+      throw new NotFoundException(`Known issue ${data.knownIssueId} not found`);
+    }
+
+    const fix = this.fixesRepository.create({
+      knownIssueId: data.knownIssueId,
+      userId: null,
+      summary: data.summary,
+      steps: data.steps,
+      estimatedCostEur:
+        data.estimatedCostEur !== undefined
+          ? String(data.estimatedCostEur)
+          : null,
+      source: FixSource.AI,
+    });
+    const saved = await this.fixesRepository.save(fix);
+    await this.evictLookupCache(knownIssue.vehicleModelId);
+    return this.getWithCounts(saved.id);
+  }
+
+  async adminUpdate(
+    id: string,
+    data: AdminUpdateFixData,
+  ): Promise<FixWithCounts> {
+    const fix = await this.fixesRepository.findById(id);
+    if (!fix) {
+      throw new NotFoundException(`Fix ${id} not found`);
+    }
+
+    if (data.summary !== undefined) {
+      fix.summary = data.summary;
+    }
+    if (data.steps !== undefined) {
+      fix.steps = data.steps;
+    }
+    if (data.estimatedCostEur !== undefined) {
+      fix.estimatedCostEur = String(data.estimatedCostEur);
+    }
+
+    const saved = await this.fixesRepository.save(fix);
+    await this.evictLookupCacheForFix(saved);
+    return this.getWithCounts(saved.id);
+  }
+
+  async adminRemove(id: string): Promise<void> {
+    const fix = await this.fixesRepository.findById(id);
+    if (!fix) {
+      throw new NotFoundException(`Fix ${id} not found`);
+    }
+    await this.fixesRepository.softDelete(id);
+    await this.evictLookupCacheForFix(fix);
   }
 
   private async getOwned(id: string, userId: string): Promise<Fix> {

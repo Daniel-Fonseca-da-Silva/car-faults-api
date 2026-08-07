@@ -11,6 +11,9 @@ describe('KnownIssuesRepository', () => {
     find: jest.Mock;
     findOne: jest.Mock;
     count: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+    softDelete: jest.Mock;
     createQueryBuilder: jest.Mock;
   };
   let queryBuilder: {
@@ -47,6 +50,9 @@ describe('KnownIssuesRepository', () => {
       find: jest.fn(),
       findOne: jest.fn(),
       count: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
+      softDelete: jest.fn(),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
 
@@ -164,6 +170,56 @@ describe('KnownIssuesRepository', () => {
       expect(getRepository).toHaveBeenCalledWith(KnownIssue);
       expect(managerRepository.save).toHaveBeenCalledWith(data);
       expect(result).toBe(saved);
+    });
+  });
+
+  describe('findByIdWithFixes', () => {
+    it('delegates to repository.findOne with the fixes relation', async () => {
+      const knownIssue = { id: 'ki-1' } as KnownIssue;
+      repository.findOne.mockResolvedValue(knownIssue);
+
+      const result = await knownIssuesRepository.findByIdWithFixes('ki-1');
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { id: 'ki-1' },
+        relations: { fixes: true },
+      });
+      expect(result).toBe(knownIssue);
+    });
+  });
+
+  describe('create', () => {
+    it('delegates to repository.create', () => {
+      const data = { title: 'Gearbox' };
+      const knownIssue = { ...data } as KnownIssue;
+      repository.create.mockReturnValue(knownIssue);
+
+      const result = knownIssuesRepository.create(data);
+
+      expect(repository.create).toHaveBeenCalledWith(data);
+      expect(result).toBe(knownIssue);
+    });
+  });
+
+  describe('save', () => {
+    it('delegates to repository.save', async () => {
+      const knownIssue = { id: 'ki-1' } as KnownIssue;
+      repository.save.mockResolvedValue(knownIssue);
+
+      const result = await knownIssuesRepository.save(knownIssue);
+
+      expect(repository.save).toHaveBeenCalledWith(knownIssue);
+      expect(result).toBe(knownIssue);
+    });
+  });
+
+  describe('softDelete', () => {
+    it('delegates to repository.softDelete', async () => {
+      repository.softDelete.mockResolvedValue(undefined);
+
+      await knownIssuesRepository.softDelete('ki-1');
+
+      expect(repository.softDelete).toHaveBeenCalledWith('ki-1');
     });
   });
 
