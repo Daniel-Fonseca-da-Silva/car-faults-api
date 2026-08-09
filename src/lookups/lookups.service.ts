@@ -1,5 +1,5 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource, EntityManager } from 'typeorm';
 import { AI_LOOKUP_PROVIDER } from '../ai/ai-lookup.provider';
@@ -24,6 +24,7 @@ import { TurnstileService } from '../turnstile/turnstile.service';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
+import { LookupByPathQueryDto } from './dto/lookup-by-path-query.dto';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
 import { buildLookupCacheKey } from './lookup-cache-key.util';
@@ -99,6 +100,30 @@ export class LookupsService {
     const result = await this.lookupUncached(criteria, turnstileToken);
     await this.setCached(cacheKey, result);
     return result;
+  }
+
+  async lookupByPath(query: LookupByPathQueryDto): Promise<LookupResponseDto> {
+    const vehicleModel = await this.vehicleModelsService.findByPathLookup({
+      make: query.make.trim(),
+      model: query.model.trim(),
+      year: query.year,
+      fuelType: query.fuelType,
+      engine: query.engine.trim(),
+      doors: query.doors,
+    });
+    if (!vehicleModel) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    const language = query.language ?? LookupLocale.EnGb;
+    const localeIssues =
+      await this.knownIssuesService.findByVehicleModelIdAndLocale(
+        vehicleModel.id,
+        language,
+      );
+    const knownIssuesWithCounts = await this.attachFixCounts(localeIssues);
+
+    return new LookupResponseDto(vehicleModel, knownIssuesWithCounts);
   }
 
   private async lookupUncached(

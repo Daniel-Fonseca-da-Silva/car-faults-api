@@ -6,8 +6,10 @@ import {
   IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
+  Not,
   Repository,
 } from 'typeorm';
+import { slugify } from '../common/utils/slugify.util';
 import { VehicleModel } from './entities/vehicle-model.entity';
 import { FuelType } from './enums/fuel-type.enum';
 
@@ -20,11 +22,25 @@ export interface VehicleLookupCriteria {
   fuelType?: FuelType;
 }
 
+export interface VehiclePathLookupCriteria {
+  make: string;
+  model: string;
+  year: number;
+  fuelType: FuelType;
+  engine: string;
+  doors?: number;
+}
+
 export interface VehicleModelPaginationCriteria {
   page: number;
   limit: number;
   brand?: string;
   model?: string;
+}
+
+export interface VehicleCatalogPaginationCriteria {
+  page: number;
+  limit: number;
 }
 
 @Injectable()
@@ -77,6 +93,54 @@ export class VehicleModelsRepository {
     });
   }
 
+  async findByPathLookup(
+    criteria: VehiclePathLookupCriteria,
+  ): Promise<VehicleModel | null> {
+    const { year, fuelType, doors } = criteria;
+    const makeSlug = slugify(criteria.make);
+    const modelSlug = slugify(criteria.model);
+    const engineSlug = slugify(criteria.engine);
+
+    const [openEnded, bounded] = await Promise.all([
+      this.repository.find({
+        where: {
+          fuelType,
+          yearFrom: LessThanOrEqual(year),
+          yearTo: IsNull(),
+        },
+        order: { id: 'ASC' },
+      }),
+      this.repository.find({
+        where: {
+          fuelType,
+          yearFrom: LessThanOrEqual(year),
+          yearTo: MoreThanOrEqual(year),
+        },
+        order: { id: 'ASC' },
+      }),
+    ]);
+
+    const matches = [...openEnded, ...bounded].filter(
+      (candidate) =>
+        slugify(candidate.brand) === makeSlug &&
+        slugify(candidate.model) === modelSlug &&
+        slugify(candidate.engine) === engineSlug,
+    );
+
+    if (matches.length === 0) {
+      return null;
+    }
+
+    if (doors !== undefined) {
+      const doorsMatch = matches.find((candidate) => candidate.doors === doors);
+      if (doorsMatch) {
+        return doorsMatch;
+      }
+    }
+
+    return matches[0];
+  }
+
   create(data: Partial<VehicleModel>): VehicleModel {
     return this.repository.create(data);
   }
@@ -100,6 +164,17 @@ export class VehicleModelsRepository {
         ...(criteria.model ? { model: ILike(`%${criteria.model}%`) } : {}),
       },
       order: { brand: 'ASC', model: 'ASC', yearFrom: 'ASC' },
+      skip: (criteria.page - 1) * criteria.limit,
+      take: criteria.limit,
+    });
+  }
+
+  async findCatalogPaginated(
+    criteria: VehicleCatalogPaginationCriteria,
+  ): Promise<[VehicleModel[], number]> {
+    return this.repository.findAndCount({
+      where: { fuelType: Not(IsNull()) },
+      order: { brand: 'ASC', model: 'ASC', yearFrom: 'ASC', id: 'ASC' },
       skip: (criteria.page - 1) * criteria.limit,
       take: criteria.limit,
     });

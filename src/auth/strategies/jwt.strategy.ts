@@ -6,9 +6,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/users.service';
 import { ACCESS_TOKEN_COOKIE_NAME } from '../access-token-cookie.factory';
+import { AuthService } from '../auth.service';
 
 export interface JwtPayload {
   sub: string;
+  jti?: string;
 }
 
 function cookieExtractor(req: Request): string | null {
@@ -22,6 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     config: ConfigService,
     private readonly usersService: UsersService,
+    private readonly authService: AuthService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -34,6 +37,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<User> {
+    if (
+      payload.jti &&
+      (await this.authService.isAccessTokenRevoked(payload.jti))
+    ) {
+      throw new UnauthorizedException('Access token has been revoked');
+    }
+
     try {
       return await this.usersService.findById(payload.sub);
     } catch {

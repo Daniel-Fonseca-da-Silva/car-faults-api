@@ -92,13 +92,35 @@ export class AuthController {
   }
 
   @Post('logout')
-  @ApiOperation({ summary: 'Log out and clear the access token cookie' })
-  @ApiOkResponse({ description: 'Access token cookie cleared' })
-  logout(@Res() res: Response): void {
+  @ApiOperation({
+    summary: 'Log out, revoke the access token and clear its cookie',
+  })
+  @ApiOkResponse({ description: 'Access token revoked and cookie cleared' })
+  async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
+    const accessToken = this.extractAccessToken(req);
+    if (accessToken) {
+      await this.authService.revokeAccessToken(accessToken);
+    }
+
     res.clearCookie(
       ACCESS_TOKEN_COOKIE_NAME,
       createAccessTokenCookieOptions(this.config),
     );
     res.status(HttpStatus.NO_CONTENT).send();
+  }
+
+  private extractAccessToken(req: Request): string | null {
+    const cookieToken = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME] as
+      string | undefined;
+    if (cookieToken) {
+      return cookieToken;
+    }
+
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      return authHeader.slice('Bearer '.length);
+    }
+
+    return null;
   }
 }

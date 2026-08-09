@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { KnownIssue } from './entities/known-issue.entity';
@@ -17,6 +17,23 @@ export interface TopFaultRow {
   vehicleEngine: string;
   vehicleFuelType: FuelType | null;
   vehicleDoors: number | null;
+}
+
+export interface FaultsCriteria {
+  locale: LookupLocale;
+  page: number;
+  limit: number;
+  brand?: string;
+  model?: string;
+  year?: number;
+  engine?: string;
+  fuelType?: FuelType;
+  doors?: number;
+}
+
+export interface FaultsPage {
+  items: TopFaultRow[];
+  total: number;
 }
 
 interface RawTopFaultRow {
@@ -101,20 +118,16 @@ export class KnownIssuesRepository {
     return this.repository.count();
   }
 
-  async findTopByCommentCount(
-    locale: LookupLocale,
-    limit: number,
-  ): Promise<TopFaultRow[]> {
-    const raw = await this.repository
-      .createQueryBuilder('ki')
-      .innerJoin('ki.vehicleModel', 'vm')
-      .leftJoin(
-        'comments',
-        'c',
-        'c.known_issue_id = ki.id AND c.deleted_at IS NULL',
-      )
-      .where('ki.deleted_at IS NULL')
-      .andWhere('ki.locale = :locale', { locale })
+  async findFaultsPaginated(criteria: FaultsCriteria): Promise<FaultsPage> {
+    const { page, limit } = criteria;
+
+    const countRaw = await this.buildFaultsQuery(criteria)
+      .select('ki.id', 'id')
+      .groupBy('ki.id')
+      .having('COUNT(c.id) > 0')
+      .getRawMany<{ id: string }>();
+
+    const raw = await this.buildFaultsQuery(criteria)
       .select('ki.id', 'id')
       .addSelect('ki.title', 'title')
       .addSelect('ki.severity', 'severity')
@@ -134,20 +147,64 @@ export class KnownIssuesRepository {
       .addGroupBy('vm.doors')
       .having('COUNT(c.id) > 0')
       .orderBy('COUNT(c.id)', 'DESC')
+      .offset((page - 1) * limit)
       .limit(limit)
       .getRawMany<RawTopFaultRow>();
 
-    return raw.map((row) => ({
-      id: row.id,
-      title: row.title,
-      severity: row.severity,
-      reportCount: Number(row.reportCount),
-      vehicleBrand: row.vehicleBrand,
-      vehicleModel: row.vehicleModel,
-      vehicleYearFrom: Number(row.vehicleYearFrom),
-      vehicleEngine: row.vehicleEngine,
-      vehicleFuelType: row.vehicleFuelType,
-      vehicleDoors: row.vehicleDoors == null ? null : Number(row.vehicleDoors),
-    }));
+    return {
+      total: countRaw.length,
+      items: raw.map((row) => ({
+        id: row.id,
+        title: row.title,
+        severity: row.severity,
+        reportCount: Number(row.reportCount),
+        vehicleBrand: row.vehicleBrand,
+        vehicleModel: row.vehicleModel,
+        vehicleYearFrom: Number(row.vehicleYearFrom),
+        vehicleEngine: row.vehicleEngine,
+        vehicleFuelType: row.vehicleFuelType,
+        vehicleDoors:
+          row.vehicleDoors == null ? null : Number(row.vehicleDoors),
+      })),
+    };
+  }
+
+  private buildFaultsQuery(
+    criteria: FaultsCriteria,
+  ): SelectQueryBuilder<KnownIssue> {
+    const { locale, brand, model, year, engine, fuelType, doors } = criteria;
+
+    const qb = this.repository
+      .createQueryBuilder('ki')
+      .innerJoin('ki.vehicleModel', 'vm')
+      .leftJoin(
+        'comments',
+        'c',
+        'c.known_issue_id = ki.id AND c.deleted_at IS NULL',
+      )
+      .where('ki.deleted_at IS NULL')
+      .andWhere('ki.locale = :locale', { locale });
+
+    if (brand) {
+      qb.andWhere('vm.brand ILIKE :brand', { brand: `%${brand}%` });
+    }
+    if (model) {
+      qb.andWhere('vm.model ILIKE :model', { model: `%${model}%` });
+    }
+    if (engine) {
+      qb.andWhere('vm.engine ILIKE :engine', { engine: `%${engine}%` });
+    }
+    if (fuelType) {
+      qb.andWhere('vm.fuel_type = :fuelType', { fuelType });
+    }
+    if (doors != null) {
+      qb.andWhere('vm.doors = :doors', { doors });
+    }
+    if (year != null) {
+      qb.andWhere('vm.year_from <= :year', { year });
+      qb.andWhere('(vm.year_to IS NULL OR vm.year_to >= :year)', { year });
+    }
+
+    return qb;
   }
 }

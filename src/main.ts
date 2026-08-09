@@ -3,6 +3,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { createCorsOptions } from './common/cors/cors-options.factory';
@@ -19,6 +20,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
 
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
   app.enableCors(createCorsOptions(config.getOrThrow<string>('CORS_ORIGINS')));
 

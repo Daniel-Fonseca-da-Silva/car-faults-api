@@ -1,8 +1,8 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
-import { oauthCodeCacheKey } from '../redis/redis.constants';
+import { randomBytes, randomUUID } from 'crypto';
+import { jwtDenyCacheKey, oauthCodeCacheKey } from '../redis/redis.constants';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -42,7 +42,10 @@ export class AuthService {
   }
 
   login(user: User): AuthResponseDto {
-    const accessToken = this.jwtService.sign({ sub: user.id });
+    const accessToken = this.jwtService.sign({
+      sub: user.id,
+      jti: randomUUID(),
+    });
     return new AuthResponseDto({
       accessToken,
       user: new UserResponseDto(user),
@@ -73,5 +76,30 @@ export class AuthService {
 
     await this.cache.del(key);
     return accessToken;
+  }
+
+  async revokeAccessToken(accessToken: string): Promise<void> {
+    let payload: { jti?: string; exp?: number } | null;
+    try {
+      payload = this.jwtService.decode<{ jti?: string; exp?: number }>(
+        accessToken,
+      );
+    } catch {
+      return;
+    }
+    if (!payload?.jti || !payload.exp) {
+      return;
+    }
+
+    const ttlMs = Math.max(payload.exp * 1000 - Date.now(), 0);
+    if (ttlMs === 0) {
+      return;
+    }
+
+    await this.cache.set(jwtDenyCacheKey(payload.jti), '1', ttlMs);
+  }
+
+  async isAccessTokenRevoked(jti: string): Promise<boolean> {
+    return Boolean(await this.cache.get(jwtDenyCacheKey(jti)));
   }
 }

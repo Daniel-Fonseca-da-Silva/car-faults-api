@@ -8,7 +8,11 @@ import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { KnownIssue } from './entities/known-issue.entity';
 import { IssueSeverity } from './enums/issue-severity.enum';
-import { KnownIssuesRepository, TopFaultRow } from './known-issues.repository';
+import {
+  FaultsCriteria,
+  FaultsPage,
+  KnownIssuesRepository,
+} from './known-issues.repository';
 
 export interface CreateKnownIssueData {
   vehicleModelId: string;
@@ -75,11 +79,8 @@ export class KnownIssuesService {
     return this.knownIssuesRepository.countAll();
   }
 
-  findTopByCommentCount(
-    locale: LookupLocale,
-    limit: number,
-  ): Promise<TopFaultRow[]> {
-    return this.knownIssuesRepository.findTopByCommentCount(locale, limit);
+  findFaultsPaginated(criteria: FaultsCriteria): Promise<FaultsPage> {
+    return this.knownIssuesRepository.findFaultsPaginated(criteria);
   }
 
   saveMany(

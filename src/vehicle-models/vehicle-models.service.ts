@@ -5,9 +5,11 @@ import { buildLookupCacheKeysForVehicleModel } from '../lookups/lookup-cache-key
 import { errorMessage } from '../redis/redis-error.util';
 import { VehicleModel } from './entities/vehicle-model.entity';
 import {
+  VehicleCatalogPaginationCriteria,
   VehicleLookupCriteria,
   VehicleModelPaginationCriteria,
   VehicleModelsRepository,
+  VehiclePathLookupCriteria,
 } from './vehicle-models.repository';
 
 export interface PaginatedVehicleModels {
@@ -36,6 +38,12 @@ export class VehicleModelsService {
     return this.vehicleModelsRepository.findByLookup(criteria);
   }
 
+  findByPathLookup(
+    criteria: VehiclePathLookupCriteria,
+  ): Promise<VehicleModel | null> {
+    return this.vehicleModelsRepository.findByPathLookup(criteria);
+  }
+
   create(
     data: Partial<VehicleModel>,
     manager?: EntityManager,
@@ -49,6 +57,14 @@ export class VehicleModelsService {
   ): Promise<PaginatedVehicleModels> {
     const [items, total] =
       await this.vehicleModelsRepository.findPaginated(criteria);
+    return { items, total };
+  }
+
+  async findCatalogPaginated(
+    criteria: VehicleCatalogPaginationCriteria,
+  ): Promise<PaginatedVehicleModels> {
+    const [items, total] =
+      await this.vehicleModelsRepository.findCatalogPaginated(criteria);
     return { items, total };
   }
 

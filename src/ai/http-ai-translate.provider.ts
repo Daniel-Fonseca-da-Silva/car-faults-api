@@ -5,6 +5,7 @@ import {
   AiTranslateProvider,
   AiTranslateResult,
 } from './ai-translate.provider';
+import { parseAiTranslateResult } from './dto/ai-translate-result.dto';
 
 @Injectable()
 export class HttpAiTranslateProvider implements AiTranslateProvider {
@@ -36,6 +37,6 @@ export class HttpAiTranslateProvider implements AiTranslateProvider {
       );
     }
 
-    return (await response.json()) as AiTranslateResult;
+    return parseAiTranslateResult(await response.json());
   }
 }

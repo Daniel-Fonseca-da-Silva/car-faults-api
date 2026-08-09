@@ -1,16 +1,21 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { CommentsService } from '../comments/comments.service';
-import { TopFaultRow } from '../known-issues/known-issues.repository';
+import {
+  FaultsCriteria,
+  FaultsPage,
+} from '../known-issues/known-issues.repository';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { errorMessage } from '../redis/redis-error.util';
 import {
   PLATFORM_STATS_CACHE_KEY,
-  platformTopFaultsCacheKey,
+  platformFaultsCacheKey,
 } from '../redis/redis.constants';
-import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
+import {
+  PaginatedVehicleModels,
+  VehicleModelsService,
+} from '../vehicle-models/vehicle-models.service';
 import { PlatformStats } from './dto/platform-stats-response.dto';
 
 @Injectable()
@@ -49,22 +54,23 @@ export class PlatformService {
     return stats;
   }
 
-  async getTopFaults(
-    locale: LookupLocale,
-    limit: number,
-  ): Promise<TopFaultRow[]> {
-    const cacheKey = platformTopFaultsCacheKey(locale, limit);
-    const cached = await this.getCached<TopFaultRow[]>(cacheKey);
+  async getFaults(criteria: FaultsCriteria): Promise<FaultsPage> {
+    const cacheKey = platformFaultsCacheKey(criteria);
+    const cached = await this.getCached<FaultsPage>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    const items = await this.knownIssuesService.findTopByCommentCount(
-      locale,
-      limit,
-    );
-    await this.setCached(cacheKey, items);
-    return items;
+    const result = await this.knownIssuesService.findFaultsPaginated(criteria);
+    await this.setCached(cacheKey, result);
+    return result;
+  }
+
+  getVehicles(criteria: {
+    page: number;
+    limit: number;
+  }): Promise<PaginatedVehicleModels> {
+    return this.vehicleModelsService.findCatalogPaginated(criteria);
   }
 
   private async getCached<T>(key: string): Promise<T | undefined> {

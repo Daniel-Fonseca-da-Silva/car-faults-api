@@ -23,6 +23,7 @@ import {
   THROTTLER_DEFAULT_NAME,
 } from '../common/throttler/throttler-options.factory';
 import { User } from '../users/entities/user.entity';
+import { LookupByPathQueryDto } from './dto/lookup-by-path-query.dto';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
 import { LookupsService } from './lookups.service';
@@ -73,6 +74,20 @@ export class LookupsController {
     }
 
     return result;
+  }
+
+  @Get('by-path')
+  @ApiOperation({
+    summary:
+      'Look up known issues and tech specs for a vehicle by its canonical URL slugs',
+    description:
+      'Public, read-only lookup used by the path-based vehicle page and by shared/indexed links. Never triggers AI generation and does not require a Turnstile token.',
+  })
+  @ApiOkResponse({ type: LookupResponseDto })
+  async lookupByPath(
+    @Query() query: LookupByPathQueryDto,
+  ): Promise<LookupResponseDto> {
+    return this.lookupsService.lookupByPath(query);
   }
 
   private buildSearchMetadata(query: LookupQueryDto): Record<string, unknown> {

@@ -5,6 +5,7 @@ import {
   AiLookupProvider,
   AiLookupResult,
 } from './ai-lookup.provider';
+import { parseAiLookupResult } from './dto/ai-lookup-result.dto';
 
 @Injectable()
 export class HttpAiLookupProvider implements AiLookupProvider {
@@ -36,6 +37,6 @@ export class HttpAiLookupProvider implements AiLookupProvider {
       );
     }
 
-    return (await response.json()) as AiLookupResult;
+    return parseAiLookupResult(await response.json());
   }
 }
