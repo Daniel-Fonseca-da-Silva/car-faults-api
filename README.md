@@ -30,11 +30,10 @@ Known-issue information is fragmented across forums, YouTube, ADAC/TÜV reports,
 |-------|------------|
 | API | NestJS + TypeORM + PostgreSQL |
 | Cache | Redis (cached lookup responses by model) |
-| Auth | Google OAuth |
-| Storage | Cloudflare R2 (avatars + vehicle photos) |
+| Auth | Google OAuth (JWT cookie); avatars are the Google account picture URL, no avatar upload endpoint |
+| Storage | Cloudflare R2 — `POST /v1/storage/comment-images` (JWT, any signed-in user) and `POST /v1/storage/vehicle-images` (JWT + admin only) |
 | Frontend | Next.js (consumes this API) |
-| AI | Provider TBD — structured JSON for issues + tech specs |
-| Payments | Phase 2 — Stripe (not in MVP) |
+| AI | [`car-faults-ai-api`](../car-faults-ai-api) sidecar — see [AI provider](#ai-provider) below |
 
 ## MVP (Phase 1)
 
@@ -45,9 +44,6 @@ Known-issue information is fragmented across forums, YouTube, ADAC/TÜV reports,
 5. Reviews and comments on issues
 6. Fixes (AI-generated and/or user-submitted)
 7. Vehicle photo uploads → R2
-8. No Stripe / no paywall
-
-**Phase 2** adds freemium plans, free lookup limits, and subscriptions.
 
 ## Lookup flow
 
@@ -72,6 +68,19 @@ Authenticated users can then review issues, comment, link a model to “my car�
 
 AI content is marked as generated, sources are stored when available, and product copy should treat results as indicative — not a substitute for a mechanic.
 
+## AI provider
+
+This API never calls an AI vendor directly — lookups and translations are delegated to the [`car-faults-ai-api`](../car-faults-ai-api) Python sidecar over HTTP.
+
+| Variable | Purpose |
+|----------|---------|
+| `AI_PROVIDER` | `stub` (canned responses, default outside production) or `http` (calls the sidecar) |
+| `AI_API_URL` | Sidecar lookup endpoint, e.g. `http://localhost:8000/lookup` |
+| `AI_TRANSLATE_URL` | Sidecar translate endpoint, e.g. `http://localhost:8000/translate` |
+| `AI_API_KEY` | Optional bearer token sent to the sidecar |
+
+**In production (`NODE_ENV=production`), `AI_PROVIDER` must be `http`** — the app refuses to boot with the stub provider outside local/test environments, so lookups can never silently return fake AI content in prod. See `src/ai/ai-lookup-provider.factory.ts` and `src/ai/ai-translate-provider.factory.ts`.
+
 ## Getting started
 
 ```bash
@@ -91,29 +100,36 @@ npm run start:prod
 
 Port and CORS origins come from `PORT` and `CORS_ORIGINS` in `.env` (required).
 
-### Database (Docker)
+### Database & cache (Docker)
 
-The API expects a local PostgreSQL instance, provided via Docker Compose.
+`docker-compose.yml` provisions the two stateful dependencies the API needs locally: PostgreSQL and Redis.
 
 ```bash
 cp .env.example .env
 docker compose up -d
-docker compose ps   # postgres should be "healthy"
+docker compose ps   # postgres and redis should be "healthy"
 ```
 
-The app runs locally (outside Docker) and connects to Postgres using the `DATABASE_*` variables in `.env`.
+The app runs locally (outside Docker) and connects to Postgres and Redis using the `DATABASE_*` / `REDIS_*` variables in `.env`.
 
 ### Storage (Cloudflare R2)
 
-Comment images upload to Cloudflare R2 via `POST /v1/storage/comment-images` (JWT, multipart, `image/jpeg|png|webp`, max 5 MB). Configure the `R2_*` variables in `.env`; `R2_PUBLIC_BASE_URL` is also the value comment `imageUrl`s must resolve under.
+Both endpoints share the same `R2_*` bucket configuration; `R2_PUBLIC_BASE_URL` is also the value returned `url`s must resolve under.
+
+- `POST /v1/storage/comment-images` — JWT, any signed-in user, multipart, `image/jpeg|png|webp`, max 5 MB.
+- `POST /v1/storage/vehicle-images` — JWT + admin only, same constraints; used by the admin panel to set a vehicle model's catalog photo.
+
+There is no avatar upload endpoint — user avatars are the Google account picture URL returned by OAuth.
 
 ### Useful URLs
 
+The API listens on `PORT` from `.env` (the web app's `.env.example` defaults `NEXT_PUBLIC_API_URL` to `http://localhost:3001`).
+
 | Resource | URL |
 |----------|-----|
-| Health | `GET http://localhost:3005/v1/health` |
-| Swagger UI | `http://localhost:3005/docs` |
-| OpenAPI JSON | `http://localhost:3005/docs-json` |
+| Health | `GET http://localhost:$PORT/v1/health` |
+| Swagger UI | `http://localhost:$PORT/docs` |
+| OpenAPI JSON | `http://localhost:$PORT/docs-json` |
 
 All API routes are versioned under `/v1`.
 

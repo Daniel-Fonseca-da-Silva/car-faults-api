@@ -26,11 +26,9 @@
 - Avoid creating overly long, unreadable class strings; break them down or use descriptive component design where appropriate.
 
 # Internationalization (i18n)
-- All user-facing copy lives in `messages/{locale}/*.json` — never hardcode strings in components.
-- Supported locales: `pt-PT` and `en-GB`.
-- When adding, removing, or changing any translation key or text, update **both** locale files in the same change.
-- Mirror the same JSON structure and keys across locales; only the string values differ.
-- Run `npm test -- i18n/messages-parity.test.ts` after translation changes to confirm key parity.
+- This API has no UI copy and no `messages/{locale}` files — that pattern belongs to `car-faults-web` (the Next.js frontend), not here.
+- Here, locale (`LookupLocale`: `pt-PT` / `en-GB` / `es-ES`) is a **lookup input**: it selects which language known-issue content is generated/translated and served in, via query params and `AI_TRANSLATE_URL` on the AI sidecar.
+- When adding a new supported locale, update `src/common/enums/lookup-locale.enum.ts` and any DTOs/migrations that validate against it.
 
 # Automated Testing (Jest)
 - Write unit and integration tests using Jest and React Testing Library.
