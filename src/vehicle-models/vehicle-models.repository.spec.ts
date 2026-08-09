@@ -10,6 +10,7 @@ describe('VehicleModelsRepository', () => {
   let vehicleModelsRepository: VehicleModelsRepository;
   let repository: {
     findOne: jest.Mock;
+    find: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     findAndCount: jest.Mock;
@@ -27,6 +28,7 @@ describe('VehicleModelsRepository', () => {
   beforeEach(async () => {
     repository = {
       findOne: jest.fn(),
+      find: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
       findAndCount: jest.fn(),
@@ -245,6 +247,153 @@ describe('VehicleModelsRepository', () => {
           take: 10,
         }),
       );
+    });
+  });
+
+  describe('findByPathLookup', () => {
+    const pathCriteria = {
+      make: 'volkswagen',
+      model: 'polo',
+      year: 2001,
+      fuelType: FuelType.DIESEL,
+      engine: '1-0',
+    };
+
+    it('returns null when no candidate matches the slugs', async () => {
+      repository.find.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      const result =
+        await vehicleModelsRepository.findByPathLookup(pathCriteria);
+
+      expect(result).toBeNull();
+    });
+
+    it('matches a candidate by slugified brand, model and engine', async () => {
+      const vehicleModel = {
+        id: 'vm-1',
+        brand: 'Volkswagen',
+        model: 'Polo',
+        engine: '1.0',
+        doors: null,
+      } as VehicleModel;
+      repository.find
+        .mockResolvedValueOnce([vehicleModel])
+        .mockResolvedValueOnce([]);
+
+      const result =
+        await vehicleModelsRepository.findByPathLookup(pathCriteria);
+
+      expect(result).toBe(vehicleModel);
+    });
+
+    it('excludes candidates whose slugified fields do not match', async () => {
+      const wrongModel = {
+        id: 'vm-2',
+        brand: 'Volkswagen',
+        model: 'Golf',
+        engine: '1.0',
+        doors: null,
+      } as VehicleModel;
+      repository.find
+        .mockResolvedValueOnce([wrongModel])
+        .mockResolvedValueOnce([]);
+
+      const result =
+        await vehicleModelsRepository.findByPathLookup(pathCriteria);
+
+      expect(result).toBeNull();
+    });
+
+    it('prefers the candidate matching doors when doors is given and multiple match', async () => {
+      const threeDoor = {
+        id: 'vm-3',
+        brand: 'Volkswagen',
+        model: 'Polo',
+        engine: '1.0',
+        doors: 3,
+      } as VehicleModel;
+      const fiveDoor = {
+        id: 'vm-4',
+        brand: 'Volkswagen',
+        model: 'Polo',
+        engine: '1.0',
+        doors: 5,
+      } as VehicleModel;
+      repository.find
+        .mockResolvedValueOnce([threeDoor, fiveDoor])
+        .mockResolvedValueOnce([]);
+
+      const result = await vehicleModelsRepository.findByPathLookup({
+        ...pathCriteria,
+        doors: 5,
+      });
+
+      expect(result).toBe(fiveDoor);
+    });
+
+    it('falls back to the first stable candidate when doors is given but no candidate matches it', async () => {
+      const threeDoor = {
+        id: 'vm-3',
+        brand: 'Volkswagen',
+        model: 'Polo',
+        engine: '1.0',
+        doors: 3,
+      } as VehicleModel;
+      repository.find
+        .mockResolvedValueOnce([threeDoor])
+        .mockResolvedValueOnce([]);
+
+      const result = await vehicleModelsRepository.findByPathLookup({
+        ...pathCriteria,
+        doors: 5,
+      });
+
+      expect(result).toBe(threeDoor);
+    });
+
+    it('returns the first stable candidate when doors is omitted and multiple match', async () => {
+      const first = {
+        id: 'vm-5',
+        brand: 'Volkswagen',
+        model: 'Polo',
+        engine: '1.0',
+        doors: 3,
+      } as VehicleModel;
+      const second = {
+        id: 'vm-6',
+        brand: 'Volkswagen',
+        model: 'Polo',
+        engine: '1.0',
+        doors: 5,
+      } as VehicleModel;
+      repository.find
+        .mockResolvedValueOnce([first, second])
+        .mockResolvedValueOnce([]);
+
+      const result =
+        await vehicleModelsRepository.findByPathLookup(pathCriteria);
+
+      expect(result).toBe(first);
+    });
+  });
+
+  describe('findCatalogPaginated', () => {
+    it('filters to vehicle models with a non-null fuelType and paginates the offset', async () => {
+      const vehicleModels = [{ id: 'vm-1' }] as VehicleModel[];
+      repository.findAndCount.mockResolvedValue([vehicleModels, 1]);
+
+      const result = await vehicleModelsRepository.findCatalogPaginated({
+        page: 2,
+        limit: 20,
+      });
+
+      expect(repository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 20,
+          take: 20,
+        }),
+      );
+      expect(result).toEqual([vehicleModels, 1]);
     });
   });
 

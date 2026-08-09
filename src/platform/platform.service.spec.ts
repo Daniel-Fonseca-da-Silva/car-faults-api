@@ -6,6 +6,8 @@ import { CommentsService } from '../comments/comments.service';
 import { IssueSeverity } from '../known-issues/enums/issue-severity.enum';
 import { TopFaultRow } from '../known-issues/known-issues.repository';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
+import { platformFaultsCacheKey } from '../redis/redis.constants';
+import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { PlatformService } from './platform.service';
@@ -13,10 +15,13 @@ import { PlatformService } from './platform.service';
 describe('PlatformService', () => {
   let platformService: PlatformService;
   let commentsService: { countAll: jest.Mock };
-  let vehicleModelsService: { countAll: jest.Mock };
+  let vehicleModelsService: {
+    countAll: jest.Mock;
+    findCatalogPaginated: jest.Mock;
+  };
   let knownIssuesService: {
     countAll: jest.Mock;
-    findTopByCommentCount: jest.Mock;
+    findFaultsPaginated: jest.Mock;
   };
   let cache: { get: jest.Mock; set: jest.Mock };
 
@@ -46,10 +51,13 @@ describe('PlatformService', () => {
     };
     vehicleModelsService = {
       countAll: jest.fn().mockResolvedValue(stats.vehiclesCount),
+      findCatalogPaginated: jest.fn(),
     };
     knownIssuesService = {
       countAll: jest.fn().mockResolvedValue(stats.faultsCount),
-      findTopByCommentCount: jest.fn().mockResolvedValue([topFaultRow]),
+      findFaultsPaginated: jest
+        .fn()
+        .mockResolvedValue({ items: [topFaultRow], total: 1 }),
     };
     cache = {
       get: jest.fn().mockResolvedValue(undefined),
@@ -118,51 +126,84 @@ describe('PlatformService', () => {
     });
   });
 
-  describe('getTopFaults', () => {
-    const cacheKey = 'platform:top-faults:en-GB:6';
+  describe('getFaults', () => {
+    const criteria = { locale: LookupLocale.EnGb, page: 1, limit: 9 };
+    const cacheKey = platformFaultsCacheKey(criteria);
+    const page = { items: [topFaultRow], total: 1 };
 
-    it('returns the cached items without querying the repository on a cache HIT', async () => {
-      cache.get.mockResolvedValue([topFaultRow]);
+    it('returns the cached page without querying the repository on a cache HIT', async () => {
+      cache.get.mockResolvedValue(page);
 
-      const result = await platformService.getTopFaults(LookupLocale.EnGb, 6);
+      const result = await platformService.getFaults(criteria);
 
       expect(cache.get).toHaveBeenCalledWith(cacheKey);
-      expect(knownIssuesService.findTopByCommentCount).not.toHaveBeenCalled();
-      expect(result).toEqual([topFaultRow]);
+      expect(knownIssuesService.findFaultsPaginated).not.toHaveBeenCalled();
+      expect(result).toEqual(page);
     });
 
     it('queries and caches the result on a cache MISS', async () => {
-      const result = await platformService.getTopFaults(LookupLocale.EnGb, 6);
+      const result = await platformService.getFaults(criteria);
 
-      expect(knownIssuesService.findTopByCommentCount).toHaveBeenCalledWith(
-        LookupLocale.EnGb,
-        6,
+      expect(knownIssuesService.findFaultsPaginated).toHaveBeenCalledWith(
+        criteria,
       );
-      expect(cache.set).toHaveBeenCalledWith(cacheKey, [topFaultRow], 300000);
-      expect(result).toEqual([topFaultRow]);
+      expect(cache.set).toHaveBeenCalledWith(cacheKey, page, 300000);
+      expect(result).toEqual(page);
     });
 
-    it('uses a distinct cache key per locale and limit', async () => {
-      await platformService.getTopFaults(LookupLocale.PtPt, 12);
+    it('uses a distinct cache key per locale, page, limit and filters', async () => {
+      const otherCriteria = {
+        locale: LookupLocale.PtPt,
+        page: 2,
+        limit: 12,
+        brand: 'Volkswagen',
+      };
 
-      expect(cache.get).toHaveBeenCalledWith('platform:top-faults:pt-PT:12');
+      await platformService.getFaults(otherCriteria);
+
+      expect(cache.get).toHaveBeenCalledWith(
+        platformFaultsCacheKey(otherCriteria),
+      );
     });
 
     it('falls back to the repository when the cache get fails', async () => {
       cache.get.mockRejectedValue(new Error('redis down'));
 
-      const result = await platformService.getTopFaults(LookupLocale.EnGb, 6);
+      const result = await platformService.getFaults(criteria);
 
-      expect(knownIssuesService.findTopByCommentCount).toHaveBeenCalled();
-      expect(result).toEqual([topFaultRow]);
+      expect(knownIssuesService.findFaultsPaginated).toHaveBeenCalled();
+      expect(result).toEqual(page);
     });
 
     it('does not fail the request when caching the result errors', async () => {
       cache.set.mockRejectedValue(new Error('redis down'));
 
-      const result = await platformService.getTopFaults(LookupLocale.EnGb, 6);
+      const result = await platformService.getFaults(criteria);
 
-      expect(result).toEqual([topFaultRow]);
+      expect(result).toEqual(page);
+    });
+  });
+
+  describe('getVehicles', () => {
+    it('delegates to the vehicle models service without caching', async () => {
+      const items = [{ id: 'vm-1' }] as unknown as VehicleModel[];
+      vehicleModelsService.findCatalogPaginated.mockResolvedValue({
+        items,
+        total: 1,
+      });
+
+      const result = await platformService.getVehicles({
+        page: 1,
+        limit: 50,
+      });
+
+      expect(vehicleModelsService.findCatalogPaginated).toHaveBeenCalledWith({
+        page: 1,
+        limit: 50,
+      });
+      expect(cache.get).not.toHaveBeenCalled();
+      expect(cache.set).not.toHaveBeenCalled();
+      expect(result).toEqual({ items, total: 1 });
     });
   });
 });

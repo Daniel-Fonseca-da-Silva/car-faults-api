@@ -4,6 +4,7 @@ import { ActivityLogService } from '../activity-log/activity-log.service';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
+import { LookupByPathQueryDto } from './dto/lookup-by-path-query.dto';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
 import { LookupsController } from './lookups.controller';
@@ -11,7 +12,7 @@ import { LookupsService } from './lookups.service';
 
 describe('LookupsController', () => {
   let lookupsController: LookupsController;
-  let lookupsService: { lookup: jest.Mock };
+  let lookupsService: { lookup: jest.Mock; lookupByPath: jest.Mock };
   let activityLogService: { recordSearch: jest.Mock };
 
   const user = { id: 'user-1' } as User;
@@ -31,7 +32,7 @@ describe('LookupsController', () => {
   } as unknown as LookupResponseDto;
 
   beforeEach(async () => {
-    lookupsService = { lookup: jest.fn() };
+    lookupsService = { lookup: jest.fn(), lookupByPath: jest.fn() };
     activityLogService = {
       recordSearch: jest.fn().mockResolvedValue(undefined),
     };
@@ -110,6 +111,25 @@ describe('LookupsController', () => {
         fuelType: FuelType.DIESEL,
         doors: 3,
       });
+    });
+  });
+
+  describe('lookupByPath', () => {
+    const pathQuery: LookupByPathQueryDto = {
+      make: 'volkswagen',
+      model: 'polo',
+      year: 2001,
+      fuelType: FuelType.DIESEL,
+      engine: '1-0',
+    };
+
+    it('delegates to the service and returns its result', async () => {
+      lookupsService.lookupByPath.mockResolvedValue(response);
+
+      const result = await lookupsController.lookupByPath(pathQuery);
+
+      expect(lookupsService.lookupByPath).toHaveBeenCalledWith(pathQuery);
+      expect(result).toBe(response);
     });
   });
 });

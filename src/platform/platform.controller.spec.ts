@@ -3,13 +3,23 @@ import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { IssueSeverity } from '../known-issues/enums/issue-severity.enum';
 import { TopFaultRow } from '../known-issues/known-issues.repository';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
+import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { PlatformController } from './platform.controller';
-import { TOP_FAULTS_DEFAULT_LIMIT } from './platform.constants';
+import {
+  FAULTS_DEFAULT_LIMIT,
+  FAULTS_DEFAULT_PAGE,
+  VEHICLES_DEFAULT_LIMIT,
+  VEHICLES_DEFAULT_PAGE,
+} from './platform.constants';
 import { PlatformService } from './platform.service';
 
 describe('PlatformController', () => {
   let platformController: PlatformController;
-  let platformService: { getStats: jest.Mock; getTopFaults: jest.Mock };
+  let platformService: {
+    getStats: jest.Mock;
+    getFaults: jest.Mock;
+    getVehicles: jest.Mock;
+  };
 
   const stats = {
     reportsCount: 128340,
@@ -33,7 +43,10 @@ describe('PlatformController', () => {
   beforeEach(async () => {
     platformService = {
       getStats: jest.fn().mockResolvedValue(stats),
-      getTopFaults: jest.fn().mockResolvedValue([topFaultRow]),
+      getFaults: jest
+        .fn()
+        .mockResolvedValue({ items: [topFaultRow], total: 1 }),
+      getVehicles: jest.fn().mockResolvedValue({ items: [], total: 0 }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -57,14 +70,21 @@ describe('PlatformController', () => {
     });
   });
 
-  describe('getTopFaults', () => {
-    it('defaults locale to en-GB and limit to the configured default when omitted', async () => {
-      const result = await platformController.getTopFaults({});
+  describe('getFaults', () => {
+    it('defaults locale, page and limit to the configured defaults when omitted', async () => {
+      const result = await platformController.getFaults({});
 
-      expect(platformService.getTopFaults).toHaveBeenCalledWith(
-        LookupLocale.EnGb,
-        TOP_FAULTS_DEFAULT_LIMIT,
-      );
+      expect(platformService.getFaults).toHaveBeenCalledWith({
+        locale: LookupLocale.EnGb,
+        page: FAULTS_DEFAULT_PAGE,
+        limit: FAULTS_DEFAULT_LIMIT,
+        brand: undefined,
+        model: undefined,
+        year: undefined,
+        engine: undefined,
+        fuelType: undefined,
+        doors: undefined,
+      });
       expect(result).toEqual({
         items: [
           {
@@ -82,38 +102,121 @@ describe('PlatformController', () => {
             },
           },
         ],
+        total: 1,
+        page: FAULTS_DEFAULT_PAGE,
+        limit: FAULTS_DEFAULT_LIMIT,
       });
     });
 
     it('omits fuelType and doors from the vehicle when the vehicle model has none on record', async () => {
-      platformService.getTopFaults.mockResolvedValue([
-        { ...topFaultRow, vehicleFuelType: null, vehicleDoors: null },
-      ]);
+      platformService.getFaults.mockResolvedValue({
+        items: [{ ...topFaultRow, vehicleFuelType: null, vehicleDoors: null }],
+        total: 1,
+      });
 
-      const result = await platformController.getTopFaults({});
+      const result = await platformController.getFaults({});
 
       expect(result.items[0].vehicle.fuelType).toBeUndefined();
       expect(result.items[0].vehicle.doors).toBeUndefined();
     });
 
-    it('passes through the given locale and limit', async () => {
-      await platformController.getTopFaults({
+    it('passes through the given locale, page, limit and filters', async () => {
+      await platformController.getFaults({
         locale: LookupLocale.PtPt,
+        page: 2,
         limit: 12,
+        brand: 'Volkswagen',
+        model: 'Golf',
+        year: 2018,
+        engine: '1.6 TDI',
+        fuelType: FuelType.DIESEL,
+        doors: 5,
       });
 
-      expect(platformService.getTopFaults).toHaveBeenCalledWith(
-        LookupLocale.PtPt,
-        12,
-      );
+      expect(platformService.getFaults).toHaveBeenCalledWith({
+        locale: LookupLocale.PtPt,
+        page: 2,
+        limit: 12,
+        brand: 'Volkswagen',
+        model: 'Golf',
+        year: 2018,
+        engine: '1.6 TDI',
+        fuelType: FuelType.DIESEL,
+        doors: 5,
+      });
     });
 
-    it('returns an empty items array when there are no top faults', async () => {
-      platformService.getTopFaults.mockResolvedValue([]);
+    it('returns an empty items array when there are no faults', async () => {
+      platformService.getFaults.mockResolvedValue({ items: [], total: 0 });
 
-      const result = await platformController.getTopFaults({});
+      const result = await platformController.getFaults({});
 
-      expect(result).toEqual({ items: [] });
+      expect(result).toEqual({
+        items: [],
+        total: 0,
+        page: FAULTS_DEFAULT_PAGE,
+        limit: FAULTS_DEFAULT_LIMIT,
+      });
+    });
+  });
+
+  describe('getVehicles', () => {
+    const vehicleModel = {
+      brand: 'Volkswagen',
+      model: 'Golf',
+      yearFrom: 2018,
+      engine: '2.0 TDI',
+      fuelType: FuelType.DIESEL,
+      doors: 5,
+    } as VehicleModel;
+
+    it('defaults page and limit to the configured defaults when omitted', async () => {
+      platformService.getVehicles.mockResolvedValue({
+        items: [vehicleModel],
+        total: 1,
+      });
+
+      const result = await platformController.getVehicles({});
+
+      expect(platformService.getVehicles).toHaveBeenCalledWith({
+        page: VEHICLES_DEFAULT_PAGE,
+        limit: VEHICLES_DEFAULT_LIMIT,
+      });
+      expect(result).toEqual({
+        items: [
+          {
+            brand: 'Volkswagen',
+            model: 'Golf',
+            yearFrom: 2018,
+            engine: '2.0 TDI',
+            fuelType: FuelType.DIESEL,
+            doors: 5,
+          },
+        ],
+        total: 1,
+        page: VEHICLES_DEFAULT_PAGE,
+        limit: VEHICLES_DEFAULT_LIMIT,
+      });
+    });
+
+    it('passes through the given page and limit', async () => {
+      await platformController.getVehicles({ page: 3, limit: 100 });
+
+      expect(platformService.getVehicles).toHaveBeenCalledWith({
+        page: 3,
+        limit: 100,
+      });
+    });
+
+    it('omits doors from the vehicle item when the vehicle model has none on record', async () => {
+      platformService.getVehicles.mockResolvedValue({
+        items: [{ ...vehicleModel, doors: null }],
+        total: 1,
+      });
+
+      const result = await platformController.getVehicles({});
+
+      expect(result.items[0].doors).toBeUndefined();
     });
   });
 });

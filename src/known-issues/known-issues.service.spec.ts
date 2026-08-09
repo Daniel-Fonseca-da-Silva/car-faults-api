@@ -23,7 +23,7 @@ describe('KnownIssuesService', () => {
     save: jest.Mock;
     softDelete: jest.Mock;
     countAll: jest.Mock;
-    findTopByCommentCount: jest.Mock;
+    findFaultsPaginated: jest.Mock;
   };
   let vehicleModelsService: { findById: jest.Mock };
   let cache: { del: jest.Mock };
@@ -52,7 +52,7 @@ describe('KnownIssuesService', () => {
       save: jest.fn(),
       softDelete: jest.fn(),
       countAll: jest.fn(),
-      findTopByCommentCount: jest.fn(),
+      findFaultsPaginated: jest.fn(),
     };
     vehicleModelsService = { findById: jest.fn() };
     cache = { del: jest.fn().mockResolvedValue(undefined) };
@@ -274,21 +274,18 @@ describe('KnownIssuesService', () => {
     });
   });
 
-  describe('findTopByCommentCount', () => {
+  describe('findFaultsPaginated', () => {
     it('delegates to the repository', async () => {
-      const rows = [{ id: 'ki-1' }];
-      knownIssuesRepository.findTopByCommentCount.mockResolvedValue(rows);
+      const page = { items: [{ id: 'ki-1' }], total: 1 };
+      const criteria = { locale: LookupLocale.EnGb, page: 1, limit: 9 };
+      knownIssuesRepository.findFaultsPaginated.mockResolvedValue(page);
 
-      const result = await knownIssuesService.findTopByCommentCount(
-        LookupLocale.EnGb,
-        6,
-      );
+      const result = await knownIssuesService.findFaultsPaginated(criteria);
 
-      expect(knownIssuesRepository.findTopByCommentCount).toHaveBeenCalledWith(
-        LookupLocale.EnGb,
-        6,
+      expect(knownIssuesRepository.findFaultsPaginated).toHaveBeenCalledWith(
+        criteria,
       );
-      expect(result).toBe(rows);
+      expect(result).toBe(page);
     });
   });
 });

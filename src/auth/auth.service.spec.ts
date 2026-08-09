@@ -90,13 +90,27 @@ describe('AuthService', () => {
 
       const result = authService.login(user);
 
-      expect(jwtService.sign).toHaveBeenCalledWith({ sub: user.id });
+      expect(jwtService.sign).toHaveBeenCalledWith({
+        sub: user.id,
+        jti: expect.any(String) as string,
+      });
       expect(result.accessToken).toBe('signed-jwt');
       expect(result.user).toMatchObject({
         id: user.id,
         email: user.email,
         name: user.name,
       });
+    });
+
+    it('signs a different jti on each call', () => {
+      const user = { id: 'id-1' } as User;
+      jwtService.sign.mockReturnValue('signed-jwt');
+
+      authService.login(user);
+      authService.login(user);
+
+      const calls = jwtService.sign.mock.calls as { jti: string }[][];
+      expect(calls[0][0].jti).not.toBe(calls[1][0].jti);
     });
   });
 
@@ -173,6 +187,58 @@ describe('AuthService', () => {
       await expect(authService.consumeExchangeCode('xyz')).rejects.toThrow(
         'Invalid or expired code',
       );
+    });
+  });
+
+  describe('revokeAccessToken', () => {
+    it('denylists the jti for the remaining TTL of the token', async () => {
+      const now = new Date('2026-01-01T00:00:00.000Z').getTime();
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+      jwtService.decode.mockReturnValue({
+        jti: 'jti-1',
+        exp: now / 1000 + 3600,
+      });
+
+      await authService.revokeAccessToken('signed-jwt');
+
+      expect(cache.set).toHaveBeenCalledWith('jwt:deny:jti-1', '1', 3600000);
+    });
+
+    it('does nothing for a token without a jti', async () => {
+      jwtService.decode.mockReturnValue({ exp: Date.now() / 1000 + 3600 });
+
+      await authService.revokeAccessToken('signed-jwt');
+
+      expect(cache.set).not.toHaveBeenCalled();
+    });
+
+    it('does nothing for an invalid token', async () => {
+      jwtService.decode.mockImplementation(() => {
+        throw new Error('malformed token');
+      });
+
+      await authService.revokeAccessToken('not-a-jwt');
+
+      expect(cache.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('isAccessTokenRevoked', () => {
+    it('returns true when the jti is denylisted', async () => {
+      cache.get.mockResolvedValue('1');
+
+      const result = await authService.isAccessTokenRevoked('jti-1');
+
+      expect(cache.get).toHaveBeenCalledWith('jwt:deny:jti-1');
+      expect(result).toBe(true);
+    });
+
+    it('returns false when the jti is not denylisted', async () => {
+      cache.get.mockResolvedValue(undefined);
+
+      const result = await authService.isAccessTokenRevoked('jti-1');
+
+      expect(result).toBe(false);
     });
   });
 });

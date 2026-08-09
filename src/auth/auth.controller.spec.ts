@@ -16,6 +16,7 @@ describe('AuthController', () => {
     resolveAccessTokenExpiryMs: jest.Mock;
     createExchangeCode: jest.Mock;
     consumeExchangeCode: jest.Mock;
+    revokeAccessToken: jest.Mock;
   };
   let config: { get: jest.Mock; getOrThrow: jest.Mock };
   let res: {
@@ -32,6 +33,7 @@ describe('AuthController', () => {
       resolveAccessTokenExpiryMs: jest.fn(),
       createExchangeCode: jest.fn(),
       consumeExchangeCode: jest.fn(),
+      revokeAccessToken: jest.fn(),
     };
     config = {
       get: jest.fn(),
@@ -142,15 +144,41 @@ describe('AuthController', () => {
   });
 
   describe('logout', () => {
-    it('clears the access token cookie and returns no content', () => {
-      authController.logout(res as unknown as Response);
+    it('revokes the access token from the cookie, clears it and returns no content', async () => {
+      const req = {
+        cookies: { [ACCESS_TOKEN_COOKIE_NAME]: 'cookie-jwt' },
+        headers: {},
+      } as unknown as Request;
 
+      await authController.logout(req, res as unknown as Response);
+
+      expect(authService.revokeAccessToken).toHaveBeenCalledWith('cookie-jwt');
       expect(res.clearCookie).toHaveBeenCalledWith(
         ACCESS_TOKEN_COOKIE_NAME,
         expect.objectContaining({ httpOnly: true, path: '/' }),
       );
       expect(res.status).toHaveBeenCalledWith(204);
       expect(res.send).toHaveBeenCalled();
+    });
+
+    it('revokes the access token from the Authorization header when there is no cookie', async () => {
+      const req = {
+        cookies: {},
+        headers: { authorization: 'Bearer header-jwt' },
+      } as unknown as Request;
+
+      await authController.logout(req, res as unknown as Response);
+
+      expect(authService.revokeAccessToken).toHaveBeenCalledWith('header-jwt');
+    });
+
+    it('skips revocation when no access token is present', async () => {
+      const req = { cookies: {}, headers: {} } as unknown as Request;
+
+      await authController.logout(req, res as unknown as Response);
+
+      expect(authService.revokeAccessToken).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(204);
     });
   });
 });

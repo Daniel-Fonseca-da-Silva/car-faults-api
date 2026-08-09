@@ -12,12 +12,22 @@ describe('HttpAiLookupProvider', () => {
   const input = {
     brand: 'Volkswagen',
     model: 'Polo',
-    name: 'Polo 6N1',
     year: 2001,
     engine: '1.0',
     fuelType: FuelType.DIESEL,
     language: LookupLocale.EnGb,
   };
+
+  const vehicleResult = {
+    brand: 'Volkswagen',
+    model: 'Polo',
+    name: 'Polo 6N1',
+    year: 2001,
+    engine: '1.0',
+    fuelType: FuelType.DIESEL,
+  };
+
+  const aiResult = { vehicle: vehicleResult, knownIssues: [] };
 
   beforeEach(() => {
     configService = {
@@ -36,7 +46,6 @@ describe('HttpAiLookupProvider', () => {
 
   describe('generateLookup', () => {
     it('posts the input to AI_API_URL with the bearer token and returns the parsed JSON', async () => {
-      const aiResult = { vehicle: input, knownIssues: [] };
       fetchSpy.mockResolvedValue({
         ok: true,
         status: 200,
@@ -62,7 +71,7 @@ describe('HttpAiLookupProvider', () => {
       fetchSpy.mockResolvedValue({
         ok: true,
         status: 200,
-        json: jest.fn().mockResolvedValue({ vehicle: input, knownIssues: [] }),
+        json: jest.fn().mockResolvedValue(aiResult),
       } as unknown as Response);
 
       await provider.generateLookup(input);

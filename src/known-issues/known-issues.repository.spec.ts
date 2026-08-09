@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import type { EntityManager } from 'typeorm';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
+import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { KnownIssue } from './entities/known-issue.entity';
 import { KnownIssuesRepository } from './known-issues.repository';
 
@@ -27,6 +28,7 @@ describe('KnownIssuesRepository', () => {
     addGroupBy: jest.Mock;
     having: jest.Mock;
     orderBy: jest.Mock;
+    offset: jest.Mock;
     limit: jest.Mock;
     getRawMany: jest.Mock;
   };
@@ -43,6 +45,7 @@ describe('KnownIssuesRepository', () => {
       addGroupBy: jest.fn().mockReturnThis(),
       having: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       getRawMany: jest.fn(),
     };
@@ -234,27 +237,30 @@ describe('KnownIssuesRepository', () => {
     });
   });
 
-  describe('findTopByCommentCount', () => {
-    it('queries known issues joined with vehicle models and comments, filtered by locale, ordered by comment count desc', async () => {
-      queryBuilder.getRawMany.mockResolvedValue([
-        {
-          id: 'ki-1',
-          title: 'Timing chain tensioner wear',
-          severity: 'high',
-          vehicleBrand: 'Volkswagen',
-          vehicleModel: 'Golf',
-          vehicleYearFrom: '2015',
-          vehicleEngine: '1.6 TDI',
-          vehicleFuelType: 'diesel',
-          vehicleDoors: '5',
-          reportCount: '412',
-        },
-      ]);
+  describe('findFaultsPaginated', () => {
+    const rawRow = {
+      id: 'ki-1',
+      title: 'Timing chain tensioner wear',
+      severity: 'high',
+      vehicleBrand: 'Volkswagen',
+      vehicleModel: 'Golf',
+      vehicleYearFrom: '2015',
+      vehicleEngine: '1.6 TDI',
+      vehicleFuelType: 'diesel',
+      vehicleDoors: '5',
+      reportCount: '412',
+    };
 
-      const result = await knownIssuesRepository.findTopByCommentCount(
-        LookupLocale.EnGb,
-        6,
-      );
+    it('queries known issues joined with vehicle models and comments, filtered by locale, ordered by comment count desc, offset and limited by page', async () => {
+      queryBuilder.getRawMany
+        .mockResolvedValueOnce([{ id: 'ki-1' }])
+        .mockResolvedValueOnce([rawRow]);
+
+      const result = await knownIssuesRepository.findFaultsPaginated({
+        locale: LookupLocale.EnGb,
+        page: 1,
+        limit: 9,
+      });
 
       expect(repository.createQueryBuilder).toHaveBeenCalledWith('ki');
       expect(queryBuilder.innerJoin).toHaveBeenCalledWith(
@@ -273,57 +279,117 @@ describe('KnownIssuesRepository', () => {
       );
       expect(queryBuilder.having).toHaveBeenCalledWith('COUNT(c.id) > 0');
       expect(queryBuilder.orderBy).toHaveBeenCalledWith('COUNT(c.id)', 'DESC');
-      expect(queryBuilder.limit).toHaveBeenCalledWith(6);
-      expect(result).toEqual([
-        {
-          id: 'ki-1',
-          title: 'Timing chain tensioner wear',
-          severity: 'high',
-          reportCount: 412,
-          vehicleBrand: 'Volkswagen',
-          vehicleModel: 'Golf',
-          vehicleYearFrom: 2015,
-          vehicleEngine: '1.6 TDI',
-          vehicleFuelType: 'diesel',
-          vehicleDoors: 5,
-        },
-      ]);
+      expect(queryBuilder.offset).toHaveBeenCalledWith(0);
+      expect(queryBuilder.limit).toHaveBeenCalledWith(9);
+      expect(result).toEqual({
+        total: 1,
+        items: [
+          {
+            id: 'ki-1',
+            title: 'Timing chain tensioner wear',
+            severity: 'high',
+            reportCount: 412,
+            vehicleBrand: 'Volkswagen',
+            vehicleModel: 'Golf',
+            vehicleYearFrom: 2015,
+            vehicleEngine: '1.6 TDI',
+            vehicleFuelType: 'diesel',
+            vehicleDoors: 5,
+          },
+        ],
+      });
+    });
+
+    it('offsets by page and limit', async () => {
+      queryBuilder.getRawMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await knownIssuesRepository.findFaultsPaginated({
+        locale: LookupLocale.EnGb,
+        page: 3,
+        limit: 9,
+      });
+
+      expect(queryBuilder.offset).toHaveBeenCalledWith(18);
+      expect(queryBuilder.limit).toHaveBeenCalledWith(9);
+    });
+
+    it('applies brand, model, engine, fuelType, doors and year filters', async () => {
+      queryBuilder.getRawMany
+        .mockResolvedValueOnce([{ id: 'ki-1' }])
+        .mockResolvedValueOnce([rawRow]);
+
+      await knownIssuesRepository.findFaultsPaginated({
+        locale: LookupLocale.EnGb,
+        page: 1,
+        limit: 9,
+        brand: 'Volks',
+        model: 'Gol',
+        engine: 'TDI',
+        fuelType: FuelType.DIESEL,
+        doors: 5,
+        year: 2018,
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'vm.brand ILIKE :brand',
+        { brand: '%Volks%' },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'vm.model ILIKE :model',
+        { model: '%Gol%' },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'vm.engine ILIKE :engine',
+        { engine: '%TDI%' },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'vm.fuel_type = :fuelType',
+        { fuelType: FuelType.DIESEL },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('vm.doors = :doors', {
+        doors: 5,
+      });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'vm.year_from <= :year',
+        { year: 2018 },
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        '(vm.year_to IS NULL OR vm.year_to >= :year)',
+        { year: 2018 },
+      );
     });
 
     it('leaves fuelType and doors as null when the vehicle model has none on record', async () => {
-      queryBuilder.getRawMany.mockResolvedValue([
-        {
-          id: 'ki-1',
-          title: 'Timing chain tensioner wear',
-          severity: 'high',
-          vehicleBrand: 'Volkswagen',
-          vehicleModel: 'Golf',
-          vehicleYearFrom: '2015',
-          vehicleEngine: '1.6 TDI',
-          vehicleFuelType: null,
-          vehicleDoors: null,
-          reportCount: '412',
-        },
-      ]);
+      queryBuilder.getRawMany
+        .mockResolvedValueOnce([{ id: 'ki-1' }])
+        .mockResolvedValueOnce([
+          { ...rawRow, vehicleFuelType: null, vehicleDoors: null },
+        ]);
 
-      const result = await knownIssuesRepository.findTopByCommentCount(
-        LookupLocale.EnGb,
-        6,
-      );
+      const result = await knownIssuesRepository.findFaultsPaginated({
+        locale: LookupLocale.EnGb,
+        page: 1,
+        limit: 9,
+      });
 
-      expect(result[0].vehicleFuelType).toBeNull();
-      expect(result[0].vehicleDoors).toBeNull();
+      expect(result.items[0].vehicleFuelType).toBeNull();
+      expect(result.items[0].vehicleDoors).toBeNull();
     });
 
-    it('returns an empty array when there are no matches', async () => {
-      queryBuilder.getRawMany.mockResolvedValue([]);
+    it('returns an empty page when there are no matches', async () => {
+      queryBuilder.getRawMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
 
-      const result = await knownIssuesRepository.findTopByCommentCount(
-        LookupLocale.PtPt,
-        6,
-      );
+      const result = await knownIssuesRepository.findFaultsPaginated({
+        locale: LookupLocale.PtPt,
+        page: 1,
+        limit: 9,
+      });
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({ total: 0, items: [] });
     });
   });
 });

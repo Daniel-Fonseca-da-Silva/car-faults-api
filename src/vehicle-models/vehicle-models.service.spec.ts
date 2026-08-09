@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EntityManager } from 'typeorm';
 import { VehicleModel } from './entities/vehicle-model.entity';
+import { FuelType } from './enums/fuel-type.enum';
 import { VehicleModelsRepository } from './vehicle-models.repository';
 import { VehicleModelsService } from './vehicle-models.service';
 
@@ -11,9 +12,11 @@ describe('VehicleModelsService', () => {
   let vehicleModelsRepository: {
     findById: jest.Mock;
     findByLookup: jest.Mock;
+    findByPathLookup: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     findPaginated: jest.Mock;
+    findCatalogPaginated: jest.Mock;
     softDelete: jest.Mock;
     countAll: jest.Mock;
   };
@@ -45,9 +48,11 @@ describe('VehicleModelsService', () => {
     vehicleModelsRepository = {
       findById: jest.fn(),
       findByLookup: jest.fn(),
+      findByPathLookup: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
       findPaginated: jest.fn(),
+      findCatalogPaginated: jest.fn(),
       softDelete: jest.fn(),
       countAll: jest.fn(),
     };
@@ -113,6 +118,36 @@ describe('VehicleModelsService', () => {
     });
   });
 
+  describe('findByPathLookup', () => {
+    const pathCriteria = {
+      make: 'volkswagen',
+      model: 'polo',
+      year: 2001,
+      fuelType: FuelType.DIESEL,
+      engine: '1-0',
+    };
+
+    it('delegates to the repository', async () => {
+      const vehicleModel = buildVehicleModel();
+      vehicleModelsRepository.findByPathLookup.mockResolvedValue(vehicleModel);
+
+      const result = await vehicleModelsService.findByPathLookup(pathCriteria);
+
+      expect(vehicleModelsRepository.findByPathLookup).toHaveBeenCalledWith(
+        pathCriteria,
+      );
+      expect(result).toBe(vehicleModel);
+    });
+
+    it('returns null when there is no match', async () => {
+      vehicleModelsRepository.findByPathLookup.mockResolvedValue(null);
+
+      const result = await vehicleModelsService.findByPathLookup(pathCriteria);
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('create', () => {
     it('creates and saves the vehicle model using the given manager', async () => {
       const data = { brand: 'Volkswagen' };
@@ -163,6 +198,26 @@ describe('VehicleModelsService', () => {
         page: 1,
         limit: 20,
       });
+      expect(result).toEqual({ items, total: 1 });
+    });
+  });
+
+  describe('findCatalogPaginated', () => {
+    it('returns items and total from the repository', async () => {
+      const items = [buildVehicleModel({ fuelType: FuelType.DIESEL })];
+      vehicleModelsRepository.findCatalogPaginated.mockResolvedValue([
+        items,
+        1,
+      ]);
+
+      const result = await vehicleModelsService.findCatalogPaginated({
+        page: 1,
+        limit: 20,
+      });
+
+      expect(vehicleModelsRepository.findCatalogPaginated).toHaveBeenCalledWith(
+        { page: 1, limit: 20 },
+      );
       expect(result).toEqual({ items, total: 1 });
     });
   });

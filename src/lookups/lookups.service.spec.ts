@@ -15,6 +15,7 @@ import { TurnstileService } from '../turnstile/turnstile.service';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
+import { LookupByPathQueryDto } from './dto/lookup-by-path-query.dto';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupsService } from './lookups.service';
 
@@ -22,6 +23,7 @@ describe('LookupsService', () => {
   let lookupsService: LookupsService;
   let vehicleModelsService: {
     findByLookup: jest.Mock;
+    findByPathLookup: jest.Mock;
     create: jest.Mock;
   };
   let knownIssuesService: {
@@ -69,6 +71,7 @@ describe('LookupsService', () => {
   beforeEach(async () => {
     vehicleModelsService = {
       findByLookup: jest.fn(),
+      findByPathLookup: jest.fn(),
       create: jest.fn(),
     };
     knownIssuesService = {
@@ -824,6 +827,86 @@ describe('LookupsService', () => {
 
       expect(turnstileService.assertValid).toHaveBeenCalledWith(
         'turnstile-token',
+      );
+    });
+  });
+
+  describe('lookupByPath', () => {
+    const pathQuery: LookupByPathQueryDto = {
+      make: 'volkswagen',
+      model: 'polo',
+      year: 2001,
+      fuelType: FuelType.DIESEL,
+      engine: '1-0',
+    };
+
+    it('resolves the vehicle model via findByPathLookup and returns its locale issues without calling the AI provider', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByPathLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([
+        { id: 'ki-1', locale: LookupLocale.EnGb, fixes: [] },
+      ]);
+
+      const result = await lookupsService.lookupByPath(pathQuery);
+
+      expect(vehicleModelsService.findByPathLookup).toHaveBeenCalledWith({
+        make: 'volkswagen',
+        model: 'polo',
+        year: 2001,
+        fuelType: FuelType.DIESEL,
+        engine: '1-0',
+        doors: undefined,
+      });
+      expect(
+        knownIssuesService.findByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.EnGb);
+      expect(aiLookupProvider.generateLookup).not.toHaveBeenCalled();
+      expect(aiTranslateProvider.translate).not.toHaveBeenCalled();
+      expect(result.vehicle.id).toBe('vm-1');
+      expect(result.knownIssues).toHaveLength(1);
+    });
+
+    it('returns an empty knownIssues list when the locale has none, without falling back to another locale', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByPathLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([]);
+
+      const result = await lookupsService.lookupByPath(pathQuery);
+
+      expect(result.knownIssues).toEqual([]);
+      expect(knownIssuesService.findByVehicleModelId).not.toHaveBeenCalled();
+      expect(aiTranslateProvider.translate).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when no vehicle model matches the path slugs', async () => {
+      vehicleModelsService.findByPathLookup.mockResolvedValue(null);
+
+      await expect(lookupsService.lookupByPath(pathQuery)).rejects.toThrow(
+        'Vehicle not found',
+      );
+    });
+
+    it('defaults to en-GB when the query omits language', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByPathLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([]);
+
+      await lookupsService.lookupByPath(pathQuery);
+
+      expect(
+        knownIssuesService.findByVehicleModelIdAndLocale,
+      ).toHaveBeenCalledWith('vm-1', LookupLocale.EnGb);
+    });
+
+    it('passes doors through to findByPathLookup when present', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByPathLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([]);
+
+      await lookupsService.lookupByPath({ ...pathQuery, doors: 5 });
+
+      expect(vehicleModelsService.findByPathLookup).toHaveBeenCalledWith(
+        expect.objectContaining({ doors: 5 }),
       );
     });
   });
