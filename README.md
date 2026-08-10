@@ -1,6 +1,6 @@
 # Car Faults API
 
-Backend for **Car Faults** — a SaaS focused on **chronic reliability by vehicle model**: what typically fails on a given make / model / year / engine, how severe it is, typical cost and how it gets fixed.
+Backend for **Auto Crónica** — a SaaS focused on **chronic reliability by vehicle model**: what typically fails on a given make / model / year / engine, how severe it is, typical cost and how it gets fixed.
 
 Initial market: **Portugal** (later ES/FR). Product languages: `pt-PT`, `en-GB` and `es-ES`.
 
@@ -34,6 +34,7 @@ Known-issue information is fragmented across forums, YouTube, ADAC/TÜV reports,
 | Storage | Cloudflare R2 — `POST /v1/storage/comment-images` (JWT, any signed-in user) and `POST /v1/storage/vehicle-images` (JWT + admin only) |
 | Frontend | Next.js (consumes this API) |
 | AI | [`car-faults-ai-api`](../car-faults-ai-api) sidecar — see [AI provider](#ai-provider) below |
+| Runtime | Distroless Docker image (optional) |
 
 ## MVP (Phase 1)
 
@@ -102,15 +103,24 @@ Port and CORS origins come from `PORT` and `CORS_ORIGINS` in `.env` (required).
 
 ### Database & cache (Docker)
 
-`docker-compose.yml` provisions the two stateful dependencies the API needs locally: PostgreSQL and Redis.
+`docker-compose.yml` provisions PostgreSQL, Redis, and (in development) the API itself, wired together on one network.
 
 ```bash
 cp .env.example .env
-docker compose up -d
-docker compose ps   # postgres and redis should be "healthy"
+docker compose down && docker compose up -d --build
+docker compose ps              # postgres, redis and api should be "healthy" / running
+docker compose logs -f api
 ```
 
-The app runs locally (outside Docker) and connects to Postgres and Redis using the `DATABASE_*` / `REDIS_*` variables in `.env`.
+The `api` service runs on `node:24-bookworm-slim` (not the Distroless image — dev needs a shell, `pino-pretty` and `--watch`), mounts the repo as a bind volume, and runs `npm run start:dev`. Inside the container `DATABASE_HOST`/`REDIS_HOST` are overridden to `postgres`/`redis` (Postgres and Redis are separate containers, so `localhost` would point at the `api` container itself). `api_node_modules` is a named volume so the container's `node_modules` never mixes with the host's. `--build` only affects `postgres`/`redis` image pulls here — the `api` service is source-mounted dev tooling, not a built image, so `--build` is a no-op for it; edit and save files as usual and `--watch` picks them up.
+
+Run migrations inside the container:
+
+```bash
+docker compose exec api npm run migration:run
+```
+
+Prefer running the API on the host instead of in Docker? That still works — just set `DATABASE_HOST=localhost` and `REDIS_HOST=localhost` in `.env` and run `npm run start:dev` as usual; only skip starting the `api` service (`docker compose up -d postgres redis`).
 
 ### Storage (Cloudflare R2)
 
@@ -147,6 +157,15 @@ npm run test:coverage
 ```
 
 Global coverage (statements, branches, functions, lines) must stay at **90%+**. `npm run test:cov` is a legacy alias for `npm run test:coverage`. PRs and pushes to `main` run `npm run test:cov` in CI and fail below that threshold.
+
+## Docker
+
+```bash
+docker build -t car-faults-api .
+docker run --rm -p 3001:3001 --env-file .env car-faults-api
+```
+
+Multi-stage build onto a distroless nonroot image — no shell in the runtime layer. Postgres, Redis and TypeORM migrations stay outside this image; keep using `docker-compose.yml` and `npm run migration:run` as today.
 
 ## License
 
