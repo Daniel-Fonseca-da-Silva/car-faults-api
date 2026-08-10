@@ -9,7 +9,7 @@ import { AppModule } from './app.module';
 import { createCorsOptions } from './common/cors/cors-options.factory';
 
 const SWAGGER_PATH = 'docs';
-const API_TITLE = 'Car Faults API';
+const API_TITLE = 'Auto Crónica API';
 const API_DESCRIPTION =
   'API for chronic vehicle reliability by make, model, year and engine';
 const API_VERSION = '1';
