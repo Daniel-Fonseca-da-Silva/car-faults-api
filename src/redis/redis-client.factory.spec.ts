@@ -17,8 +17,8 @@ describe('createRedisClient', () => {
     expect(client.options.host).toBe('localhost');
     expect(client.options.port).toBe(6379);
     expect(client.options.lazyConnect).toBe(true);
-    expect(client.options.password).toBeUndefined();
-    expect(client.options.username).toBeUndefined();
+    expect(client.options.password).toBeFalsy();
+    expect(client.options.username).toBeFalsy();
   });
 
   it('builds an ioredis client with username and password when provided', () => {

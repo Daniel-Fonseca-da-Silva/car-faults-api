@@ -86,7 +86,11 @@ describe('buildRedisClientOptions', () => {
   it('omits username/password when not provided', () => {
     const options = buildRedisClientOptions({ host: 'localhost', port: 6379 });
 
-    expect(options).toEqual({ host: 'localhost', port: 6379, lazyConnect: true });
+    expect(options).toEqual({
+      host: 'localhost',
+      port: 6379,
+      lazyConnect: true,
+    });
   });
 
   it('includes username/password when provided', () => {
