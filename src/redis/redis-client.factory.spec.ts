@@ -9,6 +9,7 @@ describe('createRedisClient', () => {
     };
     const config = {
       getOrThrow: jest.fn((key: string) => values[key]),
+      get: jest.fn((key: string) => values[key]),
     } as unknown as ConfigService;
 
     const client = createRedisClient(config);
@@ -16,6 +17,28 @@ describe('createRedisClient', () => {
     expect(client.options.host).toBe('localhost');
     expect(client.options.port).toBe(6379);
     expect(client.options.lazyConnect).toBe(true);
+    expect(client.options.password).toBeFalsy();
+    expect(client.options.username).toBeFalsy();
+  });
+
+  it('builds an ioredis client with username and password when provided', () => {
+    const values: Record<string, string> = {
+      REDIS_HOST: 'redis.railway.internal',
+      REDIS_PORT: '6379',
+      REDIS_USER: 'default',
+      REDIS_PASSWORD: 'secret',
+    };
+    const config = {
+      getOrThrow: jest.fn((key: string) => values[key]),
+      get: jest.fn((key: string) => values[key]),
+    } as unknown as ConfigService;
+
+    const client = createRedisClient(config);
+
+    expect(client.options.host).toBe('redis.railway.internal');
+    expect(client.options.port).toBe(6379);
+    expect(client.options.username).toBe('default');
+    expect(client.options.password).toBe('secret');
   });
 
   it('throws when a required variable is missing', () => {
