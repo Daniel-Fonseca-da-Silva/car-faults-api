@@ -45,6 +45,8 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     ports:
       - "${PORT:-3001}:${PORT:-3001}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
       - api_node_modules:/app/node_modules

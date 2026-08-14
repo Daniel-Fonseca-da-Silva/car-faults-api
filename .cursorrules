@@ -26,7 +26,7 @@
 - Avoid creating overly long, unreadable class strings; break them down or use descriptive component design where appropriate.
 
 # Internationalization (i18n)
-- This API has no UI copy and no `messages/{locale}` files — that pattern belongs to `car-faults-web` (the Next.js frontend), not here.
+- This API has no UI copy and no `messages/{locale}` files - that pattern belongs to `car-faults-web` (the Next.js frontend), not here.
 - Here, locale (`LookupLocale`: `pt-PT` / `en-GB` / `es-ES`) is a **lookup input**: it selects which language known-issue content is generated/translated and served in, via query params and `AI_TRANSLATE_URL` on the AI sidecar.
 - When adding a new supported locale, update `src/common/enums/lookup-locale.enum.ts` and any DTOs/migrations that validate against it.
 
