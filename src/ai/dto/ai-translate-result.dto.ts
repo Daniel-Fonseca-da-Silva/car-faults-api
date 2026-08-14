@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   validate,
   ValidateNested,
 } from 'class-validator';
@@ -42,6 +43,7 @@ class AiTranslateKnownIssueDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @MaxLength(200, { each: true })
   sources?: string[] | null;
 
   @IsArray()

@@ -8,6 +8,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  MaxLength,
   validate,
   ValidateNested,
 } from 'class-validator';
@@ -44,6 +45,7 @@ class AiKnownIssueResultDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @MaxLength(200, { each: true })
   sources?: string[];
 
   @IsArray()

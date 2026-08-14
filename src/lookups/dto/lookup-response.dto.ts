@@ -62,7 +62,12 @@ export class KnownIssueResponseDto {
   @ApiPropertyOptional({ example: 120000, nullable: true })
   typicalKm: number | null;
 
-  @ApiPropertyOptional({ example: ['https://example.com'], nullable: true })
+  @ApiPropertyOptional({
+    example: [
+      'https://www.auto-doc.pt/info/volkswagen-polo-problemas-associados',
+    ],
+    nullable: true,
+  })
   sources: string[] | null;
 
   @ApiProperty({ type: [FixResponseDto] })

@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
@@ -43,10 +44,16 @@ export class AdminCreateKnownIssueDto {
   @Min(0)
   typicalKm?: number | null;
 
-  @ApiPropertyOptional({ example: ['https://example.com'], nullable: true })
+  @ApiPropertyOptional({
+    example: [
+      'https://www.auto-doc.pt/info/volkswagen-polo-problemas-associados',
+    ],
+    nullable: true,
+  })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @IsString({ each: true })
+  @MaxLength(200, { each: true })
   sources?: string[] | null;
 }
