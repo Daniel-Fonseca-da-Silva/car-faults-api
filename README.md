@@ -1,6 +1,6 @@
 # Car Faults API
 
-Backend for **Auto Crónica** — a SaaS focused on **chronic reliability by vehicle model**: what typically fails on a given make / model / year / engine, how severe it is, typical cost and how it gets fixed.
+Backend for **Auto Crónica** - a SaaS focused on **chronic reliability by vehicle model**: what typically fails on a given make / model / year / engine, how severe it is, typical cost and how it gets fixed.
 
 Initial market: **Portugal** (later ES/FR). Product languages: `pt-PT`, `en-GB` and `es-ES`.
 
@@ -31,9 +31,9 @@ Known-issue information is fragmented across forums, YouTube, ADAC/TÜV reports,
 | API | NestJS + TypeORM + PostgreSQL |
 | Cache | Redis (cached lookup responses by model) |
 | Auth | Google OAuth (JWT cookie); avatars are the Google account picture URL, no avatar upload endpoint |
-| Storage | Cloudflare R2 — `POST /v1/storage/comment-images` (JWT, any signed-in user) and `POST /v1/storage/vehicle-images` (JWT + admin only) |
+| Storage | Cloudflare R2 - `POST /v1/storage/comment-images` (JWT, any signed-in user) and `POST /v1/storage/vehicle-images` (JWT + admin only) |
 | Frontend | Next.js (consumes this API) |
-| AI | [`car-faults-ai-api`](../car-faults-ai-api) sidecar — see [AI provider](#ai-provider) below |
+| AI | [`car-faults-ai-api`](../car-faults-ai-api) sidecar - see [AI provider](#ai-provider) below |
 | Runtime | Distroless Docker image (optional) |
 
 ## MVP (Phase 1)
@@ -67,11 +67,11 @@ API lookup
 
 Authenticated users can then review issues, comment, link a model to “my car”, upload photos, and view or suggest fixes.
 
-AI content is marked as generated, sources are stored when available, and product copy should treat results as indicative — not a substitute for a mechanic.
+AI content is marked as generated, sources are stored when available, and product copy should treat results as indicative - not a substitute for a mechanic. `sources` can include `https://` URLs when the AI provider names a real one; entries are otherwise a short source name.
 
 ## AI provider
 
-This API never calls an AI vendor directly — lookups and translations are delegated to the [`car-faults-ai-api`](../car-faults-ai-api) Python sidecar over HTTP.
+This API never calls an AI vendor directly - lookups and translations are delegated to the [`car-faults-ai-api`](../car-faults-ai-api) Python sidecar over HTTP.
 
 | Variable | Purpose |
 |----------|---------|
@@ -80,7 +80,7 @@ This API never calls an AI vendor directly — lookups and translations are dele
 | `AI_TRANSLATE_URL` | Sidecar translate endpoint, e.g. `http://localhost:8000/translate` |
 | `AI_API_KEY` | Optional bearer token sent to the sidecar |
 
-**In production (`NODE_ENV=production`), `AI_PROVIDER` must be `http`** — the app refuses to boot with the stub provider outside local/test environments, so lookups can never silently return fake AI content in prod. See `src/ai/ai-lookup-provider.factory.ts` and `src/ai/ai-translate-provider.factory.ts`.
+**In production (`NODE_ENV=production`), `AI_PROVIDER` must be `http`** - the app refuses to boot with the stub provider outside local/test environments, so lookups can never silently return fake AI content in prod. See `src/ai/ai-lookup-provider.factory.ts` and `src/ai/ai-translate-provider.factory.ts`.
 
 ## Getting started
 
@@ -112,7 +112,7 @@ docker compose ps              # postgres, redis and api should be "healthy" / r
 docker compose logs -f api
 ```
 
-The `api` service runs on `node:24-bookworm-slim` (not the Distroless image — dev needs a shell, `pino-pretty` and `--watch`), mounts the repo as a bind volume, and runs `npm run start:dev`. Inside the container `DATABASE_HOST`/`REDIS_HOST` are overridden to `postgres`/`redis` (Postgres and Redis are separate containers, so `localhost` would point at the `api` container itself). `api_node_modules` is a named volume so the container's `node_modules` never mixes with the host's. `--build` only affects `postgres`/`redis` image pulls here — the `api` service is source-mounted dev tooling, not a built image, so `--build` is a no-op for it; edit and save files as usual and `--watch` picks them up.
+The `api` service runs on `node:24-bookworm-slim` (not the Distroless image - dev needs a shell, `pino-pretty` and `--watch`), mounts the repo as a bind volume, and runs `npm run start:dev`. Inside the container `DATABASE_HOST`/`REDIS_HOST` are overridden to `postgres`/`redis` (Postgres and Redis are separate containers, so `localhost` would point at the `api` container itself). `api_node_modules` is a named volume so the container's `node_modules` never mixes with the host's. `--build` only affects `postgres`/`redis` image pulls here - the `api` service is source-mounted dev tooling, not a built image, so `--build` is a no-op for it; edit and save files as usual and `--watch` picks them up.
 
 Run migrations inside the container:
 
@@ -120,16 +120,16 @@ Run migrations inside the container:
 docker compose exec api npm run migration:run
 ```
 
-Prefer running the API on the host instead of in Docker? That still works — just set `DATABASE_HOST=localhost` and `REDIS_HOST=localhost` in `.env` and run `npm run start:dev` as usual; only skip starting the `api` service (`docker compose up -d postgres redis`).
+Prefer running the API on the host instead of in Docker? That still works - just set `DATABASE_HOST=localhost` and `REDIS_HOST=localhost` in `.env` and run `npm run start:dev` as usual; only skip starting the `api` service (`docker compose up -d postgres redis`).
 
 ### Storage (Cloudflare R2)
 
 Both endpoints share the same `R2_*` bucket configuration; `R2_PUBLIC_BASE_URL` is also the value returned `url`s must resolve under.
 
-- `POST /v1/storage/comment-images` — JWT, any signed-in user, multipart, `image/jpeg|png|webp`, max 5 MB.
-- `POST /v1/storage/vehicle-images` — JWT + admin only, same constraints; used by the admin panel to set a vehicle model's catalog photo.
+- `POST /v1/storage/comment-images` - JWT, any signed-in user, multipart, `image/jpeg|png|webp`, max 5 MB.
+- `POST /v1/storage/vehicle-images` - JWT + admin only, same constraints; used by the admin panel to set a vehicle model's catalog photo.
 
-There is no avatar upload endpoint — user avatars are the Google account picture URL returned by OAuth.
+There is no avatar upload endpoint - user avatars are the Google account picture URL returned by OAuth.
 
 ### Useful URLs
 
@@ -165,11 +165,11 @@ docker build -t car-faults-api .
 docker run --rm -p 3001:3001 --env-file .env car-faults-api
 ```
 
-Multi-stage build onto a distroless nonroot image — no shell in the runtime layer. Postgres, Redis and TypeORM migrations stay outside this image; keep using `docker-compose.yml` and `npm run migration:run` as today.
+Multi-stage build onto a distroless nonroot image - no shell in the runtime layer. Postgres, Redis and TypeORM migrations stay outside this image; keep using `docker-compose.yml` and `npm run migration:run` as today.
 
 ## License
 
-Proprietary — All Rights Reserved (Daniel Fonseca da Silva). See [LICENSE](LICENSE).
+Proprietary - All Rights Reserved (Daniel Fonseca da Silva). See [LICENSE](LICENSE).
 Use and run allowed; modification and derivative works require written permission.
 
 You may use and run this software. You may **not** modify it or create derivative works without prior written permission from the copyright holder.
