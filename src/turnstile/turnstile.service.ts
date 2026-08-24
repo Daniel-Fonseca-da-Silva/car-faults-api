@@ -9,6 +9,7 @@ const SITEVERIFY_URL =
 
 interface SiteverifyResponse {
   success: boolean;
+  'error-codes'?: string[];
 }
 
 @Injectable()
@@ -58,6 +59,8 @@ export class TurnstileService {
 
     const result = (await response.json()) as SiteverifyResponse;
     if (!result.success) {
+      const errorCodes = result['error-codes']?.join(', ') || 'none';
+      this.logger.warn(`Turnstile siteverify rejected token: ${errorCodes}`);
       throw this.forbidden();
     }
   }

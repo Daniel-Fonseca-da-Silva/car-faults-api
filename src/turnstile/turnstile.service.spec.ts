@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TurnstileService } from './turnstile.service';
 
@@ -73,6 +73,28 @@ describe('TurnstileService', () => {
       await expect(service.assertValid('bad-token')).rejects.toThrow(
         ForbiddenException,
       );
+    });
+
+    it('logs the Cloudflare error codes when siteverify returns success: false', async () => {
+      const warnSpy = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          success: false,
+          'error-codes': ['invalid-input-response'],
+        }),
+      } as unknown as Response);
+
+      await expect(service.assertValid('bad-token')).rejects.toThrow(
+        ForbiddenException,
+      );
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('invalid-input-response'),
+      );
+      warnSpy.mockRestore();
     });
 
     it('throws ForbiddenException when siteverify responds with a non-ok status', async () => {
