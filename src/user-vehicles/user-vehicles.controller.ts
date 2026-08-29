@@ -50,6 +50,7 @@ export class UserVehiclesController {
   @ApiOperation({ summary: "List the authenticated user's garage" })
   @ApiOkResponse({ type: UserVehiclesPageDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
   async findAll(
     @Req() req: Request,
     @Query() query: UserVehiclesQueryDto,

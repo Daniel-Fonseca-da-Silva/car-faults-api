@@ -1,5 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { resolveLimit } from '../common/pagination/cursor-query.dto';
 import { PlatformFaultsQueryDto } from './dto/platform-faults-query.dto';
@@ -35,6 +40,7 @@ export class PlatformController {
     summary: 'Get known issues filtered and paginated by report count',
   })
   @ApiOkResponse({ type: PlatformFaultsResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
   async getFaults(
     @Query() query: PlatformFaultsQueryDto,
   ): Promise<PlatformFaultsResponseDto> {
@@ -67,6 +73,7 @@ export class PlatformController {
       'Only returns vehicle models with a fuel type on record, since those are the only ones with a canonical URL.',
   })
   @ApiOkResponse({ type: PlatformVehiclesResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
   async getVehicles(
     @Query() query: PlatformVehiclesQueryDto,
   ): Promise<PlatformVehiclesResponseDto> {

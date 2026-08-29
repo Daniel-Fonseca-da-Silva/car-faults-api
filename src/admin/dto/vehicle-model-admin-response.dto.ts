@@ -71,7 +71,12 @@ export class AdminVehicleModelListResponseDto extends CursorPageDto<AdminVehicle
   @ApiProperty({ type: [AdminVehicleModelResponseDto] })
   declare items: AdminVehicleModelResponseDto[];
 
-  @ApiProperty({ nullable: true, example: null })
+  @ApiProperty({
+    description:
+      'Opaque cursor for the next page; null when there is no next page.',
+    nullable: true,
+    example: null,
+  })
   declare nextCursor: string | null;
 
   constructor(vehicleModels: VehicleModel[], nextCursor: string | null) {

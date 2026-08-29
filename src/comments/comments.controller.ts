@@ -41,6 +41,7 @@ export class CommentsController {
   @Get()
   @ApiOperation({ summary: 'List comments for a known issue' })
   @ApiOkResponse({ type: CommentsPageDto })
+  @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
   async findAll(
     @Query() query: ListCommentsQueryDto,
   ): Promise<CommentsPageDto> {

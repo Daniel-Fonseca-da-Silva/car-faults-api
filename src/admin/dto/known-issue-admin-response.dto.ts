@@ -63,7 +63,12 @@ export class AdminKnownIssuesPageDto extends CursorPageDto<AdminKnownIssueRespon
   @ApiProperty({ type: [AdminKnownIssueResponseDto] })
   declare items: AdminKnownIssueResponseDto[];
 
-  @ApiProperty({ nullable: true, example: null })
+  @ApiProperty({
+    description:
+      'Opaque cursor for the next page; null when there is no next page.',
+    nullable: true,
+    example: null,
+  })
   declare nextCursor: string | null;
 
   constructor(knownIssues: KnownIssue[], nextCursor: string | null) {

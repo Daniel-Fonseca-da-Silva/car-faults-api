@@ -42,6 +42,7 @@ export class ReviewsController {
   @Get()
   @ApiOperation({ summary: 'List reviews for a known issue' })
   @ApiOkResponse({ type: ReviewsPageDto })
+  @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
   async findAll(@Query() query: ListReviewsQueryDto): Promise<ReviewsPageDto> {
     const { items, nextCursor } = await this.reviewsService.findByKnownIssue(
       query.knownIssueId,

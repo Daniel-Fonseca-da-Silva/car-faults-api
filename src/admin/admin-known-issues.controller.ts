@@ -47,6 +47,7 @@ export class AdminKnownIssuesController {
   @ApiOkResponse({ type: AdminKnownIssuesPageDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   @ApiForbiddenResponse({ description: 'Admin access required' })
+  @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
   async findAll(
     @Query() query: AdminListKnownIssuesQueryDto,
   ): Promise<AdminKnownIssuesPageDto> {

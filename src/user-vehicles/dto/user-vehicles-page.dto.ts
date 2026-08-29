@@ -6,7 +6,12 @@ export class UserVehiclesPageDto extends CursorPageDto<UserVehicleResponseDto> {
   @ApiProperty({ type: [UserVehicleResponseDto] })
   declare items: UserVehicleResponseDto[];
 
-  @ApiProperty({ nullable: true, example: null })
+  @ApiProperty({
+    description:
+      'Opaque cursor for the next page; null when there is no next page.',
+    nullable: true,
+    example: null,
+  })
   declare nextCursor: string | null;
 
   constructor(items: UserVehicleResponseDto[], nextCursor: string | null) {

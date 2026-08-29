@@ -6,15 +6,15 @@ Initial market: **Portugal** (later ES/FR). Product languages: `pt-PT`, `en-GB` 
 
 ## What we are
 
-Structured answers to: *before you buy (or if you already own the car), what are the known chronic issues for this model, symptoms, typical cost, and community fixes?*
+Structured answers to: _before you buy (or if you already own the car), what are the known chronic issues for this model, symptoms, typical cost, and community fixes?_
 
 Example value:
 
-| Model | Typical issues |
-|-------|----------------|
-| VW Polo 6N1 | Weak 1.0 engine; high consumption; gearbox problems |
-| Peugeot 206 | Chronic axles |
-| Renault Clio | Electrical; interior plastics |
+| Model        | Typical issues                                      |
+| ------------ | --------------------------------------------------- |
+| VW Polo 6N1  | Weak 1.0 engine; high consumption; gearbox problems |
+| Peugeot 206  | Chronic axles                                       |
+| Renault Clio | Electrical; interior plastics                       |
 
 ## What we are not
 
@@ -26,15 +26,15 @@ Known-issue information is fragmented across forums, YouTube, ADAC/TÜV reports,
 
 ## Stack
 
-| Layer | Technology |
-|-------|------------|
-| API | NestJS + TypeORM + PostgreSQL |
-| Cache | Redis (cached lookup responses by model) |
-| Auth | Google OAuth (JWT cookie); avatars are the Google account picture URL, no avatar upload endpoint |
-| Storage | Cloudflare R2 - `POST /v1/storage/comment-images` (JWT, any signed-in user) and `POST /v1/storage/vehicle-images` (JWT + admin only) |
-| Frontend | Next.js (consumes this API) |
-| AI | [`car-faults-ai-api`](../car-faults-ai-api) sidecar - see [AI provider](#ai-provider) below |
-| Runtime | Distroless Docker image (optional) |
+| Layer    | Technology                                                                                                                           |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| API      | NestJS + TypeORM + PostgreSQL                                                                                                        |
+| Cache    | Redis (cached lookup responses by model)                                                                                             |
+| Auth     | Google OAuth (JWT cookie); avatars are the Google account picture URL, no avatar upload endpoint                                     |
+| Storage  | Cloudflare R2 - `POST /v1/storage/comment-images` (JWT, any signed-in user) and `POST /v1/storage/vehicle-images` (JWT + admin only) |
+| Frontend | Next.js (consumes this API)                                                                                                          |
+| AI       | [`car-faults-ai-api`](../car-faults-ai-api) sidecar - see [AI provider](#ai-provider) below                                          |
+| Runtime  | Distroless Docker image (optional)                                                                                                   |
 
 ## MVP (Phase 1)
 
@@ -73,12 +73,12 @@ AI content is marked as generated, sources are stored when available, and produc
 
 This API never calls an AI vendor directly - lookups and translations are delegated to the [`car-faults-ai-api`](../car-faults-ai-api) Python sidecar over HTTP.
 
-| Variable | Purpose |
-|----------|---------|
-| `AI_PROVIDER` | `stub` (canned responses, default outside production) or `http` (calls the sidecar) |
-| `AI_API_URL` | Sidecar lookup endpoint, e.g. `http://localhost:8000/lookup` |
-| `AI_TRANSLATE_URL` | Sidecar translate endpoint, e.g. `http://localhost:8000/translate` |
-| `AI_API_KEY` | Optional bearer token sent to the sidecar |
+| Variable           | Purpose                                                                             |
+| ------------------ | ----------------------------------------------------------------------------------- |
+| `AI_PROVIDER`      | `stub` (canned responses, default outside production) or `http` (calls the sidecar) |
+| `AI_API_URL`       | Sidecar lookup endpoint, e.g. `http://localhost:8000/lookup`                        |
+| `AI_TRANSLATE_URL` | Sidecar translate endpoint, e.g. `http://localhost:8000/translate`                  |
+| `AI_API_KEY`       | Optional bearer token sent to the sidecar                                           |
 
 **In production (`NODE_ENV=production`), `AI_PROVIDER` must be `http`** - the app refuses to boot with the stub provider outside local/test environments, so lookups can never silently return fake AI content in prod. See `src/ai/ai-lookup-provider.factory.ts` and `src/ai/ai-translate-provider.factory.ts`.
 
@@ -131,15 +131,37 @@ Both endpoints share the same `R2_*` bucket configuration; `R2_PUBLIC_BASE_URL` 
 
 There is no avatar upload endpoint - user avatars are the Google account picture URL returned by OAuth.
 
+### Cursor pagination
+
+List endpoints use cursor pagination instead of page numbers. Each accepts optional `cursor` and `limit` query params and returns `{ items, nextCursor }`.
+
+- First request: call without `cursor`.
+- Next page: pass the previous response's `nextCursor` as the `cursor` query param.
+- Last page: `nextCursor` is `null` - stop paging.
+- `cursor` is an opaque, resource-specific token; an invalid or malformed cursor returns `400 Bad Request`.
+- `limit` is optional and capped per resource - see the table below. Swagger (`/docs`) is the source of truth for each endpoint's request/response schema.
+
+| Endpoint                          | Default `limit` | Max `limit` |
+| --------------------------------- | --------------: | ----------: |
+| `GET /v1/fixes`                   |              20 |         100 |
+| `GET /v1/reviews`                 |              20 |         100 |
+| `GET /v1/comments`                |              20 |         100 |
+| `GET /v1/user-vehicles`           |              20 |         100 |
+| `GET /v1/activity-logs/favorites` |              20 |         100 |
+| `GET /v1/admin/known-issues`      |              20 |         100 |
+| `GET /v1/admin/vehicle-models`    |              20 |         100 |
+| `GET /v1/platform/faults`         |               9 |          48 |
+| `GET /v1/platform/vehicles`       |              50 |         200 |
+
 ### Useful URLs
 
 The API listens on `PORT` from `.env` (the web app's `.env.example` defaults `NEXT_PUBLIC_API_URL` to `http://localhost:3001`).
 
-| Resource | URL |
-|----------|-----|
-| Health | `GET http://localhost:$PORT/v1/health` |
-| Swagger UI | `http://localhost:$PORT/docs` |
-| OpenAPI JSON | `http://localhost:$PORT/docs-json` |
+| Resource     | URL                                    |
+| ------------ | -------------------------------------- |
+| Health       | `GET http://localhost:$PORT/v1/health` |
+| Swagger UI   | `http://localhost:$PORT/docs`          |
+| OpenAPI JSON | `http://localhost:$PORT/docs-json`     |
 
 All API routes are versioned under `/v1`.
 

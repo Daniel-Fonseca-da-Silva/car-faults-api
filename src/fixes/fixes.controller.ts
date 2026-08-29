@@ -46,6 +46,7 @@ export class FixesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List community fixes for a known issue' })
   @ApiOkResponse({ type: FixesPageDto })
+  @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
   async findAll(
     @Req() req: Request,
     @Query() query: ListFixesQueryDto,

@@ -6,7 +6,12 @@ export class CommentsPageDto extends CursorPageDto<CommentResponseDto> {
   @ApiProperty({ type: [CommentResponseDto] })
   declare items: CommentResponseDto[];
 
-  @ApiProperty({ nullable: true, example: null })
+  @ApiProperty({
+    description:
+      'Opaque cursor for the next page; null when there is no next page.',
+    nullable: true,
+    example: null,
+  })
   declare nextCursor: string | null;
 
   constructor(items: CommentResponseDto[], nextCursor: string | null) {
