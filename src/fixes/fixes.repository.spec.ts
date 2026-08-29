@@ -20,8 +20,10 @@ describe('FixesRepository', () => {
     groupBy: jest.Mock;
     addGroupBy: jest.Mock;
     where: jest.Mock;
+    andHaving: jest.Mock;
     orderBy: jest.Mock;
     addOrderBy: jest.Mock;
+    limit: jest.Mock;
     getRawAndEntities: jest.Mock;
   };
 
@@ -32,8 +34,10 @@ describe('FixesRepository', () => {
       groupBy: jest.fn().mockReturnThis(),
       addGroupBy: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      andHaving: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       addOrderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
       getRawAndEntities: jest.fn(),
     };
     repository = {
@@ -174,6 +178,83 @@ describe('FixesRepository', () => {
         'myVote',
       );
       expect(queryBuilder.addGroupBy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findByKnownIssueIdWithCountsPage', () => {
+    it('orders by likes desc, dislikes asc, createdAt/id asc and limits by limit+1', async () => {
+      const fix = { id: 'fix-1' } as Fix;
+      queryBuilder.getRawAndEntities.mockResolvedValue({
+        entities: [fix],
+        raw: [{ likes: '5', dislikes: '2', myVote: undefined }],
+      });
+
+      const result = await fixesRepository.findByKnownIssueIdWithCountsPage(
+        'ki-1',
+        20,
+      );
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'fix.known_issue_id = :knownIssueId',
+        { knownIssueId: 'ki-1' },
+      );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('likes', 'DESC');
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('dislikes', 'ASC');
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'fix.created_at',
+        'ASC',
+      );
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('fix.id', 'ASC');
+      expect(queryBuilder.limit).toHaveBeenCalledWith(21);
+      expect(queryBuilder.andHaving).not.toHaveBeenCalled();
+      expect(result).toEqual([{ ...fix, likes: 5, dislikes: 2, myVote: null }]);
+    });
+
+    it('applies a mixed-direction keyset predicate via andHaving when a cursor is given', async () => {
+      queryBuilder.getRawAndEntities.mockResolvedValue({
+        entities: [],
+        raw: [],
+      });
+
+      await fixesRepository.findByKnownIssueIdWithCountsPage('ki-1', 20, {
+        likes: 5,
+        dislikes: 2,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        id: 'fix-0',
+      });
+
+      expect(queryBuilder.andHaving).toHaveBeenCalledWith(
+        expect.stringContaining('FILTER'),
+        expect.objectContaining({
+          likes_cmp0: 5,
+          likes_eq0: 5,
+          dislikes_cmp1: 2,
+          dislikes_eq1: 2,
+          createdAt_cmp2: '2026-01-01T00:00:00.000Z',
+          id_cmp3: 'fix-0',
+        }),
+      );
+    });
+
+    it('joins the requesting user vote to populate myVote', async () => {
+      queryBuilder.getRawAndEntities.mockResolvedValue({
+        entities: [],
+        raw: [],
+      });
+
+      await fixesRepository.findByKnownIssueIdWithCountsPage(
+        'ki-1',
+        20,
+        undefined,
+        'user-1',
+      );
+
+      expect(queryBuilder.leftJoin).toHaveBeenCalledWith(
+        'fix_votes',
+        'my_vote',
+        'my_vote.fix_id = fix.id AND my_vote.user_id = :userId',
+        { userId: 'user-1' },
+      );
     });
   });
 

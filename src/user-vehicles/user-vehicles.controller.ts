@@ -33,6 +33,9 @@ import {
   UserVehicleDetailResponseDto,
   UserVehicleResponseDto,
 } from './dto/user-vehicle-response.dto';
+import { UserVehicleStatusQueryDto } from './dto/user-vehicle-status-query.dto';
+import { UserVehicleStatusResponseDto } from './dto/user-vehicle-status-response.dto';
+import { UserVehiclesPageDto } from './dto/user-vehicles-page.dto';
 import { UserVehiclesQueryDto } from './dto/user-vehicles-query.dto';
 import { UserVehiclesService } from './user-vehicles.service';
 
@@ -45,20 +48,48 @@ export class UserVehiclesController {
 
   @Get()
   @ApiOperation({ summary: "List the authenticated user's garage" })
-  @ApiOkResponse({ type: [UserVehicleResponseDto] })
+  @ApiOkResponse({ type: UserVehiclesPageDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   async findAll(
     @Req() req: Request,
     @Query() query: UserVehiclesQueryDto,
-  ): Promise<UserVehicleResponseDto[]> {
+  ): Promise<UserVehiclesPageDto> {
     const user = req.user as User;
-    const items = await this.userVehiclesService.findAllByUserWithIssueCounts(
-      user.id,
-      query.language,
-    );
-    return items.map(
+    const { items, nextCursor } =
+      await this.userVehiclesService.findAllByUserWithIssueCounts(
+        user.id,
+        query,
+      );
+    const dtoItems = items.map(
       ({ userVehicle, knownIssuesCount }) =>
         new UserVehicleResponseDto(userVehicle, knownIssuesCount),
+    );
+    return new UserVehiclesPageDto(dtoItems, nextCursor);
+  }
+
+  // Declared above `GET :id` — Nest matches routes in declaration order, and
+  // this static segment would otherwise be captured by the `:id` param.
+  @Get('status')
+  @ApiOperation({
+    summary:
+      "Check whether a vehicle model/year is in the authenticated user's garage",
+  })
+  @ApiOkResponse({ type: UserVehicleStatusResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  async status(
+    @Req() req: Request,
+    @Query() query: UserVehicleStatusQueryDto,
+  ): Promise<UserVehicleStatusResponseDto> {
+    const user = req.user as User;
+    const owned = await this.userVehiclesService.status(
+      user.id,
+      query.vehicleModelId,
+      query.year,
+    );
+    return new UserVehicleStatusResponseDto(
+      query.vehicleModelId,
+      query.year,
+      owned,
     );
   }
 

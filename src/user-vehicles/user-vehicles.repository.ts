@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
+import { buildKeysetWhere } from '../common/pagination/keyset.util';
 import { UserVehicle } from './entities/user-vehicle.entity';
 
 export interface UserVehicleUniqueKey {
@@ -11,6 +12,12 @@ export interface UserVehicleUniqueKey {
   engine: string;
 }
 
+export interface UserVehicleCursor {
+  [key: string]: string;
+  createdAt: string;
+  id: string;
+}
+
 @Injectable()
 export class UserVehiclesRepository {
   constructor(
@@ -18,15 +25,50 @@ export class UserVehiclesRepository {
     private readonly repository: Repository<UserVehicle>,
   ) {}
 
-  findAllByUserId(userId: string): Promise<UserVehicle[]> {
-    return this.repository.find({
-      where: { userId },
-      relations: { vehicleModel: true },
-    });
+  findPageByUserId(
+    userId: string,
+    limit: number,
+    cursor?: UserVehicleCursor,
+  ): Promise<UserVehicle[]> {
+    const qb = this.repository
+      .createQueryBuilder('user_vehicle')
+      .leftJoinAndSelect('user_vehicle.vehicleModel', 'vehicleModel')
+      .where('user_vehicle.user_id = :userId', { userId })
+      .orderBy('user_vehicle.created_at', 'DESC')
+      .addOrderBy('user_vehicle.id', 'DESC')
+      .take(limit + 1);
+
+    if (cursor) {
+      const { sql, params } = buildKeysetWhere(
+        [
+          {
+            expr: 'user_vehicle.created_at',
+            direction: 'DESC',
+            param: 'createdAt',
+          },
+          { expr: 'user_vehicle.id', direction: 'DESC', param: 'id' },
+        ],
+        cursor,
+      );
+      qb.andWhere(sql, params);
+    }
+
+    return qb.getMany();
   }
 
   countByUserId(userId: string): Promise<number> {
     return this.repository.count({ where: { userId } });
+  }
+
+  async existsByVehicleModelAndYear(
+    userId: string,
+    vehicleModelId: string,
+    year: number,
+  ): Promise<boolean> {
+    const count = await this.repository.count({
+      where: { userId, vehicleModelId, year },
+    });
+    return count > 0;
   }
 
   findById(id: string): Promise<UserVehicle | null> {

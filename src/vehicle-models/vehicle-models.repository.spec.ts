@@ -16,6 +16,15 @@ describe('VehicleModelsRepository', () => {
     findAndCount: jest.Mock;
     count: jest.Mock;
     softDelete: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let queryBuilder: {
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    orderBy: jest.Mock;
+    addOrderBy: jest.Mock;
+    take: jest.Mock;
+    getMany: jest.Mock;
   };
 
   const criteria = {
@@ -26,6 +35,14 @@ describe('VehicleModelsRepository', () => {
   };
 
   beforeEach(async () => {
+    queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn(),
+    };
     repository = {
       findOne: jest.fn(),
       find: jest.fn(),
@@ -34,6 +51,7 @@ describe('VehicleModelsRepository', () => {
       findAndCount: jest.fn(),
       count: jest.fn(),
       softDelete: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -213,40 +231,92 @@ describe('VehicleModelsRepository', () => {
   });
 
   describe('findPaginated', () => {
-    it('paginates without brand/model filters', async () => {
-      const vehicleModels = [{ id: 'vm-1' }] as VehicleModel[];
-      repository.findAndCount.mockResolvedValue([vehicleModels, 1]);
+    it('orders by brand/model/yearFrom/id asc and takes limit+1 without brand/model filters', async () => {
+      const vehicleModels = [
+        { id: 'vm-1', brand: 'Volkswagen', model: 'Polo', yearFrom: 2001 },
+      ] as VehicleModel[];
+      queryBuilder.getMany.mockResolvedValue(vehicleModels);
 
       const result = await vehicleModelsRepository.findPaginated({
-        page: 1,
         limit: 20,
       });
 
-      expect(repository.findAndCount).toHaveBeenCalledWith({
-        where: {},
-        order: { brand: 'ASC', model: 'ASC', yearFrom: 'ASC' },
-        skip: 0,
-        take: 20,
-      });
-      expect(result).toEqual([vehicleModels, 1]);
+      expect(repository.createQueryBuilder).toHaveBeenCalledWith(
+        'vehicle_model',
+      );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        'vehicle_model.brand',
+        'ASC',
+      );
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'vehicle_model.model',
+        'ASC',
+      );
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'vehicle_model.year_from',
+        'ASC',
+      );
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'vehicle_model.id',
+        'ASC',
+      );
+      expect(queryBuilder.take).toHaveBeenCalledWith(21);
+      expect(queryBuilder.andWhere).not.toHaveBeenCalled();
+      expect(result).toEqual({ items: vehicleModels, nextCursor: null });
     });
 
-    it('filters by brand and model and paginates the offset', async () => {
-      repository.findAndCount.mockResolvedValue([[], 0]);
+    it('filters by brand and model', async () => {
+      queryBuilder.getMany.mockResolvedValue([]);
 
       await vehicleModelsRepository.findPaginated({
-        page: 3,
         limit: 10,
         brand: 'Volkswagen',
         model: 'Polo',
       });
 
-      expect(repository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          skip: 20,
-          take: 10,
-        }),
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'vehicle_model.brand ILIKE :brand',
+        { brand: '%Volkswagen%' },
       );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'vehicle_model.model ILIKE :model',
+        { model: '%Polo%' },
+      );
+    });
+
+    it('applies a keyset predicate when a cursor is given', async () => {
+      queryBuilder.getMany.mockResolvedValue([]);
+      const cursor = Buffer.from(
+        JSON.stringify({
+          brand: 'Volkswagen',
+          model: 'Polo',
+          yearFrom: 2001,
+          id: 'vm-0',
+        }),
+        'utf8',
+      ).toString('base64url');
+
+      await vehicleModelsRepository.findPaginated({ limit: 10, cursor });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('vehicle_model.brand'),
+        expect.objectContaining({ brand_cmp0: 'Volkswagen' }),
+      );
+    });
+
+    it('returns an encoded nextCursor when there is a lookahead row', async () => {
+      const vehicleModels = [
+        { id: 'vm-1', brand: 'Volkswagen', model: 'Golf', yearFrom: 2015 },
+        { id: 'vm-2', brand: 'Volkswagen', model: 'Polo', yearFrom: 2001 },
+      ] as VehicleModel[];
+      queryBuilder.getMany.mockResolvedValue(vehicleModels);
+
+      const result = await vehicleModelsRepository.findPaginated({
+        limit: 1,
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.nextCursor).not.toBeNull();
     });
   });
 
@@ -378,22 +448,21 @@ describe('VehicleModelsRepository', () => {
   });
 
   describe('findCatalogPaginated', () => {
-    it('filters to vehicle models with a non-null fuelType and paginates the offset', async () => {
-      const vehicleModels = [{ id: 'vm-1' }] as VehicleModel[];
-      repository.findAndCount.mockResolvedValue([vehicleModels, 1]);
+    it('filters to vehicle models with a non-null fuelType and takes limit+1', async () => {
+      const vehicleModels = [
+        { id: 'vm-1', brand: 'Volkswagen', model: 'Polo', yearFrom: 2001 },
+      ] as VehicleModel[];
+      queryBuilder.getMany.mockResolvedValue(vehicleModels);
 
       const result = await vehicleModelsRepository.findCatalogPaginated({
-        page: 2,
         limit: 20,
       });
 
-      expect(repository.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          skip: 20,
-          take: 20,
-        }),
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'vehicle_model.fuel_type IS NOT NULL',
       );
-      expect(result).toEqual([vehicleModels, 1]);
+      expect(queryBuilder.take).toHaveBeenCalledWith(21);
+      expect(result).toEqual({ items: vehicleModels, nextCursor: null });
     });
   });
 

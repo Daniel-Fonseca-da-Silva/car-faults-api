@@ -1,3 +1,4 @@
+import { PATH_METADATA } from '@nestjs/common/constants';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,6 +15,7 @@ describe('UserVehiclesController', () => {
   let userVehiclesController: UserVehiclesController;
   let userVehiclesService: {
     findAllByUserWithIssueCounts: jest.Mock;
+    status: jest.Mock;
     findOneByUser: jest.Mock;
     findKnownIssues: jest.Mock;
     countKnownIssues: jest.Mock;
@@ -42,6 +44,7 @@ describe('UserVehiclesController', () => {
   beforeEach(async () => {
     userVehiclesService = {
       findAllByUserWithIssueCounts: jest.fn(),
+      status: jest.fn(),
       findOneByUser: jest.fn(),
       findKnownIssues: jest.fn(),
       countKnownIssues: jest.fn(),
@@ -68,34 +71,72 @@ describe('UserVehiclesController', () => {
   });
 
   describe('findAll', () => {
-    it("returns the authenticated user's serialized garage with issue counts, defaulting locale to undefined", async () => {
-      userVehiclesService.findAllByUserWithIssueCounts.mockResolvedValue([
-        { userVehicle, knownIssuesCount: 2 },
-      ]);
+    it("returns the authenticated user's serialized garage page with issue counts", async () => {
+      userVehiclesService.findAllByUserWithIssueCounts.mockResolvedValue({
+        items: [{ userVehicle, knownIssuesCount: 2 }],
+        nextCursor: null,
+      });
 
       const result = await userVehiclesController.findAll(req, {});
 
       expect(
         userVehiclesService.findAllByUserWithIssueCounts,
-      ).toHaveBeenCalledWith('user-1', undefined);
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
+      ).toHaveBeenCalledWith('user-1', {});
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
         id: 'uv-1',
         brand: 'Volkswagen',
         knownIssuesCount: 2,
       });
+      expect(result.nextCursor).toBeNull();
     });
 
-    it('propagates the requested language', async () => {
-      userVehiclesService.findAllByUserWithIssueCounts.mockResolvedValue([]);
-
-      await userVehiclesController.findAll(req, {
-        language: LookupLocale.PtPt,
+    it('propagates the given query, including language, cursor and limit', async () => {
+      userVehiclesService.findAllByUserWithIssueCounts.mockResolvedValue({
+        items: [],
+        nextCursor: 'next-cursor',
       });
+
+      const query = { language: LookupLocale.PtPt, cursor: 'abc', limit: 10 };
+      const result = await userVehiclesController.findAll(req, query);
 
       expect(
         userVehiclesService.findAllByUserWithIssueCounts,
-      ).toHaveBeenCalledWith('user-1', LookupLocale.PtPt);
+      ).toHaveBeenCalledWith('user-1', query);
+      expect(result.nextCursor).toBe('next-cursor');
+    });
+  });
+
+  describe('status', () => {
+    it("returns owned: true when the vehicle is in the user's garage", async () => {
+      userVehiclesService.status.mockResolvedValue(true);
+
+      const result = await userVehiclesController.status(req, {
+        vehicleModelId: 'vm-1',
+        year: 2001,
+      });
+
+      expect(userVehiclesService.status).toHaveBeenCalledWith(
+        'user-1',
+        'vm-1',
+        2001,
+      );
+      expect(result).toMatchObject({
+        vehicleModelId: 'vm-1',
+        year: 2001,
+        owned: true,
+      });
+    });
+
+    it("returns owned: false when the vehicle is not in the user's garage", async () => {
+      userVehiclesService.status.mockResolvedValue(false);
+
+      const result = await userVehiclesController.status(req, {
+        vehicleModelId: 'vm-1',
+        year: 2001,
+      });
+
+      expect(result.owned).toBe(false);
     });
   });
 
@@ -187,6 +228,29 @@ describe('UserVehiclesController', () => {
       await userVehiclesController.remove(req, 'uv-1');
 
       expect(userVehiclesService.remove).toHaveBeenCalledWith('uv-1', 'user-1');
+    });
+  });
+
+  describe('route order', () => {
+    it('declares GET status before GET :id', () => {
+      const methodNames = Object.getOwnPropertyNames(
+        UserVehiclesController.prototype,
+      ).filter((name) => name !== 'constructor');
+      const prototype = UserVehiclesController.prototype as unknown as Record<
+        string,
+        unknown
+      >;
+      const pathOf = (name: string): string =>
+        Reflect.getMetadata(PATH_METADATA, prototype[name] as object) as string;
+
+      const statusIndex = methodNames.findIndex(
+        (name) => pathOf(name) === 'status',
+      );
+      const findOneIndex = methodNames.findIndex((name) => name === 'findOne');
+
+      expect(pathOf('findOne')).toBe(':id');
+      expect(statusIndex).toBeGreaterThanOrEqual(0);
+      expect(statusIndex).toBeLessThan(findOneIndex);
     });
   });
 });

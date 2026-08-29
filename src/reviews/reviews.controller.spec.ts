@@ -55,15 +55,22 @@ describe('ReviewsController', () => {
   });
 
   describe('findAll', () => {
-    it('returns the serialized reviews for a known issue', async () => {
-      reviewsService.findByKnownIssue.mockResolvedValue([review]);
+    it('returns the serialized reviews page for a known issue', async () => {
+      reviewsService.findByKnownIssue.mockResolvedValue({
+        items: [review],
+        nextCursor: null,
+      });
       const query: ListReviewsQueryDto = { knownIssueId: 'ki-1' };
 
       const result = await reviewsController.findAll(query);
 
-      expect(reviewsService.findByKnownIssue).toHaveBeenCalledWith('ki-1');
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({ id: 'review-1', rating: 4 });
+      expect(reviewsService.findByKnownIssue).toHaveBeenCalledWith(
+        'ki-1',
+        query,
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({ id: 'review-1', rating: 4 });
+      expect(result.nextCursor).toBeNull();
     });
   });
 

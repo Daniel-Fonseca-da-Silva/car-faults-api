@@ -26,6 +26,7 @@ describe('ReviewsService', () => {
       knownIssueId: 'ki-1',
       rating: 4,
       comment: null,
+      createdAt: new Date('2026-01-01'),
       ...overrides,
     }) as Review;
 
@@ -56,14 +57,59 @@ describe('ReviewsService', () => {
   });
 
   describe('findByKnownIssue', () => {
-    it('delegates to the repository', async () => {
+    it('resolves the default limit and returns a null nextCursor when there is no next page', async () => {
       const reviews = [buildReview()];
       reviewsRepository.findByKnownIssueId.mockResolvedValue(reviews);
 
-      const result = await reviewsService.findByKnownIssue('ki-1');
+      const result = await reviewsService.findByKnownIssue('ki-1', {});
 
-      expect(reviewsRepository.findByKnownIssueId).toHaveBeenCalledWith('ki-1');
-      expect(result).toBe(reviews);
+      expect(reviewsRepository.findByKnownIssueId).toHaveBeenCalledWith(
+        'ki-1',
+        20,
+        undefined,
+      );
+      expect(result.items).toBe(reviews);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('returns an encoded nextCursor when the repository reports a lookahead row', async () => {
+      const first = buildReview({
+        id: 'review-2',
+        createdAt: new Date('2026-01-02'),
+      });
+      const second = buildReview({ id: 'review-1' });
+      reviewsRepository.findByKnownIssueId.mockResolvedValue([first, second]);
+
+      const result = await reviewsService.findByKnownIssue('ki-1', {
+        limit: 1,
+      });
+
+      expect(reviewsRepository.findByKnownIssueId).toHaveBeenCalledWith(
+        'ki-1',
+        1,
+        undefined,
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.nextCursor).not.toBeNull();
+    });
+
+    it('decodes the given cursor and passes it to the repository', async () => {
+      reviewsRepository.findByKnownIssueId.mockResolvedValue([]);
+      const cursor = Buffer.from(
+        JSON.stringify({
+          createdAt: '2026-01-01T00:00:00.000Z',
+          id: 'review-0',
+        }),
+        'utf8',
+      ).toString('base64url');
+
+      await reviewsService.findByKnownIssue('ki-1', { cursor });
+
+      expect(reviewsRepository.findByKnownIssueId).toHaveBeenCalledWith(
+        'ki-1',
+        20,
+        { createdAt: '2026-01-01T00:00:00.000Z', id: 'review-0' },
+      );
     });
   });
 

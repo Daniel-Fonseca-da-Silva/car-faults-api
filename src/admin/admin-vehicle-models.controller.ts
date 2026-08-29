@@ -25,6 +25,7 @@ import {
 } from '@nestjs/swagger';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { resolveLimit } from '../common/pagination/cursor-query.dto';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { AdminCreateVehicleModelDto } from './dto/create-vehicle-model.dto';
@@ -37,8 +38,8 @@ import {
   AdminVehicleModelResponseDto,
 } from './dto/vehicle-model-admin-response.dto';
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
 
 @ApiTags('admin-vehicle-models')
 @ApiBearerAuth()
@@ -58,15 +59,19 @@ export class AdminVehicleModelsController {
   async findAll(
     @Query() query: AdminListVehicleModelsQueryDto,
   ): Promise<AdminVehicleModelListResponseDto> {
-    const page = query.page ?? DEFAULT_PAGE;
-    const limit = query.limit ?? DEFAULT_LIMIT;
-    const { items, total } = await this.vehicleModelsService.findPaginated({
-      page,
-      limit,
-      brand: query.brand,
-      model: query.model,
+    const limit = resolveLimit(query.limit, {
+      default: DEFAULT_LIMIT,
+      max: MAX_LIMIT,
     });
-    return new AdminVehicleModelListResponseDto(items, total, page, limit);
+    const { items, nextCursor } = await this.vehicleModelsService.findPaginated(
+      {
+        limit,
+        cursor: query.cursor,
+        brand: query.brand,
+        model: query.model,
+      },
+    );
+    return new AdminVehicleModelListResponseDto(items, nextCursor);
   }
 
   @Get(':id')

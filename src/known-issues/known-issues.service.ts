@@ -2,6 +2,9 @@ import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
+import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
+import { resolveLimit } from '../common/pagination/cursor-query.dto';
+import { splitPage } from '../common/pagination/paginate.util';
 import { buildLookupCacheKeysForVehicleModel } from '../lookups/lookup-cache-key.util';
 import { errorMessage } from '../redis/redis-error.util';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
@@ -11,8 +14,17 @@ import { IssueSeverity } from './enums/issue-severity.enum';
 import {
   FaultsCriteria,
   FaultsPage,
+  KnownIssueCursor,
   KnownIssuesRepository,
 } from './known-issues.repository';
+
+export const ADMIN_KNOWN_ISSUES_DEFAULT_LIMIT = 20;
+export const ADMIN_KNOWN_ISSUES_MAX_LIMIT = 100;
+
+export interface KnownIssuesPage {
+  items: KnownIssue[];
+  nextCursor: string | null;
+}
 
 export interface CreateKnownIssueData {
   vehicleModelId: string;
@@ -45,6 +57,34 @@ export class KnownIssuesService {
 
   findByVehicleModelId(vehicleModelId: string): Promise<KnownIssue[]> {
     return this.knownIssuesRepository.findByVehicleModelId(vehicleModelId);
+  }
+
+  async findPageByVehicleModelId(
+    vehicleModelId: string,
+    query: { cursor?: string; limit?: number },
+  ): Promise<KnownIssuesPage> {
+    const limit = resolveLimit(query.limit, {
+      default: ADMIN_KNOWN_ISSUES_DEFAULT_LIMIT,
+      max: ADMIN_KNOWN_ISSUES_MAX_LIMIT,
+    });
+    const cursor = query.cursor
+      ? decodeCursor<KnownIssueCursor>(query.cursor)
+      : undefined;
+
+    const rows = await this.knownIssuesRepository.findPageByVehicleModelId(
+      vehicleModelId,
+      limit,
+      cursor,
+    );
+    const { items, hasMore } = splitPage(rows, limit);
+
+    const last = items[items.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null;
+
+    return { items, nextCursor };
   }
 
   countByVehicleModelId(vehicleModelId: string): Promise<number> {

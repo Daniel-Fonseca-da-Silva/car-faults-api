@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { buildKeysetWhere } from '../common/pagination/keyset.util';
 import { Fix } from './entities/fix.entity';
 import { FixVoteValue } from './enums/fix-vote-value.enum';
 
@@ -9,6 +10,17 @@ export type FixWithCounts = Fix & {
   dislikes: number;
   myVote: FixVoteValue | null;
 };
+
+export interface FixCursor {
+  [key: string]: string | number;
+  likes: number;
+  dislikes: number;
+  createdAt: string;
+  id: string;
+}
+
+const LIKES_EXPR = "COUNT(*) FILTER (WHERE vote.value = 'like')";
+const DISLIKES_EXPR = "COUNT(*) FILTER (WHERE vote.value = 'dislike')";
 
 interface RawFixCounts {
   likes: string | number;
@@ -54,6 +66,37 @@ export class FixesRepository {
       .addOrderBy('fix.created_at', 'ASC')
       .getRawAndEntities();
 
+    return this.mapCounts(entities, raw as RawFixCounts[]);
+  }
+
+  async findByKnownIssueIdWithCountsPage(
+    knownIssueId: string,
+    limit: number,
+    cursor?: FixCursor,
+    userId?: string,
+  ): Promise<FixWithCounts[]> {
+    const qb = this.countsQuery(userId)
+      .where('fix.known_issue_id = :knownIssueId', { knownIssueId })
+      .orderBy('likes', 'DESC')
+      .addOrderBy('dislikes', 'ASC')
+      .addOrderBy('fix.created_at', 'ASC')
+      .addOrderBy('fix.id', 'ASC')
+      .limit(limit + 1);
+
+    if (cursor) {
+      const { sql, params } = buildKeysetWhere(
+        [
+          { expr: LIKES_EXPR, direction: 'DESC', param: 'likes' },
+          { expr: DISLIKES_EXPR, direction: 'ASC', param: 'dislikes' },
+          { expr: 'fix.created_at', direction: 'ASC', param: 'createdAt' },
+          { expr: 'fix.id', direction: 'ASC', param: 'id' },
+        ],
+        cursor,
+      );
+      qb.andHaving(sql, params);
+    }
+
+    const { entities, raw } = await qb.getRawAndEntities();
     return this.mapCounts(entities, raw as RawFixCounts[]);
   }
 

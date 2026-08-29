@@ -30,6 +30,7 @@ import { AdminCreateKnownIssueDto } from './dto/create-known-issue.dto';
 import {
   AdminKnownIssueDetailResponseDto,
   AdminKnownIssueResponseDto,
+  AdminKnownIssuesPageDto,
 } from './dto/known-issue-admin-response.dto';
 import { AdminListKnownIssuesQueryDto } from './dto/list-known-issues-query.dto';
 import { AdminUpdateKnownIssueDto } from './dto/update-known-issue.dto';
@@ -43,18 +44,18 @@ export class AdminKnownIssuesController {
 
   @Get()
   @ApiOperation({ summary: 'List known issues for a vehicle model' })
-  @ApiOkResponse({ type: [AdminKnownIssueResponseDto] })
+  @ApiOkResponse({ type: AdminKnownIssuesPageDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   @ApiForbiddenResponse({ description: 'Admin access required' })
   async findAll(
     @Query() query: AdminListKnownIssuesQueryDto,
-  ): Promise<AdminKnownIssueResponseDto[]> {
-    const knownIssues = await this.knownIssuesService.findByVehicleModelId(
-      query.vehicleModelId,
-    );
-    return knownIssues.map(
-      (knownIssue) => new AdminKnownIssueResponseDto(knownIssue),
-    );
+  ): Promise<AdminKnownIssuesPageDto> {
+    const { items, nextCursor } =
+      await this.knownIssuesService.findPageByVehicleModelId(
+        query.vehicleModelId,
+        query,
+      );
+    return new AdminKnownIssuesPageDto(items, nextCursor);
   }
 
   @Get(':id')

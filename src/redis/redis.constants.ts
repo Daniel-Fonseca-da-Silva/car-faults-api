@@ -24,8 +24,8 @@ export function jwtDenyCacheKey(jti: string): string {
 
 export interface PlatformFaultsCacheKeyCriteria {
   locale: LookupLocale;
-  page: number;
   limit: number;
+  cursor?: string;
   brand?: string;
   model?: string;
   year?: number;
@@ -37,10 +37,10 @@ export interface PlatformFaultsCacheKeyCriteria {
 export function platformFaultsCacheKey(
   criteria: PlatformFaultsCacheKeyCriteria,
 ): string {
-  const { locale, page, limit, brand, model, year, fuelType, doors, engine } =
+  const { locale, limit, cursor, brand, model, year, fuelType, doors, engine } =
     criteria;
   return (
-    `${PLATFORM_FAULTS_CACHE_KEY_PREFIX}${locale}:${page}:${limit}:` +
+    `${PLATFORM_FAULTS_CACHE_KEY_PREFIX}${locale}:${limit}:${cursor ?? ''}:` +
     `${brand ?? ''}:${model ?? ''}:${year ?? ''}:${fuelType ?? ''}:` +
     `${doors ?? ''}:${engine ?? ''}`
   );

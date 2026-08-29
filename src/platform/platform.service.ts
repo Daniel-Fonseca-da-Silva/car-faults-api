@@ -67,8 +67,8 @@ export class PlatformService {
   }
 
   getVehicles(criteria: {
-    page: number;
     limit: number;
+    cursor?: string;
   }): Promise<PaginatedVehicleModels> {
     return this.vehicleModelsService.findCatalogPaginated(criteria);
   }

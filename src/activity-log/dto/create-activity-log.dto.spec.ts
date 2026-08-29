@@ -59,4 +59,29 @@ describe('CreateActivityLogDto', () => {
 
     expect(errors.some((error) => error.property === 'resourceId')).toBe(true);
   });
+
+  it('passes validation for a vehicle_favorite activity with a year and coerces it to a number', async () => {
+    const dto = plainToInstance(CreateActivityLogDto, {
+      type: ActivityLogType.VEHICLE_FAVORITE,
+      resourceId,
+      year: '2001',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.year).toBe(2001);
+  });
+
+  it('fails validation when year is below the minimum', async () => {
+    const dto = plainToInstance(CreateActivityLogDto, {
+      type: ActivityLogType.VEHICLE_FAVORITE,
+      resourceId,
+      year: 1899,
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.some((error) => error.property === 'year')).toBe(true);
+  });
 });

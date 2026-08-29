@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
+import { buildKeysetWhere } from '../common/pagination/keyset.util';
 import { Review } from './entities/review.entity';
+
+export interface ReviewCursor {
+  [key: string]: string;
+  createdAt: string;
+  id: string;
+}
 
 @Injectable()
 export class ReviewsRepository {
@@ -10,12 +17,31 @@ export class ReviewsRepository {
     private readonly repository: Repository<Review>,
   ) {}
 
-  findByKnownIssueId(knownIssueId: string): Promise<Review[]> {
-    return this.repository.find({
-      where: { knownIssueId },
-      relations: { user: true },
-      order: { createdAt: 'DESC' },
-    });
+  findByKnownIssueId(
+    knownIssueId: string,
+    limit: number,
+    cursor?: ReviewCursor,
+  ): Promise<Review[]> {
+    const qb = this.repository
+      .createQueryBuilder('review')
+      .leftJoinAndSelect('review.user', 'user')
+      .where('review.known_issue_id = :knownIssueId', { knownIssueId })
+      .orderBy('review.created_at', 'DESC')
+      .addOrderBy('review.id', 'DESC')
+      .take(limit + 1);
+
+    if (cursor) {
+      const { sql, params } = buildKeysetWhere(
+        [
+          { expr: 'review.created_at', direction: 'DESC', param: 'createdAt' },
+          { expr: 'review.id', direction: 'DESC', param: 'id' },
+        ],
+        cursor,
+      );
+      qb.andWhere(sql, params);
+    }
+
+    return qb.getMany();
   }
 
   findById(id: string): Promise<Review | null> {

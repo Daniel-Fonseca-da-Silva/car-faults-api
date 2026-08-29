@@ -10,7 +10,7 @@ import { AdminKnownIssuesController } from './admin-known-issues.controller';
 describe('AdminKnownIssuesController', () => {
   let controller: AdminKnownIssuesController;
   let knownIssuesService: {
-    findByVehicleModelId: jest.Mock;
+    findPageByVehicleModelId: jest.Mock;
     findByIdWithFixes: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
@@ -27,7 +27,7 @@ describe('AdminKnownIssuesController', () => {
 
   beforeEach(async () => {
     knownIssuesService = {
-      findByVehicleModelId: jest.fn(),
+      findPageByVehicleModelId: jest.fn(),
       findByIdWithFixes: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -55,14 +55,20 @@ describe('AdminKnownIssuesController', () => {
 
   describe('findAll', () => {
     it('lists known issues for a vehicle model', async () => {
-      knownIssuesService.findByVehicleModelId.mockResolvedValue([knownIssue]);
+      knownIssuesService.findPageByVehicleModelId.mockResolvedValue({
+        items: [knownIssue],
+        nextCursor: null,
+      });
+      const query = { vehicleModelId: 'vm-1' };
 
-      const result = await controller.findAll({ vehicleModelId: 'vm-1' });
+      const result = await controller.findAll(query);
 
-      expect(knownIssuesService.findByVehicleModelId).toHaveBeenCalledWith(
+      expect(knownIssuesService.findPageByVehicleModelId).toHaveBeenCalledWith(
         'vm-1',
+        query,
       );
-      expect(result).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.nextCursor).toBeNull();
     });
   });
 

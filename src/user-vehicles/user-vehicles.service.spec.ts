@@ -13,7 +13,8 @@ import { UserVehiclesService } from './user-vehicles.service';
 describe('UserVehiclesService', () => {
   let userVehiclesService: UserVehiclesService;
   let userVehiclesRepository: {
-    findAllByUserId: jest.Mock;
+    findPageByUserId: jest.Mock;
+    existsByVehicleModelAndYear: jest.Mock;
     findById: jest.Mock;
     findByUniqueKey: jest.Mock;
     create: jest.Mock;
@@ -43,12 +44,14 @@ describe('UserVehiclesService', () => {
       engine: '1.0',
       name: null,
       doors: null,
+      createdAt: new Date('2026-01-01'),
       ...overrides,
     }) as UserVehicle;
 
   beforeEach(async () => {
     userVehiclesRepository = {
-      findAllByUserId: jest.fn(),
+      findPageByUserId: jest.fn(),
+      existsByVehicleModelAndYear: jest.fn(),
       findById: jest.fn(),
       findByUniqueKey: jest.fn(),
       create: jest.fn(),
@@ -88,58 +91,129 @@ describe('UserVehiclesService', () => {
     expect(userVehiclesService).toBeDefined();
   });
 
-  describe('findAllByUser', () => {
-    it('delegates to the repository', async () => {
-      const userVehicles = [buildUserVehicle()];
-      userVehiclesRepository.findAllByUserId.mockResolvedValue(userVehicles);
-
-      const result = await userVehiclesService.findAllByUser(userId);
-
-      expect(userVehiclesRepository.findAllByUserId).toHaveBeenCalledWith(
-        userId,
-      );
-      expect(result).toBe(userVehicles);
-    });
-  });
-
   describe('findAllByUserWithIssueCounts', () => {
-    it('pairs each vehicle with its known issues count from the catalog, defaulting to en-GB', async () => {
+    it('pairs each vehicle with its known issues count from the catalog, defaulting to en-GB and no cursor', async () => {
       const linked = buildUserVehicle({ id: 'uv-1', vehicleModelId: 'vm-1' });
       const unlinked = buildUserVehicle({ id: 'uv-2', vehicleModelId: null });
-      userVehiclesRepository.findAllByUserId.mockResolvedValue([
+      userVehiclesRepository.findPageByUserId.mockResolvedValue([
         linked,
         unlinked,
       ]);
       knownIssuesService.countByVehicleModelIdAndLocale.mockResolvedValue(3);
 
-      const result =
-        await userVehiclesService.findAllByUserWithIssueCounts(userId);
+      const result = await userVehiclesService.findAllByUserWithIssueCounts(
+        userId,
+        {},
+      );
 
+      expect(userVehiclesRepository.findPageByUserId).toHaveBeenCalledWith(
+        userId,
+        20,
+        undefined,
+      );
       expect(
         knownIssuesService.countByVehicleModelIdAndLocale,
       ).toHaveBeenCalledWith('vm-1', LookupLocale.EnGb);
       expect(
         knownIssuesService.countByVehicleModelIdAndLocale,
       ).toHaveBeenCalledTimes(1);
-      expect(result).toEqual([
+      expect(result.items).toEqual([
         { userVehicle: linked, knownIssuesCount: 3 },
         { userVehicle: unlinked, knownIssuesCount: 0 },
       ]);
+      expect(result.nextCursor).toBeNull();
     });
 
     it('propagates the given locale', async () => {
       const linked = buildUserVehicle({ id: 'uv-1', vehicleModelId: 'vm-1' });
-      userVehiclesRepository.findAllByUserId.mockResolvedValue([linked]);
+      userVehiclesRepository.findPageByUserId.mockResolvedValue([linked]);
       knownIssuesService.countByVehicleModelIdAndLocale.mockResolvedValue(2);
 
-      await userVehiclesService.findAllByUserWithIssueCounts(
-        userId,
-        LookupLocale.PtPt,
-      );
+      await userVehiclesService.findAllByUserWithIssueCounts(userId, {
+        language: LookupLocale.PtPt,
+      });
 
       expect(
         knownIssuesService.countByVehicleModelIdAndLocale,
       ).toHaveBeenCalledWith('vm-1', LookupLocale.PtPt);
+    });
+
+    it('returns an encoded nextCursor when the repository reports a lookahead row', async () => {
+      const first = buildUserVehicle({
+        id: 'uv-2',
+        createdAt: new Date('2026-01-02'),
+      });
+      const second = buildUserVehicle({
+        id: 'uv-1',
+        createdAt: new Date('2026-01-01'),
+      });
+      userVehiclesRepository.findPageByUserId.mockResolvedValue([
+        first,
+        second,
+      ]);
+
+      const result = await userVehiclesService.findAllByUserWithIssueCounts(
+        userId,
+        { limit: 1 },
+      );
+
+      expect(userVehiclesRepository.findPageByUserId).toHaveBeenCalledWith(
+        userId,
+        1,
+        undefined,
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.nextCursor).not.toBeNull();
+    });
+
+    it('decodes the given cursor and passes it to the repository', async () => {
+      userVehiclesRepository.findPageByUserId.mockResolvedValue([]);
+      const cursor = Buffer.from(
+        JSON.stringify({
+          createdAt: '2026-01-01T00:00:00.000Z',
+          id: 'uv-0',
+        }),
+        'utf8',
+      ).toString('base64url');
+
+      await userVehiclesService.findAllByUserWithIssueCounts(userId, {
+        cursor,
+      });
+
+      expect(userVehiclesRepository.findPageByUserId).toHaveBeenCalledWith(
+        userId,
+        20,
+        { createdAt: '2026-01-01T00:00:00.000Z', id: 'uv-0' },
+      );
+    });
+
+    it('clamps limit to the maximum', async () => {
+      userVehiclesRepository.findPageByUserId.mockResolvedValue([]);
+
+      await userVehiclesService.findAllByUserWithIssueCounts(userId, {
+        limit: 500,
+      });
+
+      expect(userVehiclesRepository.findPageByUserId).toHaveBeenCalledWith(
+        userId,
+        100,
+        undefined,
+      );
+    });
+  });
+
+  describe('status', () => {
+    it('delegates to the repository', async () => {
+      userVehiclesRepository.existsByVehicleModelAndYear.mockResolvedValue(
+        true,
+      );
+
+      const result = await userVehiclesService.status(userId, 'vm-1', 2001);
+
+      expect(
+        userVehiclesRepository.existsByVehicleModelAndYear,
+      ).toHaveBeenCalledWith(userId, 'vm-1', 2001);
+      expect(result).toBe(true);
     });
   });
 
