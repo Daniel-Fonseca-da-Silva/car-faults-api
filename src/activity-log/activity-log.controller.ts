@@ -78,6 +78,7 @@ export class ActivityLogController {
   })
   @ApiOkResponse({ type: FavoritesPageDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
   async findFavorites(
     @Req() req: Request,
     @Query() query: FavoritesQueryDto,

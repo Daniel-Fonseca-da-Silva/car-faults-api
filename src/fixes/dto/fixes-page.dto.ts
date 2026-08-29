@@ -6,7 +6,12 @@ export class FixesPageDto extends CursorPageDto<FixResponseDto> {
   @ApiProperty({ type: [FixResponseDto] })
   declare items: FixResponseDto[];
 
-  @ApiProperty({ nullable: true, example: null })
+  @ApiProperty({
+    description:
+      'Opaque cursor for the next page; null when there is no next page.',
+    nullable: true,
+    example: null,
+  })
   declare nextCursor: string | null;
 
   constructor(items: FixResponseDto[], nextCursor: string | null) {

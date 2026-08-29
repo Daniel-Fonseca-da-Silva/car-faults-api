@@ -15,4 +15,10 @@ export class UserVehiclesQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @IsEnum(LookupLocale)
   language?: LookupLocale;
+
+  @ApiPropertyOptional({
+    description: `Defaults to ${GARAGE_DEFAULT_LIMIT}, capped at ${GARAGE_MAX_LIMIT}.`,
+    example: GARAGE_DEFAULT_LIMIT,
+  })
+  declare limit?: number;
 }
