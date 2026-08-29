@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
+import { resolveLimit } from '../common/pagination/cursor-query.dto';
 import { PlatformFaultsQueryDto } from './dto/platform-faults-query.dto';
 import { PlatformFaultsResponseDto } from './dto/platform-faults-response.dto';
 import { PlatformStatsResponseDto } from './dto/platform-stats-response.dto';
@@ -10,9 +11,9 @@ import { PlatformVehiclesResponseDto } from './dto/platform-vehicles-response.dt
 import { TopFaultItemDto } from './dto/top-fault-item.dto';
 import {
   FAULTS_DEFAULT_LIMIT,
-  FAULTS_DEFAULT_PAGE,
+  FAULTS_MAX_LIMIT,
   VEHICLES_DEFAULT_LIMIT,
-  VEHICLES_DEFAULT_PAGE,
+  VEHICLES_MAX_LIMIT,
 } from './platform.constants';
 import { PlatformService } from './platform.service';
 
@@ -38,12 +39,14 @@ export class PlatformController {
     @Query() query: PlatformFaultsQueryDto,
   ): Promise<PlatformFaultsResponseDto> {
     const locale = query.locale ?? LookupLocale.EnGb;
-    const page = query.page ?? FAULTS_DEFAULT_PAGE;
-    const limit = query.limit ?? FAULTS_DEFAULT_LIMIT;
-    const { items, total } = await this.platformService.getFaults({
+    const limit = resolveLimit(query.limit, {
+      default: FAULTS_DEFAULT_LIMIT,
+      max: FAULTS_MAX_LIMIT,
+    });
+    const { items, nextCursor } = await this.platformService.getFaults({
       locale,
-      page,
       limit,
+      cursor: query.cursor,
       brand: query.brand,
       model: query.model,
       year: query.year,
@@ -53,9 +56,7 @@ export class PlatformController {
     });
     return new PlatformFaultsResponseDto(
       items.map((row) => new TopFaultItemDto(row)),
-      total,
-      page,
-      limit,
+      nextCursor,
     );
   }
 
@@ -69,17 +70,17 @@ export class PlatformController {
   async getVehicles(
     @Query() query: PlatformVehiclesQueryDto,
   ): Promise<PlatformVehiclesResponseDto> {
-    const page = query.page ?? VEHICLES_DEFAULT_PAGE;
-    const limit = query.limit ?? VEHICLES_DEFAULT_LIMIT;
-    const { items, total } = await this.platformService.getVehicles({
-      page,
+    const limit = resolveLimit(query.limit, {
+      default: VEHICLES_DEFAULT_LIMIT,
+      max: VEHICLES_MAX_LIMIT,
+    });
+    const { items, nextCursor } = await this.platformService.getVehicles({
       limit,
+      cursor: query.cursor,
     });
     return new PlatformVehiclesResponseDto(
       items.map((item) => new PlatformVehicleItemDto(item)),
-      total,
-      page,
-      limit,
+      nextCursor,
     );
   }
 }

@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
 import { IssueSeverity } from '../../known-issues/enums/issue-severity.enum';
 import { LookupLocale } from '../../common/enums/lookup-locale.enum';
+import { CursorPageDto } from '../../common/pagination/cursor-page.dto';
 import { AdminFixResponseDto } from './fix-admin-response.dto';
 
 export class AdminKnownIssueResponseDto {
@@ -55,6 +56,23 @@ export class AdminKnownIssueResponseDto {
     this.aiGeneratedAt = knownIssue.aiGeneratedAt;
     this.createdAt = knownIssue.createdAt;
     this.updatedAt = knownIssue.updatedAt;
+  }
+}
+
+export class AdminKnownIssuesPageDto extends CursorPageDto<AdminKnownIssueResponseDto> {
+  @ApiProperty({ type: [AdminKnownIssueResponseDto] })
+  declare items: AdminKnownIssueResponseDto[];
+
+  @ApiProperty({ nullable: true, example: null })
+  declare nextCursor: string | null;
+
+  constructor(knownIssues: KnownIssue[], nextCursor: string | null) {
+    super(
+      knownIssues.map(
+        (knownIssue) => new AdminKnownIssueResponseDto(knownIssue),
+      ),
+      nextCursor,
+    );
   }
 }
 

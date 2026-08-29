@@ -1,8 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
+import { resolveLimit } from '../common/pagination/cursor-query.dto';
+import { splitPage } from '../common/pagination/paginate.util';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { R2StorageService } from '../storage/r2-storage.service';
-import { CommentsRepository } from './comments.repository';
+import { CommentCursor, CommentsRepository } from './comments.repository';
 import { Comment } from './entities/comment.entity';
+
+export const COMMENTS_DEFAULT_LIMIT = 20;
+export const COMMENTS_MAX_LIMIT = 100;
 
 export interface CreateCommentData {
   knownIssueId: string;
@@ -15,6 +21,11 @@ export interface UpdateCommentData {
   imageUrl?: string | null;
 }
 
+export interface CommentsPage {
+  items: Comment[];
+  nextCursor: string | null;
+}
+
 @Injectable()
 export class CommentsService {
   constructor(
@@ -23,8 +34,32 @@ export class CommentsService {
     private readonly r2StorageService: R2StorageService,
   ) {}
 
-  findByKnownIssue(knownIssueId: string): Promise<Comment[]> {
-    return this.commentsRepository.findByKnownIssueId(knownIssueId);
+  async findByKnownIssue(
+    knownIssueId: string,
+    query: { cursor?: string; limit?: number },
+  ): Promise<CommentsPage> {
+    const limit = resolveLimit(query.limit, {
+      default: COMMENTS_DEFAULT_LIMIT,
+      max: COMMENTS_MAX_LIMIT,
+    });
+    const cursor = query.cursor
+      ? decodeCursor<CommentCursor>(query.cursor)
+      : undefined;
+
+    const rows = await this.commentsRepository.findByKnownIssueId(
+      knownIssueId,
+      limit,
+      cursor,
+    );
+    const { items, hasMore } = splitPage(rows, limit);
+
+    const last = items[items.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null;
+
+    return { items, nextCursor };
   }
 
   countAll(): Promise<number> {

@@ -1,10 +1,33 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
+import { resolveLimit } from '../common/pagination/cursor-query.dto';
+import { splitPage } from '../common/pagination/paginate.util';
 import { errorMessage } from '../redis/redis-error.util';
 import { userStatsCacheKey } from '../redis/redis.constants';
-import { ActivityLogRepository } from './activity-log.repository';
+import {
+  ActivityLogRepository,
+  FavoriteCursor,
+} from './activity-log.repository';
+import {
+  FAVORITES_DEFAULT_LIMIT,
+  FAVORITES_MAX_LIMIT,
+  FavoritesQueryDto,
+} from './dto/favorites-query.dto';
+import { FavoriteVehicleResponseDto } from './dto/favorite-vehicle-response.dto';
 import { ActivityLog } from './entities/activity-log.entity';
 import { ActivityLogType } from './enums/activity-log-type.enum';
+
+export interface FavoritesPage {
+  items: FavoriteVehicleResponseDto[];
+  nextCursor: string | null;
+}
 
 @Injectable()
 export class ActivityLogService {
@@ -51,10 +74,18 @@ export class ActivityLogService {
   async favoriteVehicle(
     userId: string,
     vehicleModelId: string,
+    year: number | undefined,
   ): Promise<ActivityLog> {
+    if (year === undefined) {
+      throw new BadRequestException(
+        'year is required to favorite a vehicle model',
+      );
+    }
+
     const existing = await this.activityLogRepository.findFavorite(
       userId,
       vehicleModelId,
+      year,
     );
     if (existing) {
       return existing;
@@ -64,6 +95,7 @@ export class ActivityLogService {
       userId,
       type: ActivityLogType.VEHICLE_FAVORITE,
       resourceId: vehicleModelId,
+      metadata: { year },
     });
     const saved = await this.activityLogRepository.save(activityLog);
     await this.evictStatsCache(userId);
@@ -73,10 +105,12 @@ export class ActivityLogService {
   async unfavoriteVehicle(
     userId: string,
     vehicleModelId: string,
+    year: number,
   ): Promise<void> {
     const existing = await this.activityLogRepository.findFavorite(
       userId,
       vehicleModelId,
+      year,
     );
     if (!existing) {
       throw new NotFoundException('Favorite not found');
@@ -86,6 +120,7 @@ export class ActivityLogService {
       userId,
       resourceId: vehicleModelId,
       type: ActivityLogType.VEHICLE_FAVORITE,
+      year,
     });
     await this.evictStatsCache(userId);
   }
@@ -94,12 +129,49 @@ export class ActivityLogService {
     return this.activityLogRepository.countByUserAndType(userId, type);
   }
 
-  async isFavorited(userId: string, vehicleModelId: string): Promise<boolean> {
+  async isFavorited(
+    userId: string,
+    vehicleModelId: string,
+    year: number,
+  ): Promise<boolean> {
     const existing = await this.activityLogRepository.findFavorite(
       userId,
       vehicleModelId,
+      year,
     );
     return existing !== null;
+  }
+
+  async findFavorites(
+    userId: string,
+    query: FavoritesQueryDto,
+  ): Promise<FavoritesPage> {
+    const limit = resolveLimit(query.limit, {
+      default: FAVORITES_DEFAULT_LIMIT,
+      max: FAVORITES_MAX_LIMIT,
+    });
+    const cursor = query.cursor
+      ? decodeCursor<FavoriteCursor>(query.cursor)
+      : undefined;
+
+    const rows = await this.activityLogRepository.findFavoritesHydrated(
+      userId,
+      limit,
+      cursor,
+    );
+    const { items: pageRows, hasMore } = splitPage(rows, limit);
+    const items = pageRows.map((row) => new FavoriteVehicleResponseDto(row));
+
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({
+            createdAt: last.favoritedAt.toISOString(),
+            id: last.id,
+          })
+        : null;
+
+    return { items, nextCursor };
   }
 
   private async evictStatsCache(userId: string): Promise<void> {

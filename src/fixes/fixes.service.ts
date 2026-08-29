@@ -8,6 +8,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
+import { resolveLimit } from '../common/pagination/cursor-query.dto';
+import { splitPage } from '../common/pagination/paginate.util';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { buildLookupCacheKeysForVehicleModel } from '../lookups/lookup-cache-key.util';
 import { errorMessage } from '../redis/redis-error.util';
@@ -17,7 +20,15 @@ import { Fix } from './entities/fix.entity';
 import { FixSource } from './enums/fix-source.enum';
 import { FixVoteValue } from './enums/fix-vote-value.enum';
 import { FixVotesRepository } from './fix-votes.repository';
-import { FixesRepository, FixWithCounts } from './fixes.repository';
+import { FixCursor, FixesRepository, FixWithCounts } from './fixes.repository';
+
+export const FIXES_DEFAULT_LIMIT = 20;
+export const FIXES_MAX_LIMIT = 100;
+
+export interface FixesPage {
+  items: FixWithCounts[];
+  nextCursor: string | null;
+}
 
 export interface CreateFixData {
   knownIssueId: string;
@@ -69,6 +80,41 @@ export class FixesService {
       knownIssueId,
       userId,
     );
+  }
+
+  async findByKnownIssuePaginated(
+    knownIssueId: string,
+    query: { cursor?: string; limit?: number },
+    userId?: string,
+  ): Promise<FixesPage> {
+    const limit = resolveLimit(query.limit, {
+      default: FIXES_DEFAULT_LIMIT,
+      max: FIXES_MAX_LIMIT,
+    });
+    const cursor = query.cursor
+      ? decodeCursor<FixCursor>(query.cursor)
+      : undefined;
+
+    const rows = await this.fixesRepository.findByKnownIssueIdWithCountsPage(
+      knownIssueId,
+      limit,
+      cursor,
+      userId,
+    );
+    const { items, hasMore } = splitPage(rows, limit);
+
+    const last = items[items.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({
+            likes: last.likes,
+            dislikes: last.dislikes,
+            createdAt: last.createdAt.toISOString(),
+            id: last.id,
+          })
+        : null;
+
+    return { items, nextCursor };
   }
 
   countVotesByUser(userId: string, value: FixVoteValue): Promise<number> {

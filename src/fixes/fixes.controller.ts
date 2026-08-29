@@ -30,6 +30,7 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
 import { CreateFixDto } from './dto/create-fix.dto';
 import { FixResponseDto } from './dto/fix-response.dto';
+import { FixesPageDto } from './dto/fixes-page.dto';
 import { ListFixesQueryDto } from './dto/list-fixes-query.dto';
 import { UpdateFixDto } from './dto/update-fix.dto';
 import { VoteFixDto } from './dto/vote-fix.dto';
@@ -44,17 +45,22 @@ export class FixesController {
   @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List community fixes for a known issue' })
-  @ApiOkResponse({ type: [FixResponseDto] })
+  @ApiOkResponse({ type: FixesPageDto })
   async findAll(
     @Req() req: Request,
     @Query() query: ListFixesQueryDto,
-  ): Promise<FixResponseDto[]> {
+  ): Promise<FixesPageDto> {
     const user = req.user as User | null;
-    const fixes = await this.fixesService.findByKnownIssue(
-      query.knownIssueId,
-      user?.id,
+    const { items, nextCursor } =
+      await this.fixesService.findByKnownIssuePaginated(
+        query.knownIssueId,
+        query,
+        user?.id,
+      );
+    return new FixesPageDto(
+      items.map((fix) => new FixResponseDto(fix)),
+      nextCursor,
     );
-    return fixes.map((fix) => new FixResponseDto(fix));
   }
 
   @Post()

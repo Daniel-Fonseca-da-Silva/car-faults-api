@@ -8,14 +8,12 @@ import {
   VehicleCatalogPaginationCriteria,
   VehicleLookupCriteria,
   VehicleModelPaginationCriteria,
+  VehicleModelsCursorPage,
   VehicleModelsRepository,
   VehiclePathLookupCriteria,
 } from './vehicle-models.repository';
 
-export interface PaginatedVehicleModels {
-  items: VehicleModel[];
-  total: number;
-}
+export type PaginatedVehicleModels = VehicleModelsCursorPage;
 
 @Injectable()
 export class VehicleModelsService {
@@ -52,20 +50,16 @@ export class VehicleModelsService {
     return this.vehicleModelsRepository.save(vehicleModel, manager);
   }
 
-  async findPaginated(
+  findPaginated(
     criteria: VehicleModelPaginationCriteria,
   ): Promise<PaginatedVehicleModels> {
-    const [items, total] =
-      await this.vehicleModelsRepository.findPaginated(criteria);
-    return { items, total };
+    return this.vehicleModelsRepository.findPaginated(criteria);
   }
 
-  async findCatalogPaginated(
+  findCatalogPaginated(
     criteria: VehicleCatalogPaginationCriteria,
   ): Promise<PaginatedVehicleModels> {
-    const [items, total] =
-      await this.vehicleModelsRepository.findCatalogPaginated(criteria);
-    return { items, total };
+    return this.vehicleModelsRepository.findCatalogPaginated(criteria);
   }
 
   async update(id: string, data: Partial<VehicleModel>): Promise<VehicleModel> {

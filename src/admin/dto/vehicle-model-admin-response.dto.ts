@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CursorPageDto } from '../../common/pagination/cursor-page.dto';
 import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
 import { FuelType } from '../../vehicle-models/enums/fuel-type.enum';
 
@@ -66,30 +67,19 @@ export class AdminVehicleModelResponseDto {
   }
 }
 
-export class AdminVehicleModelListResponseDto {
+export class AdminVehicleModelListResponseDto extends CursorPageDto<AdminVehicleModelResponseDto> {
   @ApiProperty({ type: [AdminVehicleModelResponseDto] })
-  items: AdminVehicleModelResponseDto[];
+  declare items: AdminVehicleModelResponseDto[];
 
-  @ApiProperty({ example: 42 })
-  total: number;
+  @ApiProperty({ nullable: true, example: null })
+  declare nextCursor: string | null;
 
-  @ApiProperty({ example: 1 })
-  page: number;
-
-  @ApiProperty({ example: 20 })
-  limit: number;
-
-  constructor(
-    vehicleModels: VehicleModel[],
-    total: number,
-    page: number,
-    limit: number,
-  ) {
-    this.items = vehicleModels.map(
-      (vehicleModel) => new AdminVehicleModelResponseDto(vehicleModel),
+  constructor(vehicleModels: VehicleModel[], nextCursor: string | null) {
+    super(
+      vehicleModels.map(
+        (vehicleModel) => new AdminVehicleModelResponseDto(vehicleModel),
+      ),
+      nextCursor,
     );
-    this.total = total;
-    this.page = page;
-    this.limit = limit;
   }
 }

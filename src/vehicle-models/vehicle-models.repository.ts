@@ -2,13 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   EntityManager,
-  ILike,
   IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
-  Not,
   Repository,
 } from 'typeorm';
+import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
+import {
+  buildKeysetWhere,
+  KeysetColumn,
+} from '../common/pagination/keyset.util';
+import { splitPage } from '../common/pagination/paginate.util';
 import { slugify } from '../common/utils/slugify.util';
 import { VehicleModel } from './entities/vehicle-model.entity';
 import { FuelType } from './enums/fuel-type.enum';
@@ -32,15 +36,44 @@ export interface VehiclePathLookupCriteria {
 }
 
 export interface VehicleModelPaginationCriteria {
-  page: number;
   limit: number;
+  cursor?: string;
   brand?: string;
   model?: string;
 }
 
 export interface VehicleCatalogPaginationCriteria {
-  page: number;
   limit: number;
+  cursor?: string;
+}
+
+export interface VehicleModelsCursorPage {
+  items: VehicleModel[];
+  nextCursor: string | null;
+}
+
+interface CatalogCursor {
+  [key: string]: string | number;
+  brand: string;
+  model: string;
+  yearFrom: number;
+  id: string;
+}
+
+const CATALOG_KEYSET_COLUMNS: KeysetColumn[] = [
+  { expr: 'vehicle_model.brand', direction: 'ASC', param: 'brand' },
+  { expr: 'vehicle_model.model', direction: 'ASC', param: 'model' },
+  { expr: 'vehicle_model.year_from', direction: 'ASC', param: 'yearFrom' },
+  { expr: 'vehicle_model.id', direction: 'ASC', param: 'id' },
+];
+
+function cursorOf(vehicleModel: VehicleModel): CatalogCursor {
+  return {
+    brand: vehicleModel.brand,
+    model: vehicleModel.model,
+    yearFrom: vehicleModel.yearFrom,
+    id: vehicleModel.id,
+  };
 }
 
 @Injectable()
@@ -157,27 +190,63 @@ export class VehicleModelsRepository {
 
   async findPaginated(
     criteria: VehicleModelPaginationCriteria,
-  ): Promise<[VehicleModel[], number]> {
-    return this.repository.findAndCount({
-      where: {
-        ...(criteria.brand ? { brand: ILike(`%${criteria.brand}%`) } : {}),
-        ...(criteria.model ? { model: ILike(`%${criteria.model}%`) } : {}),
-      },
-      order: { brand: 'ASC', model: 'ASC', yearFrom: 'ASC' },
-      skip: (criteria.page - 1) * criteria.limit,
-      take: criteria.limit,
-    });
+  ): Promise<VehicleModelsCursorPage> {
+    const { limit, cursor, brand, model } = criteria;
+    const qb = this.repository
+      .createQueryBuilder('vehicle_model')
+      .orderBy('vehicle_model.brand', 'ASC')
+      .addOrderBy('vehicle_model.model', 'ASC')
+      .addOrderBy('vehicle_model.year_from', 'ASC')
+      .addOrderBy('vehicle_model.id', 'ASC')
+      .take(limit + 1);
+
+    if (brand) {
+      qb.andWhere('vehicle_model.brand ILIKE :brand', { brand: `%${brand}%` });
+    }
+    if (model) {
+      qb.andWhere('vehicle_model.model ILIKE :model', { model: `%${model}%` });
+    }
+    if (cursor) {
+      const { sql, params } = buildKeysetWhere(
+        CATALOG_KEYSET_COLUMNS,
+        decodeCursor<CatalogCursor>(cursor),
+      );
+      qb.andWhere(sql, params);
+    }
+
+    const rows = await qb.getMany();
+    const { items, hasMore } = splitPage(rows, limit);
+    const last = items[items.length - 1];
+    const nextCursor = hasMore && last ? encodeCursor(cursorOf(last)) : null;
+    return { items, nextCursor };
   }
 
   async findCatalogPaginated(
     criteria: VehicleCatalogPaginationCriteria,
-  ): Promise<[VehicleModel[], number]> {
-    return this.repository.findAndCount({
-      where: { fuelType: Not(IsNull()) },
-      order: { brand: 'ASC', model: 'ASC', yearFrom: 'ASC', id: 'ASC' },
-      skip: (criteria.page - 1) * criteria.limit,
-      take: criteria.limit,
-    });
+  ): Promise<VehicleModelsCursorPage> {
+    const { limit, cursor } = criteria;
+    const qb = this.repository
+      .createQueryBuilder('vehicle_model')
+      .where('vehicle_model.fuel_type IS NOT NULL')
+      .orderBy('vehicle_model.brand', 'ASC')
+      .addOrderBy('vehicle_model.model', 'ASC')
+      .addOrderBy('vehicle_model.year_from', 'ASC')
+      .addOrderBy('vehicle_model.id', 'ASC')
+      .take(limit + 1);
+
+    if (cursor) {
+      const { sql, params } = buildKeysetWhere(
+        CATALOG_KEYSET_COLUMNS,
+        decodeCursor<CatalogCursor>(cursor),
+      );
+      qb.andWhere(sql, params);
+    }
+
+    const rows = await qb.getMany();
+    const { items, hasMore } = splitPage(rows, limit);
+    const last = items[items.length - 1];
+    const nextCursor = hasMore && last ? encodeCursor(cursorOf(last)) : null;
+    return { items, nextCursor };
   }
 
   async softDelete(id: string): Promise<void> {

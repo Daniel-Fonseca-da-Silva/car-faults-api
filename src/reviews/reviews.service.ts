@@ -3,9 +3,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
+import { resolveLimit } from '../common/pagination/cursor-query.dto';
+import { splitPage } from '../common/pagination/paginate.util';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { Review } from './entities/review.entity';
-import { ReviewsRepository } from './reviews.repository';
+import { ReviewCursor, ReviewsRepository } from './reviews.repository';
+
+export const REVIEWS_DEFAULT_LIMIT = 20;
+export const REVIEWS_MAX_LIMIT = 100;
 
 export interface CreateReviewData {
   knownIssueId: string;
@@ -18,6 +24,11 @@ export interface UpdateReviewData {
   comment?: string;
 }
 
+export interface ReviewsPage {
+  items: Review[];
+  nextCursor: string | null;
+}
+
 @Injectable()
 export class ReviewsService {
   constructor(
@@ -25,8 +36,32 @@ export class ReviewsService {
     private readonly knownIssuesService: KnownIssuesService,
   ) {}
 
-  findByKnownIssue(knownIssueId: string): Promise<Review[]> {
-    return this.reviewsRepository.findByKnownIssueId(knownIssueId);
+  async findByKnownIssue(
+    knownIssueId: string,
+    query: { cursor?: string; limit?: number },
+  ): Promise<ReviewsPage> {
+    const limit = resolveLimit(query.limit, {
+      default: REVIEWS_DEFAULT_LIMIT,
+      max: REVIEWS_MAX_LIMIT,
+    });
+    const cursor = query.cursor
+      ? decodeCursor<ReviewCursor>(query.cursor)
+      : undefined;
+
+    const rows = await this.reviewsRepository.findByKnownIssueId(
+      knownIssueId,
+      limit,
+      cursor,
+    );
+    const { items, hasMore } = splitPage(rows, limit);
+
+    const last = items[items.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null;
+
+    return { items, nextCursor };
   }
 
   async create(userId: string, data: CreateReviewData): Promise<Review> {

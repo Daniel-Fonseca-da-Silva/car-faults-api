@@ -27,6 +27,7 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../users/entities/user.entity';
 import { CommentResponseDto } from './dto/comment-response.dto';
+import { CommentsPageDto } from './dto/comments-page.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { ListCommentsQueryDto } from './dto/list-comments-query.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
@@ -39,14 +40,18 @@ export class CommentsController {
 
   @Get()
   @ApiOperation({ summary: 'List comments for a known issue' })
-  @ApiOkResponse({ type: [CommentResponseDto] })
+  @ApiOkResponse({ type: CommentsPageDto })
   async findAll(
     @Query() query: ListCommentsQueryDto,
-  ): Promise<CommentResponseDto[]> {
-    const comments = await this.commentsService.findByKnownIssue(
+  ): Promise<CommentsPageDto> {
+    const { items, nextCursor } = await this.commentsService.findByKnownIssue(
       query.knownIssueId,
+      query,
     );
-    return comments.map((comment) => new CommentResponseDto(comment));
+    return new CommentsPageDto(
+      items.map((comment) => new CommentResponseDto(comment)),
+      nextCursor,
+    );
   }
 
   @Post()

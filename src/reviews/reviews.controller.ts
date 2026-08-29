@@ -30,6 +30,7 @@ import { User } from '../users/entities/user.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { ListReviewsQueryDto } from './dto/list-reviews-query.dto';
 import { ReviewResponseDto } from './dto/review-response.dto';
+import { ReviewsPageDto } from './dto/reviews-page.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewsService } from './reviews.service';
 
@@ -40,14 +41,16 @@ export class ReviewsController {
 
   @Get()
   @ApiOperation({ summary: 'List reviews for a known issue' })
-  @ApiOkResponse({ type: [ReviewResponseDto] })
-  async findAll(
-    @Query() query: ListReviewsQueryDto,
-  ): Promise<ReviewResponseDto[]> {
-    const reviews = await this.reviewsService.findByKnownIssue(
+  @ApiOkResponse({ type: ReviewsPageDto })
+  async findAll(@Query() query: ListReviewsQueryDto): Promise<ReviewsPageDto> {
+    const { items, nextCursor } = await this.reviewsService.findByKnownIssue(
       query.knownIssueId,
+      query,
     );
-    return reviews.map((review) => new ReviewResponseDto(review));
+    return new ReviewsPageDto(
+      items.map((review) => new ReviewResponseDto(review)),
+      nextCursor,
+    );
   }
 
   @Post()

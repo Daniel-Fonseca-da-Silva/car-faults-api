@@ -1,22 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
+import { CursorPaginationQueryDto } from '../../common/pagination/cursor-query.dto';
 
-export class AdminListVehicleModelsQueryDto {
-  @ApiPropertyOptional({ example: 1, minimum: 1, default: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number;
-
+export class AdminListVehicleModelsQueryDto extends CursorPaginationQueryDto {
   @ApiPropertyOptional({ example: 20, minimum: 1, maximum: 100, default: 20 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit?: number;
+  declare limit?: number;
 
   @ApiPropertyOptional({ example: 'Volkswagen' })
   @IsOptional()

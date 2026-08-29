@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
+import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
+import { buildKeysetWhere } from '../common/pagination/keyset.util';
+import { splitPage } from '../common/pagination/paginate.util';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { KnownIssue } from './entities/known-issue.entity';
 import { IssueSeverity } from './enums/issue-severity.enum';
@@ -21,8 +24,8 @@ export interface TopFaultRow {
 
 export interface FaultsCriteria {
   locale: LookupLocale;
-  page: number;
   limit: number;
+  cursor?: string;
   brand?: string;
   model?: string;
   year?: number;
@@ -33,7 +36,19 @@ export interface FaultsCriteria {
 
 export interface FaultsPage {
   items: TopFaultRow[];
-  total: number;
+  nextCursor: string | null;
+}
+
+interface FaultsCursor {
+  [key: string]: string | number;
+  reportCount: number;
+  id: string;
+}
+
+export interface KnownIssueCursor {
+  [key: string]: string;
+  createdAt: string;
+  id: string;
 }
 
 interface RawTopFaultRow {
@@ -61,6 +76,41 @@ export class KnownIssuesRepository {
       where: { vehicleModelId },
       relations: { fixes: true },
     });
+  }
+
+  findPageByVehicleModelId(
+    vehicleModelId: string,
+    limit: number,
+    cursor?: KnownIssueCursor,
+  ): Promise<KnownIssue[]> {
+    // No fixes join: this list's response DTO doesn't render fixes, and
+    // limit+1 with a to-many joined relation would cap joined rows rather
+    // than known_issue rows.
+    const qb = this.repository
+      .createQueryBuilder('known_issue')
+      .where('known_issue.vehicle_model_id = :vehicleModelId', {
+        vehicleModelId,
+      })
+      .orderBy('known_issue.created_at', 'DESC')
+      .addOrderBy('known_issue.id', 'DESC')
+      .take(limit + 1);
+
+    if (cursor) {
+      const { sql, params } = buildKeysetWhere(
+        [
+          {
+            expr: 'known_issue.created_at',
+            direction: 'DESC',
+            param: 'createdAt',
+          },
+          { expr: 'known_issue.id', direction: 'DESC', param: 'id' },
+        ],
+        cursor,
+      );
+      qb.andWhere(sql, params);
+    }
+
+    return qb.getMany();
   }
 
   countByVehicleModelId(vehicleModelId: string): Promise<number> {
@@ -119,15 +169,9 @@ export class KnownIssuesRepository {
   }
 
   async findFaultsPaginated(criteria: FaultsCriteria): Promise<FaultsPage> {
-    const { page, limit } = criteria;
+    const { limit, cursor } = criteria;
 
-    const countRaw = await this.buildFaultsQuery(criteria)
-      .select('ki.id', 'id')
-      .groupBy('ki.id')
-      .having('COUNT(c.id) > 0')
-      .getRawMany<{ id: string }>();
-
-    const raw = await this.buildFaultsQuery(criteria)
+    const qb = this.buildFaultsQuery(criteria)
       .select('ki.id', 'id')
       .addSelect('ki.title', 'title')
       .addSelect('ki.severity', 'severity')
@@ -147,26 +191,42 @@ export class KnownIssuesRepository {
       .addGroupBy('vm.doors')
       .having('COUNT(c.id) > 0')
       .orderBy('COUNT(c.id)', 'DESC')
-      .offset((page - 1) * limit)
-      .limit(limit)
-      .getRawMany<RawTopFaultRow>();
+      .addOrderBy('ki.id', 'DESC')
+      .limit(limit + 1);
 
-    return {
-      total: countRaw.length,
-      items: raw.map((row) => ({
-        id: row.id,
-        title: row.title,
-        severity: row.severity,
-        reportCount: Number(row.reportCount),
-        vehicleBrand: row.vehicleBrand,
-        vehicleModel: row.vehicleModel,
-        vehicleYearFrom: Number(row.vehicleYearFrom),
-        vehicleEngine: row.vehicleEngine,
-        vehicleFuelType: row.vehicleFuelType,
-        vehicleDoors:
-          row.vehicleDoors == null ? null : Number(row.vehicleDoors),
-      })),
-    };
+    if (cursor) {
+      const { sql, params } = buildKeysetWhere(
+        [
+          { expr: 'COUNT(c.id)', direction: 'DESC', param: 'reportCount' },
+          { expr: 'ki.id', direction: 'DESC', param: 'id' },
+        ],
+        decodeCursor<FaultsCursor>(cursor),
+      );
+      qb.andHaving(sql, params);
+    }
+
+    const raw = await qb.getRawMany<RawTopFaultRow>();
+    const { items: rawItems, hasMore } = splitPage(raw, limit);
+    const items = rawItems.map((row) => ({
+      id: row.id,
+      title: row.title,
+      severity: row.severity,
+      reportCount: Number(row.reportCount),
+      vehicleBrand: row.vehicleBrand,
+      vehicleModel: row.vehicleModel,
+      vehicleYearFrom: Number(row.vehicleYearFrom),
+      vehicleEngine: row.vehicleEngine,
+      vehicleFuelType: row.vehicleFuelType,
+      vehicleDoors: row.vehicleDoors == null ? null : Number(row.vehicleDoors),
+    }));
+
+    const last = items[items.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ reportCount: last.reportCount, id: last.id })
+        : null;
+
+    return { items, nextCursor };
   }
 
   private buildFaultsQuery(

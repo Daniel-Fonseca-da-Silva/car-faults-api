@@ -7,13 +7,24 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
+import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
+import { resolveLimit } from '../common/pagination/cursor-query.dto';
+import { splitPage } from '../common/pagination/paginate.util';
 import { KnownIssue } from '../known-issues/entities/known-issue.entity';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { errorMessage } from '../redis/redis-error.util';
 import { userStatsCacheKey } from '../redis/redis.constants';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
+import {
+  GARAGE_DEFAULT_LIMIT,
+  GARAGE_MAX_LIMIT,
+  UserVehiclesQueryDto,
+} from './dto/user-vehicles-query.dto';
 import { UserVehicle } from './entities/user-vehicle.entity';
-import { UserVehiclesRepository } from './user-vehicles.repository';
+import {
+  UserVehicleCursor,
+  UserVehiclesRepository,
+} from './user-vehicles.repository';
 
 export interface CreateUserVehicleData {
   vehicleModelId?: string;
@@ -61,20 +72,53 @@ export class UserVehiclesService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  findAllByUser(userId: string): Promise<UserVehicle[]> {
-    return this.userVehiclesRepository.findAllByUserId(userId);
-  }
-
   async findAllByUserWithIssueCounts(
     userId: string,
-    locale: LookupLocale = LookupLocale.EnGb,
-  ): Promise<Array<{ userVehicle: UserVehicle; knownIssuesCount: number }>> {
-    const userVehicles = await this.findAllByUser(userId);
-    return Promise.all(
-      userVehicles.map(async (userVehicle) => ({
+    query: UserVehiclesQueryDto,
+  ): Promise<{
+    items: Array<{ userVehicle: UserVehicle; knownIssuesCount: number }>;
+    nextCursor: string | null;
+  }> {
+    const limit = resolveLimit(query.limit, {
+      default: GARAGE_DEFAULT_LIMIT,
+      max: GARAGE_MAX_LIMIT,
+    });
+    const cursor = query.cursor
+      ? decodeCursor<UserVehicleCursor>(query.cursor)
+      : undefined;
+    const locale = query.language ?? LookupLocale.EnGb;
+
+    const rows = await this.userVehiclesRepository.findPageByUserId(
+      userId,
+      limit,
+      cursor,
+    );
+    const { items: pageRows, hasMore } = splitPage(rows, limit);
+    const items = await Promise.all(
+      pageRows.map(async (userVehicle) => ({
         userVehicle,
         knownIssuesCount: await this.countKnownIssues(userVehicle, locale),
       })),
+    );
+
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null;
+
+    return { items, nextCursor };
+  }
+
+  status(
+    userId: string,
+    vehicleModelId: string,
+    year: number,
+  ): Promise<boolean> {
+    return this.userVehiclesRepository.existsByVehicleModelAndYear(
+      userId,
+      vehicleModelId,
+      year,
     );
   }
 
