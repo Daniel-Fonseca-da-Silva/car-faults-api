@@ -20,6 +20,7 @@ describe('KnownIssuesRepository', () => {
   let queryBuilder: {
     innerJoin: jest.Mock;
     leftJoin: jest.Mock;
+    leftJoinAndSelect: jest.Mock;
     where: jest.Mock;
     andWhere: jest.Mock;
     select: jest.Mock;
@@ -27,16 +28,20 @@ describe('KnownIssuesRepository', () => {
     groupBy: jest.Mock;
     addGroupBy: jest.Mock;
     having: jest.Mock;
+    andHaving: jest.Mock;
     orderBy: jest.Mock;
-    offset: jest.Mock;
+    addOrderBy: jest.Mock;
     limit: jest.Mock;
+    take: jest.Mock;
     getRawMany: jest.Mock;
+    getMany: jest.Mock;
   };
 
   beforeEach(async () => {
     queryBuilder = {
       innerJoin: jest.fn().mockReturnThis(),
       leftJoin: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
@@ -44,10 +49,13 @@ describe('KnownIssuesRepository', () => {
       groupBy: jest.fn().mockReturnThis(),
       addGroupBy: jest.fn().mockReturnThis(),
       having: jest.fn().mockReturnThis(),
+      andHaving: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
-      offset: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
       getRawMany: jest.fn(),
+      getMany: jest.fn(),
     };
     repository = {
       find: jest.fn(),
@@ -88,6 +96,52 @@ describe('KnownIssuesRepository', () => {
         relations: { fixes: true },
       });
       expect(result).toBe(knownIssues);
+    });
+  });
+
+  describe('findPageByVehicleModelId', () => {
+    it('filters by vehicle model and orders by created_at/id desc, without joining fixes', async () => {
+      const knownIssues = [{ id: 'ki-1' }] as KnownIssue[];
+      queryBuilder.getMany.mockResolvedValue(knownIssues);
+
+      const result = await knownIssuesRepository.findPageByVehicleModelId(
+        'vm-1',
+        20,
+      );
+
+      expect(repository.createQueryBuilder).toHaveBeenCalledWith('known_issue');
+      expect(queryBuilder.leftJoinAndSelect).not.toHaveBeenCalled();
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'known_issue.vehicle_model_id = :vehicleModelId',
+        { vehicleModelId: 'vm-1' },
+      );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        'known_issue.created_at',
+        'DESC',
+      );
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'known_issue.id',
+        'DESC',
+      );
+      expect(queryBuilder.take).toHaveBeenCalledWith(21);
+      expect(result).toBe(knownIssues);
+    });
+
+    it('applies a keyset predicate when a cursor is given', async () => {
+      queryBuilder.getMany.mockResolvedValue([]);
+
+      await knownIssuesRepository.findPageByVehicleModelId('vm-1', 20, {
+        createdAt: '2026-01-01T00:00:00.000Z',
+        id: 'ki-0',
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('known_issue.created_at'),
+        expect.objectContaining({
+          createdAt_cmp0: '2026-01-01T00:00:00.000Z',
+          id_cmp1: 'ki-0',
+        }),
+      );
     });
   });
 
@@ -251,14 +305,11 @@ describe('KnownIssuesRepository', () => {
       reportCount: '412',
     };
 
-    it('queries known issues joined with vehicle models and comments, filtered by locale, ordered by comment count desc, offset and limited by page', async () => {
-      queryBuilder.getRawMany
-        .mockResolvedValueOnce([{ id: 'ki-1' }])
-        .mockResolvedValueOnce([rawRow]);
+    it('queries known issues joined with vehicle models and comments, filtered by locale, ordered by comment count/id desc and limited by limit+1', async () => {
+      queryBuilder.getRawMany.mockResolvedValue([rawRow]);
 
       const result = await knownIssuesRepository.findFaultsPaginated({
         locale: LookupLocale.EnGb,
-        page: 1,
         limit: 9,
       });
 
@@ -279,10 +330,11 @@ describe('KnownIssuesRepository', () => {
       );
       expect(queryBuilder.having).toHaveBeenCalledWith('COUNT(c.id) > 0');
       expect(queryBuilder.orderBy).toHaveBeenCalledWith('COUNT(c.id)', 'DESC');
-      expect(queryBuilder.offset).toHaveBeenCalledWith(0);
-      expect(queryBuilder.limit).toHaveBeenCalledWith(9);
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('ki.id', 'DESC');
+      expect(queryBuilder.limit).toHaveBeenCalledWith(10);
+      expect(queryBuilder.andHaving).not.toHaveBeenCalled();
       expect(result).toEqual({
-        total: 1,
+        nextCursor: null,
         items: [
           {
             id: 'ki-1',
@@ -300,29 +352,47 @@ describe('KnownIssuesRepository', () => {
       });
     });
 
-    it('offsets by page and limit', async () => {
-      queryBuilder.getRawMany
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+    it('applies a keyset predicate via andHaving when a cursor is given', async () => {
+      queryBuilder.getRawMany.mockResolvedValue([]);
+      const cursor = Buffer.from(
+        JSON.stringify({ reportCount: 100, id: 'ki-0' }),
+        'utf8',
+      ).toString('base64url');
 
       await knownIssuesRepository.findFaultsPaginated({
         locale: LookupLocale.EnGb,
-        page: 3,
         limit: 9,
+        cursor,
       });
 
-      expect(queryBuilder.offset).toHaveBeenCalledWith(18);
-      expect(queryBuilder.limit).toHaveBeenCalledWith(9);
+      expect(queryBuilder.andHaving).toHaveBeenCalledWith(
+        expect.stringContaining('COUNT(c.id)'),
+        expect.objectContaining({
+          reportCount_cmp0: 100,
+          id_cmp1: 'ki-0',
+        }),
+      );
+    });
+
+    it('returns an encoded nextCursor when there is a lookahead row', async () => {
+      const secondRow = { ...rawRow, id: 'ki-2', reportCount: '100' };
+      queryBuilder.getRawMany.mockResolvedValue([rawRow, secondRow]);
+
+      const result = await knownIssuesRepository.findFaultsPaginated({
+        locale: LookupLocale.EnGb,
+        limit: 1,
+      });
+
+      expect(queryBuilder.limit).toHaveBeenCalledWith(2);
+      expect(result.items).toHaveLength(1);
+      expect(result.nextCursor).not.toBeNull();
     });
 
     it('applies brand, model, engine, fuelType, doors and year filters', async () => {
-      queryBuilder.getRawMany
-        .mockResolvedValueOnce([{ id: 'ki-1' }])
-        .mockResolvedValueOnce([rawRow]);
+      queryBuilder.getRawMany.mockResolvedValue([rawRow]);
 
       await knownIssuesRepository.findFaultsPaginated({
         locale: LookupLocale.EnGb,
-        page: 1,
         limit: 9,
         brand: 'Volks',
         model: 'Gol',
@@ -362,15 +432,12 @@ describe('KnownIssuesRepository', () => {
     });
 
     it('leaves fuelType and doors as null when the vehicle model has none on record', async () => {
-      queryBuilder.getRawMany
-        .mockResolvedValueOnce([{ id: 'ki-1' }])
-        .mockResolvedValueOnce([
-          { ...rawRow, vehicleFuelType: null, vehicleDoors: null },
-        ]);
+      queryBuilder.getRawMany.mockResolvedValue([
+        { ...rawRow, vehicleFuelType: null, vehicleDoors: null },
+      ]);
 
       const result = await knownIssuesRepository.findFaultsPaginated({
         locale: LookupLocale.EnGb,
-        page: 1,
         limit: 9,
       });
 
@@ -379,17 +446,14 @@ describe('KnownIssuesRepository', () => {
     });
 
     it('returns an empty page when there are no matches', async () => {
-      queryBuilder.getRawMany
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      queryBuilder.getRawMany.mockResolvedValue([]);
 
       const result = await knownIssuesRepository.findFaultsPaginated({
         locale: LookupLocale.PtPt,
-        page: 1,
         limit: 9,
       });
 
-      expect(result).toEqual({ total: 0, items: [] });
+      expect(result).toEqual({ nextCursor: null, items: [] });
     });
   });
 });

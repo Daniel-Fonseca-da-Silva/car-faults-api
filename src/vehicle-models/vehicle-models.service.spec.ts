@@ -185,40 +185,40 @@ describe('VehicleModelsService', () => {
   });
 
   describe('findPaginated', () => {
-    it('returns items and total from the repository', async () => {
+    it('delegates to the repository', async () => {
       const items = [buildVehicleModel()];
-      vehicleModelsRepository.findPaginated.mockResolvedValue([items, 1]);
+      vehicleModelsRepository.findPaginated.mockResolvedValue({
+        items,
+        nextCursor: null,
+      });
 
       const result = await vehicleModelsService.findPaginated({
-        page: 1,
         limit: 20,
       });
 
       expect(vehicleModelsRepository.findPaginated).toHaveBeenCalledWith({
-        page: 1,
         limit: 20,
       });
-      expect(result).toEqual({ items, total: 1 });
+      expect(result).toEqual({ items, nextCursor: null });
     });
   });
 
   describe('findCatalogPaginated', () => {
-    it('returns items and total from the repository', async () => {
+    it('delegates to the repository', async () => {
       const items = [buildVehicleModel({ fuelType: FuelType.DIESEL })];
-      vehicleModelsRepository.findCatalogPaginated.mockResolvedValue([
+      vehicleModelsRepository.findCatalogPaginated.mockResolvedValue({
         items,
-        1,
-      ]);
+        nextCursor: null,
+      });
 
       const result = await vehicleModelsService.findCatalogPaginated({
-        page: 1,
         limit: 20,
       });
 
       expect(vehicleModelsRepository.findCatalogPaginated).toHaveBeenCalledWith(
-        { page: 1, limit: 20 },
+        { limit: 20 },
       );
-      expect(result).toEqual({ items, total: 1 });
+      expect(result).toEqual({ items, nextCursor: null });
     });
   });
 

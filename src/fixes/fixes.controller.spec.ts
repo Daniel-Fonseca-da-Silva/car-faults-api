@@ -16,7 +16,7 @@ import { FixesService } from './fixes.service';
 describe('FixesController', () => {
   let fixesController: FixesController;
   let fixesService: {
-    findByKnownIssue: jest.Mock;
+    findByKnownIssuePaginated: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
     remove: jest.Mock;
@@ -45,7 +45,7 @@ describe('FixesController', () => {
 
   beforeEach(async () => {
     fixesService = {
-      findByKnownIssue: jest.fn(),
+      findByKnownIssuePaginated: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
@@ -71,28 +71,37 @@ describe('FixesController', () => {
   });
 
   describe('findAll', () => {
-    it('returns the serialized fixes for a known issue, passing the anonymous user id', async () => {
-      fixesService.findByKnownIssue.mockResolvedValue([fix]);
+    it('returns the serialized fixes page for a known issue, passing the anonymous user id', async () => {
+      fixesService.findByKnownIssuePaginated.mockResolvedValue({
+        items: [fix],
+        nextCursor: null,
+      });
       const query: ListFixesQueryDto = { knownIssueId: 'ki-1' };
 
       const result = await fixesController.findAll(anonymousReq, query);
 
-      expect(fixesService.findByKnownIssue).toHaveBeenCalledWith(
+      expect(fixesService.findByKnownIssuePaginated).toHaveBeenCalledWith(
         'ki-1',
+        query,
         undefined,
       );
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({ id: 'fix-1' });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({ id: 'fix-1' });
+      expect(result.nextCursor).toBeNull();
     });
 
     it('passes the authenticated user id to populate myVote', async () => {
-      fixesService.findByKnownIssue.mockResolvedValue([fix]);
+      fixesService.findByKnownIssuePaginated.mockResolvedValue({
+        items: [fix],
+        nextCursor: null,
+      });
       const query: ListFixesQueryDto = { knownIssueId: 'ki-1' };
 
       await fixesController.findAll(req, query);
 
-      expect(fixesService.findByKnownIssue).toHaveBeenCalledWith(
+      expect(fixesService.findByKnownIssuePaginated).toHaveBeenCalledWith(
         'ki-1',
+        query,
         'user-1',
       );
     });

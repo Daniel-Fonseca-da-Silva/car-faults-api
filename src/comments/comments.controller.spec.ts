@@ -54,15 +54,22 @@ describe('CommentsController', () => {
   });
 
   describe('findAll', () => {
-    it('returns the serialized comments for a known issue', async () => {
-      commentsService.findByKnownIssue.mockResolvedValue([comment]);
+    it('returns the serialized comments page for a known issue', async () => {
+      commentsService.findByKnownIssue.mockResolvedValue({
+        items: [comment],
+        nextCursor: null,
+      });
       const query: ListCommentsQueryDto = { knownIssueId: 'ki-1' };
 
       const result = await commentsController.findAll(query);
 
-      expect(commentsService.findByKnownIssue).toHaveBeenCalledWith('ki-1');
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({ id: 'comment-1' });
+      expect(commentsService.findByKnownIssue).toHaveBeenCalledWith(
+        'ki-1',
+        query,
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({ id: 'comment-1' });
+      expect(result.nextCursor).toBeNull();
     });
   });
 

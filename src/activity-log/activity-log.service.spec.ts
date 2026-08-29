@@ -1,7 +1,11 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ActivityLogRepository } from './activity-log.repository';
+import { encodeCursor } from '../common/pagination/cursor.util';
+import {
+  ActivityLogRepository,
+  RawFavoriteRow,
+} from './activity-log.repository';
 import { ActivityLogService } from './activity-log.service';
 import { ActivityLog } from './entities/activity-log.entity';
 import { ActivityLogType } from './enums/activity-log-type.enum';
@@ -14,6 +18,7 @@ describe('ActivityLogService', () => {
     findFavorite: jest.Mock;
     softDelete: jest.Mock;
     countByUserAndType: jest.Mock;
+    findFavoritesHydrated: jest.Mock;
   };
   let cache: { del: jest.Mock };
 
@@ -26,6 +31,7 @@ describe('ActivityLogService', () => {
       findFavorite: jest.fn(),
       softDelete: jest.fn(),
       countByUserAndType: jest.fn(),
+      findFavoritesHydrated: jest.fn(),
     };
     cache = { del: jest.fn().mockResolvedValue(undefined) };
 
@@ -110,33 +116,55 @@ describe('ActivityLogService', () => {
   });
 
   describe('favoriteVehicle', () => {
+    it('throws BadRequestException when year is not given', async () => {
+      await expect(
+        activityLogService.favoriteVehicle(userId, 'vm-1', undefined),
+      ).rejects.toThrow(BadRequestException);
+      expect(activityLogRepository.findFavorite).not.toHaveBeenCalled();
+    });
+
     it('returns the existing favorite without creating a duplicate', async () => {
       const existing = { id: 'log-1' } as ActivityLog;
       activityLogRepository.findFavorite.mockResolvedValue(existing);
 
-      const result = await activityLogService.favoriteVehicle(userId, 'vm-1');
+      const result = await activityLogService.favoriteVehicle(
+        userId,
+        'vm-1',
+        2001,
+      );
 
+      expect(activityLogRepository.findFavorite).toHaveBeenCalledWith(
+        userId,
+        'vm-1',
+        2001,
+      );
       expect(activityLogRepository.create).not.toHaveBeenCalled();
       expect(cache.del).not.toHaveBeenCalled();
       expect(result).toBe(existing);
     });
 
-    it('creates a new favorite and evicts the stats cache when none exists', async () => {
+    it('creates a new favorite with the year in metadata and evicts the stats cache when none exists', async () => {
       activityLogRepository.findFavorite.mockResolvedValue(null);
       const created = {
         id: 'log-1',
         type: ActivityLogType.VEHICLE_FAVORITE,
         resourceId: 'vm-1',
-      } as ActivityLog;
+        metadata: { year: 2001 },
+      } as unknown as ActivityLog;
       activityLogRepository.create.mockReturnValue(created);
       activityLogRepository.save.mockResolvedValue(created);
 
-      const result = await activityLogService.favoriteVehicle(userId, 'vm-1');
+      const result = await activityLogService.favoriteVehicle(
+        userId,
+        'vm-1',
+        2001,
+      );
 
       expect(activityLogRepository.create).toHaveBeenCalledWith({
         userId,
         type: ActivityLogType.VEHICLE_FAVORITE,
         resourceId: 'vm-1',
+        metadata: { year: 2001 },
       });
       expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
       expect(result).toBe(created);
@@ -148,7 +176,7 @@ describe('ActivityLogService', () => {
       activityLogRepository.findFavorite.mockResolvedValue(null);
 
       await expect(
-        activityLogService.unfavoriteVehicle(userId, 'vm-1'),
+        activityLogService.unfavoriteVehicle(userId, 'vm-1', 2001),
       ).rejects.toThrow(NotFoundException);
       expect(activityLogRepository.softDelete).not.toHaveBeenCalled();
     });
@@ -158,12 +186,13 @@ describe('ActivityLogService', () => {
         id: 'log-1',
       });
 
-      await activityLogService.unfavoriteVehicle(userId, 'vm-1');
+      await activityLogService.unfavoriteVehicle(userId, 'vm-1', 2001);
 
       expect(activityLogRepository.softDelete).toHaveBeenCalledWith({
         userId,
         resourceId: 'vm-1',
         type: ActivityLogType.VEHICLE_FAVORITE,
+        year: 2001,
       });
       expect(cache.del).toHaveBeenCalledWith('user:stats:user-1');
     });
@@ -191,11 +220,12 @@ describe('ActivityLogService', () => {
       activityLogRepository.findFavorite.mockResolvedValue({ id: 'log-1' });
 
       await expect(
-        activityLogService.isFavorited(userId, 'vm-1'),
+        activityLogService.isFavorited(userId, 'vm-1', 2001),
       ).resolves.toBe(true);
       expect(activityLogRepository.findFavorite).toHaveBeenCalledWith(
         userId,
         'vm-1',
+        2001,
       );
     });
 
@@ -203,8 +233,95 @@ describe('ActivityLogService', () => {
       activityLogRepository.findFavorite.mockResolvedValue(null);
 
       await expect(
-        activityLogService.isFavorited(userId, 'vm-1'),
+        activityLogService.isFavorited(userId, 'vm-1', 2001),
       ).resolves.toBe(false);
+    });
+  });
+
+  describe('findFavorites', () => {
+    const rawRow: RawFavoriteRow = {
+      id: 'log-1',
+      vehicleModelId: 'vm-1',
+      year: '2001',
+      favoritedAt: new Date('2026-01-01'),
+      brand: 'Volkswagen',
+      model: 'Polo',
+      engine: '1.0',
+      fuelType: 'gasoline',
+      doors: '3',
+      imageUrl: 'https://cdn.example.com/vw-polo.webp',
+    };
+
+    it('maps hydrated rows and returns a null nextCursor when there is no next page', async () => {
+      activityLogRepository.findFavoritesHydrated.mockResolvedValue([rawRow]);
+
+      const result = await activityLogService.findFavorites(userId, {});
+
+      expect(activityLogRepository.findFavoritesHydrated).toHaveBeenCalledWith(
+        userId,
+        20,
+        undefined,
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        id: 'log-1',
+        vehicleModelId: 'vm-1',
+        year: 2001,
+        brand: 'Volkswagen',
+      });
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('returns an encoded nextCursor when the repository reports a lookahead row', async () => {
+      const secondRow: RawFavoriteRow = {
+        ...rawRow,
+        id: 'log-2',
+        favoritedAt: new Date('2026-01-02'),
+      };
+      activityLogRepository.findFavoritesHydrated.mockResolvedValue([
+        secondRow,
+        rawRow,
+      ]);
+
+      const result = await activityLogService.findFavorites(userId, {
+        limit: 1,
+      });
+
+      expect(activityLogRepository.findFavoritesHydrated).toHaveBeenCalledWith(
+        userId,
+        1,
+        undefined,
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.nextCursor).not.toBeNull();
+    });
+
+    it('decodes the given cursor and passes it to the repository', async () => {
+      activityLogRepository.findFavoritesHydrated.mockResolvedValue([]);
+      const cursor = encodeCursor({
+        createdAt: '2026-01-01T00:00:00.000Z',
+        id: 'log-0',
+      });
+
+      await activityLogService.findFavorites(userId, { cursor });
+
+      expect(activityLogRepository.findFavoritesHydrated).toHaveBeenCalledWith(
+        userId,
+        20,
+        { createdAt: '2026-01-01T00:00:00.000Z', id: 'log-0' },
+      );
+    });
+
+    it('clamps limit to the maximum', async () => {
+      activityLogRepository.findFavoritesHydrated.mockResolvedValue([]);
+
+      await activityLogService.findFavorites(userId, { limit: 500 });
+
+      expect(activityLogRepository.findFavoritesHydrated).toHaveBeenCalledWith(
+        userId,
+        100,
+        undefined,
+      );
     });
   });
 
@@ -217,7 +334,7 @@ describe('ActivityLogService', () => {
       cache.del.mockRejectedValue(new Error('redis down'));
 
       await expect(
-        activityLogService.favoriteVehicle(userId, 'vm-1'),
+        activityLogService.favoriteVehicle(userId, 'vm-1', 2001),
       ).resolves.toBe(created);
     });
   });

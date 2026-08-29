@@ -28,6 +28,7 @@ describe('CommentsService', () => {
       knownIssueId: 'ki-1',
       body: 'Had the same issue',
       imageUrl: null,
+      createdAt: new Date('2026-01-01'),
       ...overrides,
     }) as Comment;
 
@@ -62,16 +63,59 @@ describe('CommentsService', () => {
   });
 
   describe('findByKnownIssue', () => {
-    it('delegates to the repository', async () => {
+    it('resolves the default limit and returns a null nextCursor when there is no next page', async () => {
       const comments = [buildComment()];
       commentsRepository.findByKnownIssueId.mockResolvedValue(comments);
 
-      const result = await commentsService.findByKnownIssue('ki-1');
+      const result = await commentsService.findByKnownIssue('ki-1', {});
 
       expect(commentsRepository.findByKnownIssueId).toHaveBeenCalledWith(
         'ki-1',
+        20,
+        undefined,
       );
-      expect(result).toBe(comments);
+      expect(result.items).toBe(comments);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('returns an encoded nextCursor when the repository reports a lookahead row', async () => {
+      const first = buildComment({
+        id: 'comment-2',
+        createdAt: new Date('2026-01-02'),
+      });
+      const second = buildComment({ id: 'comment-1' });
+      commentsRepository.findByKnownIssueId.mockResolvedValue([first, second]);
+
+      const result = await commentsService.findByKnownIssue('ki-1', {
+        limit: 1,
+      });
+
+      expect(commentsRepository.findByKnownIssueId).toHaveBeenCalledWith(
+        'ki-1',
+        1,
+        undefined,
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.nextCursor).not.toBeNull();
+    });
+
+    it('decodes the given cursor and passes it to the repository', async () => {
+      commentsRepository.findByKnownIssueId.mockResolvedValue([]);
+      const cursor = Buffer.from(
+        JSON.stringify({
+          createdAt: '2026-01-01T00:00:00.000Z',
+          id: 'comment-0',
+        }),
+        'utf8',
+      ).toString('base64url');
+
+      await commentsService.findByKnownIssue('ki-1', { cursor });
+
+      expect(commentsRepository.findByKnownIssueId).toHaveBeenCalledWith(
+        'ki-1',
+        20,
+        { createdAt: '2026-01-01T00:00:00.000Z', id: 'comment-0' },
+      );
     });
   });
 

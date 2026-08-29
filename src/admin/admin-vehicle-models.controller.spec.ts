@@ -59,22 +59,42 @@ describe('AdminVehicleModelsController', () => {
   });
 
   describe('findAll', () => {
-    it('paginates using the default page and limit when omitted', async () => {
+    it('paginates using the default limit when omitted', async () => {
       vehicleModelsService.findPaginated.mockResolvedValue({
         items: [vehicleModel],
-        total: 1,
+        nextCursor: null,
       });
 
       const result = await controller.findAll({});
 
       expect(vehicleModelsService.findPaginated).toHaveBeenCalledWith({
-        page: 1,
         limit: 20,
+        cursor: undefined,
         brand: undefined,
         model: undefined,
       });
-      expect(result.total).toBe(1);
+      expect(result.nextCursor).toBeNull();
       expect(result.items).toHaveLength(1);
+    });
+
+    it('clamps limit to the maximum and passes through the cursor', async () => {
+      vehicleModelsService.findPaginated.mockResolvedValue({
+        items: [],
+        nextCursor: 'next-cursor',
+      });
+
+      const result = await controller.findAll({
+        limit: 500,
+        cursor: 'abc',
+      });
+
+      expect(vehicleModelsService.findPaginated).toHaveBeenCalledWith({
+        limit: 100,
+        cursor: 'abc',
+        brand: undefined,
+        model: undefined,
+      });
+      expect(result.nextCursor).toBe('next-cursor');
     });
   });
 

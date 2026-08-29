@@ -57,7 +57,7 @@ describe('PlatformService', () => {
       countAll: jest.fn().mockResolvedValue(stats.faultsCount),
       findFaultsPaginated: jest
         .fn()
-        .mockResolvedValue({ items: [topFaultRow], total: 1 }),
+        .mockResolvedValue({ items: [topFaultRow], nextCursor: null }),
     };
     cache = {
       get: jest.fn().mockResolvedValue(undefined),
@@ -127,9 +127,9 @@ describe('PlatformService', () => {
   });
 
   describe('getFaults', () => {
-    const criteria = { locale: LookupLocale.EnGb, page: 1, limit: 9 };
+    const criteria = { locale: LookupLocale.EnGb, limit: 9 };
     const cacheKey = platformFaultsCacheKey(criteria);
-    const page = { items: [topFaultRow], total: 1 };
+    const page = { items: [topFaultRow], nextCursor: null };
 
     it('returns the cached page without querying the repository on a cache HIT', async () => {
       cache.get.mockResolvedValue(page);
@@ -151,10 +151,10 @@ describe('PlatformService', () => {
       expect(result).toEqual(page);
     });
 
-    it('uses a distinct cache key per locale, page, limit and filters', async () => {
+    it('uses a distinct cache key per locale, cursor, limit and filters', async () => {
       const otherCriteria = {
         locale: LookupLocale.PtPt,
-        page: 2,
+        cursor: 'abc',
         limit: 12,
         brand: 'Volkswagen',
       };
@@ -189,21 +189,19 @@ describe('PlatformService', () => {
       const items = [{ id: 'vm-1' }] as unknown as VehicleModel[];
       vehicleModelsService.findCatalogPaginated.mockResolvedValue({
         items,
-        total: 1,
+        nextCursor: null,
       });
 
       const result = await platformService.getVehicles({
-        page: 1,
         limit: 50,
       });
 
       expect(vehicleModelsService.findCatalogPaginated).toHaveBeenCalledWith({
-        page: 1,
         limit: 50,
       });
       expect(cache.get).not.toHaveBeenCalled();
       expect(cache.set).not.toHaveBeenCalled();
-      expect(result).toEqual({ items, total: 1 });
+      expect(result).toEqual({ items, nextCursor: null });
     });
   });
 });

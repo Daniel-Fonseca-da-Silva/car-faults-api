@@ -25,6 +25,7 @@ describe('FixesService', () => {
     save: jest.Mock;
     softDelete: jest.Mock;
     findByKnownIssueIdWithCounts: jest.Mock;
+    findByKnownIssueIdWithCountsPage: jest.Mock;
     findByIdWithCounts: jest.Mock;
   };
   let fixVotesRepository: {
@@ -59,8 +60,21 @@ describe('FixesService', () => {
       steps: 'Remove gearbox and replace synchro rings.',
       estimatedCostEur: null,
       source: FixSource.USER,
+      createdAt: new Date('2026-01-01'),
       ...overrides,
     }) as Fix;
+
+  const buildFixWithCounts = (
+    overrides: Partial<
+      Fix & { likes: number; dislikes: number; myVote: FixVoteValue | null }
+    > = {},
+  ) => ({
+    ...buildFix(),
+    likes: 0,
+    dislikes: 0,
+    myVote: null,
+    ...overrides,
+  });
 
   beforeEach(async () => {
     fixesRepository = {
@@ -70,6 +84,7 @@ describe('FixesService', () => {
       save: jest.fn(),
       softDelete: jest.fn(),
       findByKnownIssueIdWithCounts: jest.fn(),
+      findByKnownIssueIdWithCountsPage: jest.fn(),
       findByIdWithCounts: jest.fn(),
     };
     fixVotesRepository = {
@@ -150,6 +165,73 @@ describe('FixesService', () => {
         userId,
       );
       expect(result).toBe(fixes);
+    });
+  });
+
+  describe('findByKnownIssuePaginated', () => {
+    it('resolves the default limit and returns a null nextCursor when there is no next page', async () => {
+      const fixes = [buildFixWithCounts()];
+      fixesRepository.findByKnownIssueIdWithCountsPage.mockResolvedValue(fixes);
+
+      const result = await fixesService.findByKnownIssuePaginated(
+        'ki-1',
+        {},
+        userId,
+      );
+
+      expect(
+        fixesRepository.findByKnownIssueIdWithCountsPage,
+      ).toHaveBeenCalledWith('ki-1', 20, undefined, userId);
+      expect(result.items).toBe(fixes);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('returns an encoded nextCursor when the repository reports a lookahead row', async () => {
+      const first = buildFixWithCounts({ id: 'fix-2', likes: 5, dislikes: 1 });
+      const second = buildFixWithCounts({ id: 'fix-1' });
+      fixesRepository.findByKnownIssueIdWithCountsPage.mockResolvedValue([
+        first,
+        second,
+      ]);
+
+      const result = await fixesService.findByKnownIssuePaginated('ki-1', {
+        limit: 1,
+      });
+
+      expect(
+        fixesRepository.findByKnownIssueIdWithCountsPage,
+      ).toHaveBeenCalledWith('ki-1', 1, undefined, undefined);
+      expect(result.items).toHaveLength(1);
+      expect(result.nextCursor).not.toBeNull();
+    });
+
+    it('decodes the given cursor and passes it to the repository', async () => {
+      fixesRepository.findByKnownIssueIdWithCountsPage.mockResolvedValue([]);
+      const cursor = Buffer.from(
+        JSON.stringify({
+          likes: 5,
+          dislikes: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          id: 'fix-0',
+        }),
+        'utf8',
+      ).toString('base64url');
+
+      await fixesService.findByKnownIssuePaginated('ki-1', { cursor });
+
+      expect(
+        fixesRepository.findByKnownIssueIdWithCountsPage,
+      ).toHaveBeenCalledWith(
+        'ki-1',
+        20,
+        {
+          likes: 5,
+          dislikes: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          id: 'fix-0',
+        },
+        undefined,
+      );
     });
   });
 

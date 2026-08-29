@@ -7,9 +7,7 @@ import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { PlatformController } from './platform.controller';
 import {
   FAULTS_DEFAULT_LIMIT,
-  FAULTS_DEFAULT_PAGE,
   VEHICLES_DEFAULT_LIMIT,
-  VEHICLES_DEFAULT_PAGE,
 } from './platform.constants';
 import { PlatformService } from './platform.service';
 
@@ -45,8 +43,8 @@ describe('PlatformController', () => {
       getStats: jest.fn().mockResolvedValue(stats),
       getFaults: jest
         .fn()
-        .mockResolvedValue({ items: [topFaultRow], total: 1 }),
-      getVehicles: jest.fn().mockResolvedValue({ items: [], total: 0 }),
+        .mockResolvedValue({ items: [topFaultRow], nextCursor: null }),
+      getVehicles: jest.fn().mockResolvedValue({ items: [], nextCursor: null }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -71,13 +69,13 @@ describe('PlatformController', () => {
   });
 
   describe('getFaults', () => {
-    it('defaults locale, page and limit to the configured defaults when omitted', async () => {
+    it('defaults locale and limit to the configured defaults when omitted', async () => {
       const result = await platformController.getFaults({});
 
       expect(platformService.getFaults).toHaveBeenCalledWith({
         locale: LookupLocale.EnGb,
-        page: FAULTS_DEFAULT_PAGE,
         limit: FAULTS_DEFAULT_LIMIT,
+        cursor: undefined,
         brand: undefined,
         model: undefined,
         year: undefined,
@@ -102,16 +100,14 @@ describe('PlatformController', () => {
             },
           },
         ],
-        total: 1,
-        page: FAULTS_DEFAULT_PAGE,
-        limit: FAULTS_DEFAULT_LIMIT,
+        nextCursor: null,
       });
     });
 
     it('omits fuelType and doors from the vehicle when the vehicle model has none on record', async () => {
       platformService.getFaults.mockResolvedValue({
         items: [{ ...topFaultRow, vehicleFuelType: null, vehicleDoors: null }],
-        total: 1,
+        nextCursor: null,
       });
 
       const result = await platformController.getFaults({});
@@ -120,11 +116,11 @@ describe('PlatformController', () => {
       expect(result.items[0].vehicle.doors).toBeUndefined();
     });
 
-    it('passes through the given locale, page, limit and filters', async () => {
+    it('passes through the given locale, cursor, limit and filters, and clamps limit to the maximum', async () => {
       await platformController.getFaults({
         locale: LookupLocale.PtPt,
-        page: 2,
-        limit: 12,
+        cursor: 'abc',
+        limit: 500,
         brand: 'Volkswagen',
         model: 'Golf',
         year: 2018,
@@ -135,8 +131,8 @@ describe('PlatformController', () => {
 
       expect(platformService.getFaults).toHaveBeenCalledWith({
         locale: LookupLocale.PtPt,
-        page: 2,
-        limit: 12,
+        cursor: 'abc',
+        limit: 48,
         brand: 'Volkswagen',
         model: 'Golf',
         year: 2018,
@@ -147,16 +143,14 @@ describe('PlatformController', () => {
     });
 
     it('returns an empty items array when there are no faults', async () => {
-      platformService.getFaults.mockResolvedValue({ items: [], total: 0 });
+      platformService.getFaults.mockResolvedValue({
+        items: [],
+        nextCursor: null,
+      });
 
       const result = await platformController.getFaults({});
 
-      expect(result).toEqual({
-        items: [],
-        total: 0,
-        page: FAULTS_DEFAULT_PAGE,
-        limit: FAULTS_DEFAULT_LIMIT,
-      });
+      expect(result).toEqual({ items: [], nextCursor: null });
     });
   });
 
@@ -170,17 +164,17 @@ describe('PlatformController', () => {
       doors: 5,
     } as VehicleModel;
 
-    it('defaults page and limit to the configured defaults when omitted', async () => {
+    it('defaults limit to the configured default when omitted', async () => {
       platformService.getVehicles.mockResolvedValue({
         items: [vehicleModel],
-        total: 1,
+        nextCursor: null,
       });
 
       const result = await platformController.getVehicles({});
 
       expect(platformService.getVehicles).toHaveBeenCalledWith({
-        page: VEHICLES_DEFAULT_PAGE,
         limit: VEHICLES_DEFAULT_LIMIT,
+        cursor: undefined,
       });
       expect(result).toEqual({
         items: [
@@ -193,17 +187,15 @@ describe('PlatformController', () => {
             doors: 5,
           },
         ],
-        total: 1,
-        page: VEHICLES_DEFAULT_PAGE,
-        limit: VEHICLES_DEFAULT_LIMIT,
+        nextCursor: null,
       });
     });
 
-    it('passes through the given page and limit', async () => {
-      await platformController.getVehicles({ page: 3, limit: 100 });
+    it('passes through the given cursor and limit', async () => {
+      await platformController.getVehicles({ cursor: 'abc', limit: 100 });
 
       expect(platformService.getVehicles).toHaveBeenCalledWith({
-        page: 3,
+        cursor: 'abc',
         limit: 100,
       });
     });
@@ -211,7 +203,7 @@ describe('PlatformController', () => {
     it('omits doors from the vehicle item when the vehicle model has none on record', async () => {
       platformService.getVehicles.mockResolvedValue({
         items: [{ ...vehicleModel, doors: null }],
-        total: 1,
+        nextCursor: null,
       });
 
       const result = await platformController.getVehicles({});

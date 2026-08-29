@@ -13,6 +13,16 @@ describe('UserVehiclesRepository', () => {
     save: jest.Mock;
     softDelete: jest.Mock;
     count: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let queryBuilder: {
+    leftJoinAndSelect: jest.Mock;
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    orderBy: jest.Mock;
+    addOrderBy: jest.Mock;
+    take: jest.Mock;
+    getMany: jest.Mock;
   };
 
   const uniqueKey = {
@@ -24,6 +34,15 @@ describe('UserVehiclesRepository', () => {
   };
 
   beforeEach(async () => {
+    queryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn(),
+    };
     repository = {
       find: jest.fn(),
       findOne: jest.fn(),
@@ -31,6 +50,7 @@ describe('UserVehiclesRepository', () => {
       save: jest.fn(),
       softDelete: jest.fn(),
       count: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -50,18 +70,83 @@ describe('UserVehiclesRepository', () => {
     expect(userVehiclesRepository).toBeDefined();
   });
 
-  describe('findAllByUserId', () => {
-    it('delegates to repository.find by userId', async () => {
+  describe('findPageByUserId', () => {
+    it('joins vehicleModel, filters by user and orders by created_at/id desc', async () => {
       const userVehicles = [{ id: 'uv-1' }] as UserVehicle[];
-      repository.find.mockResolvedValue(userVehicles);
+      queryBuilder.getMany.mockResolvedValue(userVehicles);
 
-      const result = await userVehiclesRepository.findAllByUserId('user-1');
+      const result = await userVehiclesRepository.findPageByUserId(
+        'user-1',
+        20,
+      );
 
-      expect(repository.find).toHaveBeenCalledWith({
-        where: { userId: 'user-1' },
-        relations: { vehicleModel: true },
-      });
+      expect(repository.createQueryBuilder).toHaveBeenCalledWith(
+        'user_vehicle',
+      );
+      expect(queryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+        'user_vehicle.vehicleModel',
+        'vehicleModel',
+      );
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'user_vehicle.user_id = :userId',
+        { userId: 'user-1' },
+      );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        'user_vehicle.created_at',
+        'DESC',
+      );
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'user_vehicle.id',
+        'DESC',
+      );
+      expect(queryBuilder.take).toHaveBeenCalledWith(21);
       expect(result).toBe(userVehicles);
+    });
+
+    it('applies a keyset predicate when a cursor is given', async () => {
+      queryBuilder.getMany.mockResolvedValue([]);
+
+      await userVehiclesRepository.findPageByUserId('user-1', 20, {
+        createdAt: '2026-01-01T00:00:00.000Z',
+        id: 'uv-0',
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('user_vehicle.created_at'),
+        expect.objectContaining({
+          createdAt_cmp0: '2026-01-01T00:00:00.000Z',
+          id_cmp1: 'uv-0',
+        }),
+      );
+    });
+  });
+
+  describe('existsByVehicleModelAndYear', () => {
+    it('returns true when at least one match exists', async () => {
+      repository.count.mockResolvedValue(1);
+
+      const result = await userVehiclesRepository.existsByVehicleModelAndYear(
+        'user-1',
+        'vm-1',
+        2001,
+      );
+
+      expect(repository.count).toHaveBeenCalledWith({
+        where: { userId: 'user-1', vehicleModelId: 'vm-1', year: 2001 },
+      });
+      expect(result).toBe(true);
+    });
+
+    it('returns false when no match exists', async () => {
+      repository.count.mockResolvedValue(0);
+
+      const result = await userVehiclesRepository.existsByVehicleModelAndYear(
+        'user-1',
+        'vm-1',
+        2001,
+      );
+
+      expect(result).toBe(false);
     });
   });
 
