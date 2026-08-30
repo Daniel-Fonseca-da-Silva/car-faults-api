@@ -1,18 +1,27 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 
+const verifyIdToken = jest.fn();
+jest.mock('google-auth-library', () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({ verifyIdToken })),
+}));
+
 describe('AuthService', () => {
   let authService: AuthService;
   let usersService: {
     findOptionalByGoogleId: jest.Mock;
+    findOptionalByEmail: jest.Mock;
+    update: jest.Mock;
     create: jest.Mock;
   };
   let jwtService: { sign: jest.Mock; decode: jest.Mock };
   let cache: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
+  let configService: { getOrThrow: jest.Mock };
 
   const profile = {
     googleId: 'google-1',
@@ -24,16 +33,23 @@ describe('AuthService', () => {
   beforeEach(async () => {
     usersService = {
       findOptionalByGoogleId: jest.fn(),
+      findOptionalByEmail: jest.fn(),
+      update: jest.fn(),
       create: jest.fn(),
     };
     jwtService = { sign: jest.fn(), decode: jest.fn() };
     cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
+    configService = { getOrThrow: jest.fn() };
+
+    usersService.findOptionalByEmail.mockResolvedValue(null);
+    verifyIdToken.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UsersService, useValue: usersService },
         { provide: JwtService, useValue: jwtService },
+        { provide: ConfigService, useValue: configService },
         { provide: CACHE_MANAGER, useValue: cache },
       ],
     }).compile();
@@ -59,9 +75,10 @@ describe('AuthService', () => {
       expect(result).toBe(user);
     });
 
-    it('creates a new user when none is found by googleId', async () => {
+    it('creates a new user when none is found by googleId or email', async () => {
       const user = { id: 'id-1', ...profile } as unknown as User;
       usersService.findOptionalByGoogleId.mockResolvedValue(null);
+      usersService.findOptionalByEmail.mockResolvedValue(null);
       usersService.create.mockResolvedValue(user);
 
       const result = await authService.validateGoogleProfile(profile);
@@ -73,6 +90,98 @@ describe('AuthService', () => {
         avatarUrl: profile.avatarUrl,
       });
       expect(result).toBe(user);
+    });
+
+    it('links the googleId to an existing user found by email without one', async () => {
+      const existingUser = {
+        id: 'id-1',
+        email: profile.email,
+        googleId: null,
+      } as unknown as User;
+      const updatedUser = { ...existingUser, googleId: profile.googleId };
+      usersService.findOptionalByGoogleId.mockResolvedValue(null);
+      usersService.findOptionalByEmail.mockResolvedValue(existingUser);
+      usersService.update.mockResolvedValue(updatedUser);
+
+      const result = await authService.validateGoogleProfile(profile);
+
+      expect(usersService.update).toHaveBeenCalledWith('id-1', {
+        googleId: profile.googleId,
+      });
+      expect(usersService.create).not.toHaveBeenCalled();
+      expect(result).toBe(updatedUser);
+    });
+
+    it('returns the existing user found by email when it already has a googleId', async () => {
+      const existingUser = {
+        id: 'id-1',
+        email: profile.email,
+        googleId: 'other-google-id',
+      } as unknown as User;
+      usersService.findOptionalByGoogleId.mockResolvedValue(null);
+      usersService.findOptionalByEmail.mockResolvedValue(existingUser);
+
+      const result = await authService.validateGoogleProfile(profile);
+
+      expect(usersService.update).not.toHaveBeenCalled();
+      expect(usersService.create).not.toHaveBeenCalled();
+      expect(result).toBe(existingUser);
+    });
+  });
+
+  describe('loginWithGoogleMobileIdToken', () => {
+    beforeEach(() => {
+      configService.getOrThrow.mockImplementation((key: string) => {
+        if (key === 'GOOGLE_CLIENT_ID') return 'web-client-id';
+        if (key === 'GOOGLE_ANDROID_CLIENT_ID') return 'android-client-id';
+        throw new Error(`Unexpected config key ${key}`);
+      });
+    });
+
+    it('verifies the id token against both audiences and logs the user in', async () => {
+      const user = { id: 'id-1', ...profile } as unknown as User;
+      verifyIdToken.mockResolvedValue({
+        getPayload: () => ({
+          sub: profile.googleId,
+          email: profile.email,
+          name: profile.name,
+          picture: profile.avatarUrl,
+        }),
+      });
+      usersService.findOptionalByGoogleId.mockResolvedValue(null);
+      usersService.findOptionalByEmail.mockResolvedValue(null);
+      usersService.create.mockResolvedValue(user);
+      jwtService.sign.mockReturnValue('signed-jwt');
+
+      const result = await authService.loginWithGoogleMobileIdToken('id-token');
+
+      expect(verifyIdToken).toHaveBeenCalledWith({
+        idToken: 'id-token',
+        audience: ['web-client-id', 'android-client-id'],
+      });
+      expect(usersService.create).toHaveBeenCalledWith({
+        email: profile.email,
+        name: profile.name,
+        googleId: profile.googleId,
+        avatarUrl: profile.avatarUrl,
+      });
+      expect(result.accessToken).toBe('signed-jwt');
+    });
+
+    it('throws UnauthorizedException when the token cannot be verified', async () => {
+      verifyIdToken.mockRejectedValue(new Error('bad token'));
+
+      await expect(
+        authService.loginWithGoogleMobileIdToken('id-token'),
+      ).rejects.toThrow('Invalid Google ID token');
+    });
+
+    it('throws UnauthorizedException when the payload has no sub or email', async () => {
+      verifyIdToken.mockResolvedValue({ getPayload: () => ({}) });
+
+      await expect(
+        authService.loginWithGoogleMobileIdToken('id-token'),
+      ).rejects.toThrow('Invalid Google ID token');
     });
   });
 
