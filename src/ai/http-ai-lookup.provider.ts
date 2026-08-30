@@ -6,6 +6,7 @@ import {
   AiLookupResult,
 } from './ai-lookup.provider';
 import { parseAiLookupResult } from './dto/ai-lookup-result.dto';
+import { postAiWithRetry } from './post-ai-with-retry';
 
 @Injectable()
 export class HttpAiLookupProvider implements AiLookupProvider {
@@ -17,7 +18,7 @@ export class HttpAiLookupProvider implements AiLookupProvider {
 
     let response: Response;
     try {
-      response = await fetch(apiUrl, {
+      response = await postAiWithRetry(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
