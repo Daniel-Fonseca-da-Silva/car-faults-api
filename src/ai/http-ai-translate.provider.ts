@@ -6,6 +6,7 @@ import {
   AiTranslateResult,
 } from './ai-translate.provider';
 import { parseAiTranslateResult } from './dto/ai-translate-result.dto';
+import { postAiWithRetry } from './post-ai-with-retry';
 
 @Injectable()
 export class HttpAiTranslateProvider implements AiTranslateProvider {
@@ -17,7 +18,7 @@ export class HttpAiTranslateProvider implements AiTranslateProvider {
 
     let response: Response;
     try {
-      response = await fetch(apiUrl, {
+      response = await postAiWithRetry(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
