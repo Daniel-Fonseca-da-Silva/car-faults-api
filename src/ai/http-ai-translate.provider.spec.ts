@@ -107,5 +107,82 @@ describe('HttpAiTranslateProvider', () => {
         ServiceUnavailableException,
       );
     });
+
+    describe('sidecar retry', () => {
+      beforeEach(() => {
+        jest.useFakeTimers();
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('retries once on a fast 503 and succeeds', async () => {
+        const aiResult = { knownIssues: input.knownIssues };
+        fetchSpy
+          .mockResolvedValueOnce({
+            ok: false,
+            status: 503,
+            json: jest.fn(),
+          } as unknown as Response)
+          .mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: jest.fn().mockResolvedValue(aiResult),
+          } as unknown as Response);
+
+        const resultPromise = provider.translate(input);
+        await jest.advanceTimersByTimeAsync(1000);
+
+        await expect(resultPromise).resolves.toEqual(aiResult);
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not retry a 503 that took longer than 5s', async () => {
+        fetchSpy.mockImplementationOnce(() => {
+          jest.advanceTimersByTime(6000);
+          return Promise.resolve({
+            ok: false,
+            status: 503,
+            json: jest.fn(),
+          } as unknown as Response);
+        });
+
+        await expect(provider.translate(input)).rejects.toThrow(
+          ServiceUnavailableException,
+        );
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('retries once when fetch rejects and succeeds on the second call', async () => {
+        const aiResult = { knownIssues: input.knownIssues };
+        fetchSpy
+          .mockRejectedValueOnce(new Error('network down'))
+          .mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: jest.fn().mockResolvedValue(aiResult),
+          } as unknown as Response);
+
+        const resultPromise = provider.translate(input);
+        await jest.advanceTimersByTimeAsync(1000);
+
+        await expect(resultPromise).resolves.toEqual(aiResult);
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not retry a 400', async () => {
+        fetchSpy.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: jest.fn(),
+        } as unknown as Response);
+
+        await expect(provider.translate(input)).rejects.toThrow(
+          ServiceUnavailableException,
+        );
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 });
