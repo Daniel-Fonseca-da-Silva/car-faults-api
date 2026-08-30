@@ -21,6 +21,7 @@ export interface CreateUserData {
 export interface UpdateUserData {
   name?: string;
   avatarUrl?: string | null;
+  googleId?: string | null;
 }
 
 @Injectable()
@@ -90,6 +91,10 @@ export class UsersService {
       return null;
     }
     return this.restoreIfDeleted(user);
+  }
+
+  async findOptionalByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findByEmail(email);
   }
 
   async update(id: string, data: UpdateUserData): Promise<User> {
