@@ -1,7 +1,9 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, randomUUID } from 'crypto';
+import { OAuth2Client, TokenPayload } from 'google-auth-library';
 import { jwtDenyCacheKey, oauthCodeCacheKey } from '../redis/redis.constants';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { User } from '../users/entities/user.entity';
@@ -19,18 +21,33 @@ const OAUTH_CODE_TTL_MS = 60_000;
 
 @Injectable()
 export class AuthService {
+  private readonly googleClient = new OAuth2Client();
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly config: ConfigService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async validateGoogleProfile(profile: GoogleProfileData): Promise<User> {
-    const existingUser = await this.usersService.findOptionalByGoogleId(
+    const existingByGoogleId = await this.usersService.findOptionalByGoogleId(
       profile.googleId,
     );
-    if (existingUser) {
-      return existingUser;
+    if (existingByGoogleId) {
+      return existingByGoogleId;
+    }
+
+    const existingByEmail = await this.usersService.findOptionalByEmail(
+      profile.email,
+    );
+    if (existingByEmail) {
+      if (!existingByEmail.googleId) {
+        return this.usersService.update(existingByEmail.id, {
+          googleId: profile.googleId,
+        });
+      }
+      return existingByEmail;
     }
 
     return this.usersService.create({
@@ -39,6 +56,45 @@ export class AuthService {
       googleId: profile.googleId,
       avatarUrl: profile.avatarUrl,
     });
+  }
+
+  async loginWithGoogleMobileIdToken(
+    idToken: string,
+  ): Promise<AuthResponseDto> {
+    const profile = await this.verifyGoogleMobileIdToken(idToken);
+    const user = await this.validateGoogleProfile(profile);
+    return this.login(user);
+  }
+
+  private async verifyGoogleMobileIdToken(
+    idToken: string,
+  ): Promise<GoogleProfileData> {
+    const webClientId = this.config.getOrThrow<string>('GOOGLE_CLIENT_ID');
+    const androidClientId = this.config.getOrThrow<string>(
+      'GOOGLE_ANDROID_CLIENT_ID',
+    );
+
+    let payload: TokenPayload | undefined;
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: [webClientId, androidClientId],
+      });
+      payload = ticket.getPayload();
+    } catch {
+      throw new UnauthorizedException('Invalid Google ID token');
+    }
+
+    if (!payload?.sub || !payload.email) {
+      throw new UnauthorizedException('Invalid Google ID token');
+    }
+
+    return {
+      googleId: payload.sub,
+      email: payload.email,
+      name: payload.name ?? payload.email,
+      avatarUrl: payload.picture ?? null,
+    };
   }
 
   login(user: User): AuthResponseDto {

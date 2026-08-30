@@ -17,6 +17,7 @@ describe('AuthController', () => {
     createExchangeCode: jest.Mock;
     consumeExchangeCode: jest.Mock;
     revokeAccessToken: jest.Mock;
+    loginWithGoogleMobileIdToken: jest.Mock;
   };
   let config: { get: jest.Mock; getOrThrow: jest.Mock };
   let res: {
@@ -34,6 +35,7 @@ describe('AuthController', () => {
       createExchangeCode: jest.fn(),
       consumeExchangeCode: jest.fn(),
       revokeAccessToken: jest.fn(),
+      loginWithGoogleMobileIdToken: jest.fn(),
     };
     config = {
       get: jest.fn(),
@@ -140,6 +142,35 @@ describe('AuthController', () => {
       await expect(
         authController.exchangeSessionCode({ code: 'bad-code' }),
       ).rejects.toThrow('Invalid or expired code');
+    });
+  });
+
+  describe('googleMobileLogin', () => {
+    it('logs in with the Google ID token and returns the auth response', async () => {
+      const authResponse = new AuthResponseDto({
+        accessToken: 'signed-jwt',
+        user: undefined,
+      });
+      authService.loginWithGoogleMobileIdToken.mockResolvedValue(authResponse);
+
+      const result = await authController.googleMobileLogin({
+        idToken: 'google-id-token',
+      });
+
+      expect(authService.loginWithGoogleMobileIdToken).toHaveBeenCalledWith(
+        'google-id-token',
+      );
+      expect(result).toBe(authResponse);
+    });
+
+    it('propagates the UnauthorizedException for an invalid id token', async () => {
+      authService.loginWithGoogleMobileIdToken.mockRejectedValue(
+        new UnauthorizedException('Invalid Google ID token'),
+      );
+
+      await expect(
+        authController.googleMobileLogin({ idToken: 'bad-token' }),
+      ).rejects.toThrow('Invalid Google ID token');
     });
   });
 

@@ -199,6 +199,26 @@ describe('UsersService', () => {
     });
   });
 
+  describe('findOptionalByEmail', () => {
+    it('returns the user when found', async () => {
+      const user = { email: 'a@b.com' } as User;
+      usersRepository.findByEmail.mockResolvedValue(user);
+
+      const result = await usersService.findOptionalByEmail('a@b.com');
+
+      expect(usersRepository.findByEmail).toHaveBeenCalledWith('a@b.com');
+      expect(result).toBe(user);
+    });
+
+    it('returns null when the user does not exist', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+
+      const result = await usersService.findOptionalByEmail('a@b.com');
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('findByGoogleId', () => {
     it('returns the user when found', async () => {
       const user = { googleId: 'google-1' } as User;

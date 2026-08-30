@@ -28,7 +28,9 @@ import {
 } from './access-token-cookie.factory';
 import { AuthService } from './auth.service';
 import { AccessTokenResponseDto } from './dto/access-token-response.dto';
+import { AuthResponseDto } from './dto/auth-response.dto';
 import { ExchangeSessionCodeDto } from './dto/exchange-session-code.dto';
+import { GoogleMobileLoginDto } from './dto/google-mobile-login.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { resolveLocale } from './locale.util';
 
@@ -89,6 +91,18 @@ export class AuthController {
   ): Promise<AccessTokenResponseDto> {
     const accessToken = await this.authService.consumeExchangeCode(dto.code);
     return new AccessTokenResponseDto({ accessToken });
+  }
+
+  @Post('google/mobile')
+  @ApiOperation({
+    summary: 'Log in with a Google ID token issued to the mobile app',
+  })
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid Google ID token' })
+  async googleMobileLogin(
+    @Body() dto: GoogleMobileLoginDto,
+  ): Promise<AuthResponseDto> {
+    return this.authService.loginWithGoogleMobileIdToken(dto.idToken);
   }
 
   @Post('logout')
