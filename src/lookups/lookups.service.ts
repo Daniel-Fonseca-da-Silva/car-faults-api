@@ -12,6 +12,7 @@ import type {
   AiTranslateInput,
   AiTranslateProvider,
 } from '../ai/ai-translate.provider';
+import type { ClientType } from '../common/client/client.constants';
 import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { Fix } from '../fixes/entities/fix.entity';
 import { FixSource } from '../fixes/enums/fix-source.enum';
@@ -24,10 +25,17 @@ import { TurnstileService } from '../turnstile/turnstile.service';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
+import { AiRateLimiterService } from './ai-rate-limiter.service';
 import { LookupByPathQueryDto } from './dto/lookup-by-path-query.dto';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
 import { buildLookupCacheKey } from './lookup-cache-key.util';
+
+export interface LookupRequestContext {
+  clientType: ClientType;
+  clientIp?: string;
+  turnstileToken?: string;
+}
 
 interface LookupCriteria {
   brand: string;
@@ -70,6 +78,7 @@ export class LookupsService {
     private readonly aiTranslateProvider: AiTranslateProvider,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     private readonly turnstileService: TurnstileService,
+    private readonly aiRateLimiterService: AiRateLimiterService,
     config: ConfigService,
   ) {
     this.cacheTtlMs = Number(
@@ -79,7 +88,7 @@ export class LookupsService {
 
   async lookup(
     query: LookupQueryDto,
-    turnstileToken?: string,
+    context: LookupRequestContext,
   ): Promise<LookupResponseDto> {
     const criteria: LookupCriteria = {
       brand: query.brand.trim(),
@@ -97,7 +106,7 @@ export class LookupsService {
       return cached;
     }
 
-    const result = await this.lookupUncached(criteria, turnstileToken);
+    const result = await this.lookupUncached(criteria, context);
     await this.setCached(cacheKey, result);
     return result;
   }
@@ -128,11 +137,11 @@ export class LookupsService {
 
   private async lookupUncached(
     criteria: LookupCriteria,
-    turnstileToken?: string,
+    context: LookupRequestContext,
   ): Promise<LookupResponseDto> {
     const vehicleModel = await this.vehicleModelsService.findByLookup(criteria);
     if (!vehicleModel) {
-      return this.generateForNewVehicle(criteria, turnstileToken);
+      return this.generateForNewVehicle(criteria, context);
     }
 
     const localeIssues =
@@ -149,26 +158,22 @@ export class LookupsService {
       vehicleModel.id,
     );
     if (existingIssues.length === 0) {
-      return this.generateForExistingVehicle(
-        vehicleModel,
-        criteria,
-        turnstileToken,
-      );
+      return this.generateForExistingVehicle(vehicleModel, criteria, context);
     }
 
     return this.translateForExistingVehicle(
       vehicleModel,
       criteria.language,
       existingIssues,
-      turnstileToken,
+      context,
     );
   }
 
   private async generateForNewVehicle(
     criteria: LookupCriteria,
-    turnstileToken?: string,
+    context: LookupRequestContext,
   ): Promise<LookupResponseDto> {
-    await this.turnstileService.assertValid(turnstileToken);
+    await this.assertAiGateAllowed(context);
     const aiResult = await this.aiLookupProvider.generateLookup(criteria);
 
     const persisted = await this.dataSource.transaction((manager) =>
@@ -181,9 +186,9 @@ export class LookupsService {
   private async generateForExistingVehicle(
     vehicleModel: VehicleModel,
     criteria: LookupCriteria,
-    turnstileToken?: string,
+    context: LookupRequestContext,
   ): Promise<LookupResponseDto> {
-    await this.turnstileService.assertValid(turnstileToken);
+    await this.assertAiGateAllowed(context);
     const aiResult = await this.aiLookupProvider.generateLookup(criteria);
 
     const knownIssues = await this.dataSource.transaction((manager) =>
@@ -202,9 +207,9 @@ export class LookupsService {
     vehicleModel: VehicleModel,
     targetLanguage: LookupLocale,
     existingIssues: KnownIssue[],
-    turnstileToken?: string,
+    context: LookupRequestContext,
   ): Promise<LookupResponseDto> {
-    await this.turnstileService.assertValid(turnstileToken);
+    await this.assertAiGateAllowed(context);
     const sourceLanguage = this.pickSourceLanguage(existingIssues);
     const issuesToTranslate = existingIssues.filter(
       (issue) => issue.locale === sourceLanguage,
@@ -228,6 +233,16 @@ export class LookupsService {
     );
 
     return new LookupResponseDto(vehicleModel, knownIssues);
+  }
+
+  private async assertAiGateAllowed(
+    context: LookupRequestContext,
+  ): Promise<void> {
+    if (context.clientType === 'mobile') {
+      await this.aiRateLimiterService.assertAllowed(context.clientIp);
+      return;
+    }
+    await this.turnstileService.assertValid(context.turnstileToken);
   }
 
   private pickSourceLanguage(issues: KnownIssue[]): LookupLocale {
