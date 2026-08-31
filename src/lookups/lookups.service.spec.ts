@@ -15,9 +15,10 @@ import { TurnstileService } from '../turnstile/turnstile.service';
 import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
 import { FuelType } from '../vehicle-models/enums/fuel-type.enum';
 import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
+import { AiRateLimiterService } from './ai-rate-limiter.service';
 import { LookupByPathQueryDto } from './dto/lookup-by-path-query.dto';
 import { LookupQueryDto } from './dto/lookup-query.dto';
-import { LookupsService } from './lookups.service';
+import { LookupsService, LookupRequestContext } from './lookups.service';
 
 describe('LookupsService', () => {
   let lookupsService: LookupsService;
@@ -40,6 +41,13 @@ describe('LookupsService', () => {
     set: jest.Mock;
   };
   let turnstileService: { assertValid: jest.Mock };
+  let aiRateLimiterService: { assertAllowed: jest.Mock };
+
+  const webContext: LookupRequestContext = { clientType: 'web' };
+  const webContextWithTurnstile: LookupRequestContext = {
+    clientType: 'web',
+    turnstileToken: 'turnstile-token',
+  };
 
   const query: LookupQueryDto = {
     brand: ' Volkswagen ',
@@ -91,6 +99,9 @@ describe('LookupsService', () => {
       set: jest.fn().mockResolvedValue(undefined),
     };
     turnstileService = { assertValid: jest.fn().mockResolvedValue(undefined) };
+    aiRateLimiterService = {
+      assertAllowed: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -103,6 +114,10 @@ describe('LookupsService', () => {
         { provide: AI_TRANSLATE_PROVIDER, useValue: aiTranslateProvider },
         { provide: CACHE_MANAGER, useValue: cache },
         { provide: TurnstileService, useValue: turnstileService },
+        {
+          provide: AiRateLimiterService,
+          useValue: aiRateLimiterService,
+        },
         {
           provide: ConfigService,
           useValue: { getOrThrow: jest.fn().mockReturnValue('21600000') },
@@ -125,7 +140,7 @@ describe('LookupsService', () => {
       };
       cache.get.mockResolvedValue(cached);
 
-      const result = await lookupsService.lookup(query);
+      const result = await lookupsService.lookup(query, webContext);
 
       expect(cache.get).toHaveBeenCalledWith(cacheKey);
       expect(vehicleModelsService.findByLookup).not.toHaveBeenCalled();
@@ -150,7 +165,7 @@ describe('LookupsService', () => {
       } as unknown as Fix;
       fixesService.findByKnownIssue.mockResolvedValue([fixWithCounts]);
 
-      const result = await lookupsService.lookup(query);
+      const result = await lookupsService.lookup(query, webContext);
 
       expect(vehicleModelsService.findByLookup).toHaveBeenCalledWith(
         normalizedCriteria,
@@ -180,7 +195,7 @@ describe('LookupsService', () => {
         { id: 'ki-1', locale: LookupLocale.EnGb, fixes: [] },
       ]);
 
-      const result = await lookupsService.lookup(query);
+      const result = await lookupsService.lookup(query, webContext);
 
       expect(vehicleModelsService.findByLookup).toHaveBeenCalled();
       expect(result.vehicle.id).toBe('vm-1');
@@ -194,7 +209,7 @@ describe('LookupsService', () => {
       ]);
       cache.set.mockRejectedValue(new Error('redis unavailable'));
 
-      const result = await lookupsService.lookup(query);
+      const result = await lookupsService.lookup(query, webContext);
 
       expect(result.vehicle.id).toBe('vm-1');
     });
@@ -245,7 +260,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      const result = await lookupsService.lookup(query);
+      const result = await lookupsService.lookup(query, webContext);
 
       expect(aiLookupProvider.generateLookup).toHaveBeenCalledWith(
         normalizedCriteria,
@@ -342,7 +357,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      const result = await lookupsService.lookup(query);
+      const result = await lookupsService.lookup(query, webContext);
 
       expect(fixesService.saveMany).not.toHaveBeenCalled();
       expect(result.knownIssues[0].fixes).toEqual([]);
@@ -355,7 +370,10 @@ describe('LookupsService', () => {
         { id: 'ki-1', locale: LookupLocale.EnGb, fixes: [] },
       ]);
 
-      const result = await lookupsService.lookup({ ...query, doors: 3 });
+      const result = await lookupsService.lookup(
+        { ...query, doors: 3 },
+        webContext,
+      );
 
       const doorsCacheKey =
         'vehicle:lookup:Volkswagen:Polo:2001:1.0:3:diesel:en-GB';
@@ -382,7 +400,10 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup({ ...query, doors: 5 });
+      await lookupsService.lookup(
+        { ...query, doors: 5 },
+        webContextWithTurnstile,
+      );
 
       expect(cache.get).toHaveBeenCalledWith(
         'vehicle:lookup:Volkswagen:Polo:2001:1.0:5:diesel:en-GB',
@@ -404,7 +425,10 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup({ ...query, doors: 3 });
+      await lookupsService.lookup(
+        { ...query, doors: 3 },
+        webContextWithTurnstile,
+      );
 
       expect(vehicleModelsService.create).toHaveBeenCalledWith(
         expect.objectContaining({ doors: 3 }),
@@ -427,7 +451,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup(query);
+      await lookupsService.lookup(query, webContext);
 
       expect(vehicleModelsService.create).toHaveBeenCalledWith(
         expect.objectContaining({ doors: 5 }),
@@ -442,10 +466,13 @@ describe('LookupsService', () => {
         { id: 'ki-1', locale: LookupLocale.EnGb, fixes: [] },
       ]);
 
-      const result = await lookupsService.lookup({
-        ...query,
-        fuelType: FuelType.ELECTRIC,
-      });
+      const result = await lookupsService.lookup(
+        {
+          ...query,
+          fuelType: FuelType.ELECTRIC,
+        },
+        webContext,
+      );
 
       const electricCacheKey =
         'vehicle:lookup:Volkswagen:Polo:2001:1.0:electric:en-GB';
@@ -476,7 +503,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup(query);
+      await lookupsService.lookup(query, webContext);
 
       expect(vehicleModelsService.create).toHaveBeenCalledWith(
         expect.objectContaining({ fuelType: FuelType.DIESEL }),
@@ -499,7 +526,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup(query);
+      await lookupsService.lookup(query, webContext);
 
       expect(vehicleModelsService.create).toHaveBeenCalledWith(
         expect.objectContaining({ name: 'Polo 6N1' }),
@@ -514,10 +541,13 @@ describe('LookupsService', () => {
         { id: 'ki-1', locale: LookupLocale.PtPt, fixes: [] },
       ]);
 
-      const result = await lookupsService.lookup({
-        ...query,
-        language: LookupLocale.PtPt,
-      });
+      const result = await lookupsService.lookup(
+        {
+          ...query,
+          language: LookupLocale.PtPt,
+        },
+        webContext,
+      );
 
       const ptCacheKey = 'vehicle:lookup:Volkswagen:Polo:2001:1.0:diesel:pt-PT';
       expect(cache.get).toHaveBeenCalledWith(ptCacheKey);
@@ -544,7 +574,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup(query);
+      await lookupsService.lookup(query, webContext);
 
       expect(aiLookupProvider.generateLookup).toHaveBeenCalledWith(
         expect.objectContaining({ language: LookupLocale.EnGb }),
@@ -602,10 +632,13 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      const result = await lookupsService.lookup({
-        ...query,
-        language: LookupLocale.PtPt,
-      });
+      const result = await lookupsService.lookup(
+        {
+          ...query,
+          language: LookupLocale.PtPt,
+        },
+        webContext,
+      );
 
       expect(aiLookupProvider.generateLookup).not.toHaveBeenCalled();
       expect(vehicleModelsService.create).not.toHaveBeenCalled();
@@ -681,7 +714,10 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup({ ...query, language: LookupLocale.EnGb });
+      await lookupsService.lookup(
+        { ...query, language: LookupLocale.EnGb },
+        webContextWithTurnstile,
+      );
 
       expect(aiTranslateProvider.translate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -716,7 +752,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      const result = await lookupsService.lookup(query);
+      const result = await lookupsService.lookup(query, webContext);
 
       expect(aiTranslateProvider.translate).not.toHaveBeenCalled();
       expect(vehicleModelsService.create).not.toHaveBeenCalled();
@@ -744,7 +780,7 @@ describe('LookupsService', () => {
         { id: 'ki-1', locale: LookupLocale.EnGb, fixes: [] },
       ]);
 
-      await lookupsService.lookup(query);
+      await lookupsService.lookup(query, webContext);
 
       expect(turnstileService.assertValid).not.toHaveBeenCalled();
     });
@@ -762,7 +798,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup(query, 'turnstile-token');
+      await lookupsService.lookup(query, webContextWithTurnstile);
 
       expect(turnstileService.assertValid).toHaveBeenCalledWith(
         'turnstile-token',
@@ -774,7 +810,9 @@ describe('LookupsService', () => {
       const forbidden = new Error('TURNSTILE_REQUIRED');
       turnstileService.assertValid.mockRejectedValue(forbidden);
 
-      await expect(lookupsService.lookup(query)).rejects.toThrow(forbidden);
+      await expect(lookupsService.lookup(query, webContext)).rejects.toThrow(
+        forbidden,
+      );
 
       expect(aiLookupProvider.generateLookup).not.toHaveBeenCalled();
       expect(dataSource.transaction).not.toHaveBeenCalled();
@@ -795,7 +833,7 @@ describe('LookupsService', () => {
           callback(manager),
       );
 
-      await lookupsService.lookup(query, 'turnstile-token');
+      await lookupsService.lookup(query, webContextWithTurnstile);
 
       expect(turnstileService.assertValid).toHaveBeenCalledWith(
         'turnstile-token',
@@ -822,7 +860,7 @@ describe('LookupsService', () => {
 
       await lookupsService.lookup(
         { ...query, language: LookupLocale.PtPt },
-        'turnstile-token',
+        webContextWithTurnstile,
       );
 
       expect(turnstileService.assertValid).toHaveBeenCalledWith(

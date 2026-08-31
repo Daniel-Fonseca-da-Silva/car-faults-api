@@ -2,8 +2,10 @@ import { ActivityLogModule } from '../activity-log/activity-log.module';
 import { AiModule } from '../ai/ai.module';
 import { FixesModule } from '../fixes/fixes.module';
 import { KnownIssuesModule } from '../known-issues/known-issues.module';
+import { RedisModule } from '../redis/redis.module';
 import { TurnstileModule } from '../turnstile/turnstile.module';
 import { VehicleModelsModule } from '../vehicle-models/vehicle-models.module';
+import { AiRateLimiterService } from './ai-rate-limiter.service';
 import { LookupsController } from './lookups.controller';
 import { LookupsModule } from './lookups.module';
 import { LookupsService } from './lookups.service';
@@ -27,8 +29,9 @@ describe('LookupsModule', () => {
       AiModule,
       ActivityLogModule,
       TurnstileModule,
+      RedisModule,
     ]);
     expect(controllers).toEqual([LookupsController]);
-    expect(providers).toEqual([LookupsService]);
+    expect(providers).toEqual([LookupsService, AiRateLimiterService]);
   });
 });

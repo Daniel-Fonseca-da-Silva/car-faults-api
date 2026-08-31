@@ -61,7 +61,11 @@ describe('LookupsController', () => {
 
       const result = await lookupsController.lookup(anonymousReq, query);
 
-      expect(lookupsService.lookup).toHaveBeenCalledWith(query, undefined);
+      expect(lookupsService.lookup).toHaveBeenCalledWith(query, {
+        clientType: 'web',
+        clientIp: undefined,
+        turnstileToken: undefined,
+      });
       expect(result).toBe(response);
     });
 
@@ -70,10 +74,11 @@ describe('LookupsController', () => {
 
       await lookupsController.lookup(anonymousReq, query, 'turnstile-token');
 
-      expect(lookupsService.lookup).toHaveBeenCalledWith(
-        query,
-        'turnstile-token',
-      );
+      expect(lookupsService.lookup).toHaveBeenCalledWith(query, {
+        clientType: 'web',
+        clientIp: undefined,
+        turnstileToken: 'turnstile-token',
+      });
     });
 
     it('does not record a search when the request is anonymous', async () => {
