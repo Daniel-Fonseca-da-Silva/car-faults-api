@@ -19,6 +19,10 @@ import type { Request } from 'express';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import {
+  resolveClientType,
+  X_CLIENT_HEADER,
+} from '../common/client/client.constants';
+import {
   lookupsThrottlerOptions,
   THROTTLER_DEFAULT_NAME,
 } from '../common/throttler/throttler-options.factory';
@@ -45,13 +49,19 @@ export class LookupsController {
   @ApiOperation({
     summary: 'Look up known issues and tech specs for a vehicle',
     description:
-      'A Turnstile token is only required when the lookup is not already cached or persisted (i.e. it would trigger AI generation).',
+      'A Turnstile token is only required when the lookup is not already cached or persisted (i.e. it would trigger AI generation), and only for non-mobile clients. Mobile clients (X-Client: mobile) skip Turnstile on the AI-generation path and are rate-limited instead.',
   })
   @ApiHeader({
     name: TURNSTILE_TOKEN_HEADER,
     required: false,
     description:
-      'Cloudflare Turnstile token, required for the AI-generation path',
+      'Cloudflare Turnstile token, required for the AI-generation path (ignored for mobile clients)',
+  })
+  @ApiHeader({
+    name: X_CLIENT_HEADER,
+    required: false,
+    description:
+      'Set to "mobile" by the Flutter app to bypass Turnstile on the AI-generation path; subject to a dedicated rate limit instead',
   })
   @ApiOkResponse({ type: LookupResponseDto })
   @ApiForbiddenResponse({
@@ -62,8 +72,13 @@ export class LookupsController {
     @Req() req: Request,
     @Query() query: LookupQueryDto,
     @Headers(TURNSTILE_TOKEN_HEADER) turnstileToken?: string,
+    @Headers(X_CLIENT_HEADER) clientHeader?: string,
   ): Promise<LookupResponseDto> {
-    const result = await this.lookupsService.lookup(query, turnstileToken);
+    const result = await this.lookupsService.lookup(query, {
+      clientType: resolveClientType(clientHeader),
+      clientIp: req.ip,
+      turnstileToken,
+    });
 
     const user = req.user as User | null;
     if (user) {
