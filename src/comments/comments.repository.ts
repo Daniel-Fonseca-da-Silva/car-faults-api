@@ -25,15 +25,15 @@ export class CommentsRepository {
     const qb = this.repository
       .createQueryBuilder('comment')
       .leftJoinAndSelect('comment.user', 'user')
-      .where('comment.known_issue_id = :knownIssueId', { knownIssueId })
-      .orderBy('comment.created_at', 'DESC')
+      .where('comment.knownIssueId = :knownIssueId', { knownIssueId })
+      .orderBy('comment.createdAt', 'DESC')
       .addOrderBy('comment.id', 'DESC')
       .take(limit + 1);
 
     if (cursor) {
       const { sql, params } = buildKeysetWhere(
         [
-          { expr: 'comment.created_at', direction: 'DESC', param: 'createdAt' },
+          { expr: 'comment.createdAt', direction: 'DESC', param: 'createdAt' },
           { expr: 'comment.id', direction: 'DESC', param: 'id' },
         ],
         cursor,

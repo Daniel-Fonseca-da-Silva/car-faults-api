@@ -33,8 +33,8 @@ export class UserVehiclesRepository {
     const qb = this.repository
       .createQueryBuilder('user_vehicle')
       .leftJoinAndSelect('user_vehicle.vehicleModel', 'vehicleModel')
-      .where('user_vehicle.user_id = :userId', { userId })
-      .orderBy('user_vehicle.created_at', 'DESC')
+      .where('user_vehicle.userId = :userId', { userId })
+      .orderBy('user_vehicle.createdAt', 'DESC')
       .addOrderBy('user_vehicle.id', 'DESC')
       .take(limit + 1);
 
@@ -42,7 +42,7 @@ export class UserVehiclesRepository {
       const { sql, params } = buildKeysetWhere(
         [
           {
-            expr: 'user_vehicle.created_at',
+            expr: 'user_vehicle.createdAt',
             direction: 'DESC',
             param: 'createdAt',
           },
