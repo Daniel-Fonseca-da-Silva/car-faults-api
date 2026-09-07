@@ -62,7 +62,7 @@ describe('CommentsRepository', () => {
   });
 
   describe('findByKnownIssueId', () => {
-    it('joins the user relation, filters by known issue and orders by created_at/id desc', async () => {
+    it('joins the user relation, filters by known issue and orders by createdAt/id desc', async () => {
       const comments = [{ id: 'comment-1' }] as Comment[];
       queryBuilder.getMany.mockResolvedValue(comments);
 
@@ -74,11 +74,11 @@ describe('CommentsRepository', () => {
         'user',
       );
       expect(queryBuilder.where).toHaveBeenCalledWith(
-        'comment.known_issue_id = :knownIssueId',
+        'comment.knownIssueId = :knownIssueId',
         { knownIssueId: 'ki-1' },
       );
       expect(queryBuilder.orderBy).toHaveBeenCalledWith(
-        'comment.created_at',
+        'comment.createdAt',
         'DESC',
       );
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
@@ -98,7 +98,7 @@ describe('CommentsRepository', () => {
       });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('comment.created_at'),
+        expect.stringContaining('comment.createdAt'),
         expect.objectContaining({
           createdAt_cmp0: '2026-01-01T00:00:00.000Z',
           id_cmp1: 'comment-0',
