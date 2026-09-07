@@ -25,15 +25,15 @@ export class ReviewsRepository {
     const qb = this.repository
       .createQueryBuilder('review')
       .leftJoinAndSelect('review.user', 'user')
-      .where('review.known_issue_id = :knownIssueId', { knownIssueId })
-      .orderBy('review.created_at', 'DESC')
+      .where('review.knownIssueId = :knownIssueId', { knownIssueId })
+      .orderBy('review.createdAt', 'DESC')
       .addOrderBy('review.id', 'DESC')
       .take(limit + 1);
 
     if (cursor) {
       const { sql, params } = buildKeysetWhere(
         [
-          { expr: 'review.created_at', direction: 'DESC', param: 'createdAt' },
+          { expr: 'review.createdAt', direction: 'DESC', param: 'createdAt' },
           { expr: 'review.id', direction: 'DESC', param: 'id' },
         ],
         cursor,

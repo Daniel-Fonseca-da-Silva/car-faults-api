@@ -71,7 +71,7 @@ describe('UserVehiclesRepository', () => {
   });
 
   describe('findPageByUserId', () => {
-    it('joins vehicleModel, filters by user and orders by created_at/id desc', async () => {
+    it('joins vehicleModel, filters by user and orders by createdAt/id desc', async () => {
       const userVehicles = [{ id: 'uv-1' }] as UserVehicle[];
       queryBuilder.getMany.mockResolvedValue(userVehicles);
 
@@ -88,11 +88,11 @@ describe('UserVehiclesRepository', () => {
         'vehicleModel',
       );
       expect(queryBuilder.where).toHaveBeenCalledWith(
-        'user_vehicle.user_id = :userId',
+        'user_vehicle.userId = :userId',
         { userId: 'user-1' },
       );
       expect(queryBuilder.orderBy).toHaveBeenCalledWith(
-        'user_vehicle.created_at',
+        'user_vehicle.createdAt',
         'DESC',
       );
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
@@ -112,7 +112,7 @@ describe('UserVehiclesRepository', () => {
       });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('user_vehicle.created_at'),
+        expect.stringContaining('user_vehicle.createdAt'),
         expect.objectContaining({
           createdAt_cmp0: '2026-01-01T00:00:00.000Z',
           id_cmp1: 'uv-0',

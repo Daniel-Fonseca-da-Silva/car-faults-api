@@ -61,7 +61,7 @@ describe('ReviewsRepository', () => {
   });
 
   describe('findByKnownIssueId', () => {
-    it('joins the user relation, filters by known issue and orders by created_at/id desc', async () => {
+    it('joins the user relation, filters by known issue and orders by createdAt/id desc', async () => {
       const reviews = [{ id: 'review-1' }] as Review[];
       queryBuilder.getMany.mockResolvedValue(reviews);
 
@@ -73,11 +73,11 @@ describe('ReviewsRepository', () => {
         'user',
       );
       expect(queryBuilder.where).toHaveBeenCalledWith(
-        'review.known_issue_id = :knownIssueId',
+        'review.knownIssueId = :knownIssueId',
         { knownIssueId: 'ki-1' },
       );
       expect(queryBuilder.orderBy).toHaveBeenCalledWith(
-        'review.created_at',
+        'review.createdAt',
         'DESC',
       );
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('review.id', 'DESC');
@@ -94,7 +94,7 @@ describe('ReviewsRepository', () => {
       });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('review.created_at'),
+        expect.stringContaining('review.createdAt'),
         expect.objectContaining({
           createdAt_cmp0: '2026-01-01T00:00:00.000Z',
           id_cmp1: 'review-0',
