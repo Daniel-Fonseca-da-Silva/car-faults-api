@@ -199,12 +199,22 @@ export class FixesService {
       existing.value = value;
       await this.fixVotesRepository.save(existing);
     } else {
-      const vote = this.fixVotesRepository.create({
-        fixId: id,
+      const deleted = await this.fixVotesRepository.findDeletedByFixAndUser(
+        id,
         userId,
-        value,
-      });
-      await this.fixVotesRepository.save(vote);
+      );
+      if (deleted) {
+        const restored = await this.fixVotesRepository.restore(deleted.id);
+        restored.value = value;
+        await this.fixVotesRepository.save(restored);
+      } else {
+        const vote = this.fixVotesRepository.create({
+          fixId: id,
+          userId,
+          value,
+        });
+        await this.fixVotesRepository.save(vote);
+      }
     }
 
     await this.evictLookupCacheForFix(fix);

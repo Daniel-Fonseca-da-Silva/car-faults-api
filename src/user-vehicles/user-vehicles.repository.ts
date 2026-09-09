@@ -94,12 +94,32 @@ export class UserVehiclesRepository {
     });
   }
 
+  findDeletedByUniqueKey(
+    key: UserVehicleUniqueKey,
+  ): Promise<UserVehicle | null> {
+    return this.repository
+      .createQueryBuilder('user_vehicle')
+      .withDeleted()
+      .where('user_vehicle.userId = :userId', { userId: key.userId })
+      .andWhere('user_vehicle.brand = :brand', { brand: key.brand })
+      .andWhere('user_vehicle.model = :model', { model: key.model })
+      .andWhere('user_vehicle.year = :year', { year: key.year })
+      .andWhere('user_vehicle.engine = :engine', { engine: key.engine })
+      .andWhere('user_vehicle.deletedAt IS NOT NULL')
+      .getOne();
+  }
+
   create(data: Partial<UserVehicle>): UserVehicle {
     return this.repository.create(data);
   }
 
   save(userVehicle: UserVehicle): Promise<UserVehicle> {
     return this.repository.save(userVehicle);
+  }
+
+  async restore(id: string): Promise<UserVehicle> {
+    await this.repository.restore(id);
+    return this.repository.findOneByOrFail({ id });
   }
 
   async softDelete(id: string): Promise<void> {

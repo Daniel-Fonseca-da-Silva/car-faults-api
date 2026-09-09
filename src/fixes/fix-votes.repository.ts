@@ -15,6 +15,19 @@ export class FixVotesRepository {
     return this.repository.findOne({ where: { fixId, userId } });
   }
 
+  findDeletedByFixAndUser(
+    fixId: string,
+    userId: string,
+  ): Promise<FixVote | null> {
+    return this.repository
+      .createQueryBuilder('fix_vote')
+      .withDeleted()
+      .where('fix_vote.fixId = :fixId', { fixId })
+      .andWhere('fix_vote.userId = :userId', { userId })
+      .andWhere('fix_vote.deletedAt IS NOT NULL')
+      .getOne();
+  }
+
   countByUserIdAndValue(userId: string, value: FixVoteValue): Promise<number> {
     return this.repository.count({ where: { userId, value } });
   }
@@ -25,6 +38,11 @@ export class FixVotesRepository {
 
   save(vote: FixVote): Promise<FixVote> {
     return this.repository.save(vote);
+  }
+
+  async restore(id: string): Promise<FixVote> {
+    await this.repository.restore(id);
+    return this.repository.findOneByOrFail({ id });
   }
 
   async softDelete(id: string): Promise<void> {

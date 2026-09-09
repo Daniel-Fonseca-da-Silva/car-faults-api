@@ -91,6 +91,17 @@ export class ActivityLogService {
       return existing;
     }
 
+    const deleted = await this.activityLogRepository.findDeletedFavorite(
+      userId,
+      vehicleModelId,
+      year,
+    );
+    if (deleted) {
+      const restored = await this.activityLogRepository.restore(deleted.id);
+      await this.evictStatsCache(userId);
+      return restored;
+    }
+
     const activityLog = this.activityLogRepository.create({
       userId,
       type: ActivityLogType.VEHICLE_FAVORITE,

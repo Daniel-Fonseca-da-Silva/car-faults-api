@@ -57,6 +57,31 @@ export class ActivityLogRepository {
       .getOne();
   }
 
+  findDeletedFavorite(
+    userId: string,
+    resourceId: string,
+    year: number,
+  ): Promise<ActivityLog | null> {
+    return this.repository
+      .createQueryBuilder('activity_log')
+      .withDeleted()
+      .where('activity_log.user_id = :userId', { userId })
+      .andWhere('activity_log.resource_id = :resourceId', { resourceId })
+      .andWhere('activity_log.type = :type', {
+        type: ActivityLogType.VEHICLE_FAVORITE,
+      })
+      .andWhere("activity_log.metadata->>'year' = :year", {
+        year: String(year),
+      })
+      .andWhere('activity_log.deleted_at IS NOT NULL')
+      .getOne();
+  }
+
+  async restore(id: string): Promise<ActivityLog> {
+    await this.repository.restore(id);
+    return this.repository.findOneByOrFail({ id });
+  }
+
   async softDelete(criteria: {
     userId: string;
     resourceId: string;

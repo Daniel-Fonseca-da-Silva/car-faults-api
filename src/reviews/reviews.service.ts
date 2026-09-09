@@ -80,6 +80,17 @@ export class ReviewsService {
       throw new ConflictException('You have already reviewed this known issue');
     }
 
+    const deleted = await this.reviewsRepository.findDeletedByUserAndKnownIssue(
+      userId,
+      data.knownIssueId,
+    );
+    if (deleted) {
+      const restored = await this.reviewsRepository.restore(deleted.id);
+      restored.rating = data.rating;
+      restored.comment = data.comment ?? null;
+      return this.reviewsRepository.save(restored);
+    }
+
     const review = this.reviewsRepository.create({
       userId,
       knownIssueId: data.knownIssueId,
