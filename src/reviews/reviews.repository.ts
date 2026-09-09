@@ -62,12 +62,30 @@ export class ReviewsRepository {
     });
   }
 
+  findDeletedByUserAndKnownIssue(
+    userId: string,
+    knownIssueId: string,
+  ): Promise<Review | null> {
+    return this.repository
+      .createQueryBuilder('review')
+      .withDeleted()
+      .where('review.userId = :userId', { userId })
+      .andWhere('review.knownIssueId = :knownIssueId', { knownIssueId })
+      .andWhere('review.deletedAt IS NOT NULL')
+      .getOne();
+  }
+
   create(data: Partial<Review>): Review {
     return this.repository.create(data);
   }
 
   save(review: Review): Promise<Review> {
     return this.repository.save(review);
+  }
+
+  async restore(id: string): Promise<Review> {
+    await this.repository.restore(id);
+    return this.repository.findOneByOrFail({ id });
   }
 
   async softDelete(id: string): Promise<void> {

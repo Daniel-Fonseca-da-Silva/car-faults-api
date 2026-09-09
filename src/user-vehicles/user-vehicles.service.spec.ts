@@ -17,8 +17,10 @@ describe('UserVehiclesService', () => {
     existsByVehicleModelAndYear: jest.Mock;
     findById: jest.Mock;
     findByUniqueKey: jest.Mock;
+    findDeletedByUniqueKey: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    restore: jest.Mock;
     softDelete: jest.Mock;
     countByUserId: jest.Mock;
   };
@@ -54,8 +56,10 @@ describe('UserVehiclesService', () => {
       existsByVehicleModelAndYear: jest.fn(),
       findById: jest.fn(),
       findByUniqueKey: jest.fn(),
+      findDeletedByUniqueKey: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      restore: jest.fn(),
       softDelete: jest.fn(),
       countByUserId: jest.fn(),
     };
@@ -348,6 +352,7 @@ describe('UserVehiclesService', () => {
       const vehicleModel = { id: 'vm-1', doors: 5 } as VehicleModel;
       vehicleModelsService.findByLookup.mockResolvedValue(vehicleModel);
       userVehiclesRepository.findByUniqueKey.mockResolvedValue(null);
+      userVehiclesRepository.findDeletedByUniqueKey.mockResolvedValue(null);
       const created = buildUserVehicle();
       userVehiclesRepository.create.mockReturnValue(created);
       userVehiclesRepository.save.mockResolvedValue(created);
@@ -384,6 +389,7 @@ describe('UserVehiclesService', () => {
     it('leaves vehicleModelId null on a catalog MISS and keeps the given doors', async () => {
       vehicleModelsService.findByLookup.mockResolvedValue(null);
       userVehiclesRepository.findByUniqueKey.mockResolvedValue(null);
+      userVehiclesRepository.findDeletedByUniqueKey.mockResolvedValue(null);
       const created = buildUserVehicle();
       userVehiclesRepository.create.mockReturnValue(created);
       userVehiclesRepository.save.mockResolvedValue(created);
@@ -416,6 +422,7 @@ describe('UserVehiclesService', () => {
       } as VehicleModel;
       vehicleModelsService.findById.mockResolvedValue(vehicleModel);
       userVehiclesRepository.findByUniqueKey.mockResolvedValue(null);
+      userVehiclesRepository.findDeletedByUniqueKey.mockResolvedValue(null);
       const created = buildUserVehicle();
       userVehiclesRepository.create.mockReturnValue(created);
       userVehiclesRepository.save.mockResolvedValue(created);

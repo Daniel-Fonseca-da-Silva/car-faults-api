@@ -24,12 +24,12 @@ describe('FixVote entity', () => {
     expect(table?.name).toBe('fix_votes');
   });
 
-  it('defines a unique constraint on fixId and userId', () => {
+  it('does not define a plain @Unique on fixId/userId (soft-delete-aware uniqueness is enforced by a partial index migration instead)', () => {
     const unique = getMetadataArgsStorage().uniques.find(
       (u) => u.target === FixVote,
     );
 
-    expect(unique?.columns).toEqual(['fixId', 'userId']);
+    expect(unique).toBeUndefined();
   });
 
   it('defines id as a generated uuid primary column', () => {

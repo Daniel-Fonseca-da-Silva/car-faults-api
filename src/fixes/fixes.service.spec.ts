@@ -30,8 +30,10 @@ describe('FixesService', () => {
   };
   let fixVotesRepository: {
     findByFixAndUser: jest.Mock;
+    findDeletedByFixAndUser: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    restore: jest.Mock;
     softDelete: jest.Mock;
     countByUserIdAndValue: jest.Mock;
   };
@@ -89,8 +91,10 @@ describe('FixesService', () => {
     };
     fixVotesRepository = {
       findByFixAndUser: jest.fn(),
+      findDeletedByFixAndUser: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      restore: jest.fn(),
       softDelete: jest.fn(),
       countByUserIdAndValue: jest.fn(),
     };
@@ -390,6 +394,7 @@ describe('FixesService', () => {
         buildFix({ userId: otherUserId }),
       );
       fixVotesRepository.findByFixAndUser.mockResolvedValue(null);
+      fixVotesRepository.findDeletedByFixAndUser.mockResolvedValue(null);
       const createdVote = {
         fixId: 'fix-1',
         userId,

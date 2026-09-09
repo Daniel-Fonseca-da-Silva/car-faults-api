@@ -6,15 +6,19 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { FixVoteValue } from '../enums/fix-vote-value.enum';
 import { Fix } from './fix.entity';
 
+/**
+ * Uniqueness on (fixId, userId) among non-deleted rows is enforced by the
+ * partial index created in `FixReviewsAndFixVotesUniqueIndex1784317671618`,
+ * not by a `@Unique` decorator here — a plain TypeORM unique constraint
+ * can't exclude soft-deleted rows.
+ */
 @Entity('fix_votes')
-@Unique(['fixId', 'userId'])
 export class FixVote {
   @PrimaryGeneratedColumn('uuid')
   id: string;

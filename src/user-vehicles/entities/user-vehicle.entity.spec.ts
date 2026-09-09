@@ -24,18 +24,12 @@ describe('UserVehicle entity', () => {
     expect(table?.name).toBe('user_vehicles');
   });
 
-  it('defines a unique constraint on userId, brand, model, year and engine', () => {
+  it('does not define a plain @Unique on userId/brand/model/year/engine (soft-delete-aware uniqueness is enforced by a partial index migration instead)', () => {
     const unique = getMetadataArgsStorage().uniques.find(
       (u) => u.target === UserVehicle,
     );
 
-    expect(unique?.columns).toEqual([
-      'userId',
-      'brand',
-      'model',
-      'year',
-      'engine',
-    ]);
+    expect(unique).toBeUndefined();
   });
 
   it('defines id as a generated uuid primary column', () => {

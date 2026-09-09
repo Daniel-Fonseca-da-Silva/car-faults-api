@@ -6,14 +6,19 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { KnownIssue } from '../../known-issues/entities/known-issue.entity';
 import { User } from '../../users/entities/user.entity';
 
+/**
+ * Uniqueness on (userId, knownIssueId) among non-deleted rows is enforced
+ * by the partial index created in
+ * `FixReviewsAndFixVotesUniqueIndex1784317671618`, not by a `@Unique`
+ * decorator here — a plain TypeORM unique constraint can't exclude
+ * soft-deleted rows.
+ */
 @Entity('reviews')
-@Unique(['userId', 'knownIssueId'])
 export class Review {
   @PrimaryGeneratedColumn('uuid')
   id: string;

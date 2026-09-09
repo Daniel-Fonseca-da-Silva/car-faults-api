@@ -6,14 +6,18 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
 
+/**
+ * Uniqueness on (userId, brand, model, year, engine) among non-deleted rows
+ * is enforced by the partial index created in
+ * `FixUserVehiclesUniqueIndex1784317671617`, not by a `@Unique` decorator
+ * here — a plain TypeORM unique constraint can't exclude soft-deleted rows.
+ */
 @Entity('user_vehicles')
-@Unique(['userId', 'brand', 'model', 'year', 'engine'])
 export class UserVehicle {
   @PrimaryGeneratedColumn('uuid')
   id: string;

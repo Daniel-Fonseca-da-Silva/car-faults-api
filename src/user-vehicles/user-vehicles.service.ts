@@ -176,13 +176,26 @@ export class UserVehiclesService {
       doors = data.doors ?? null;
     }
 
-    await this.assertUnique({
+    const uniqueKey = {
       userId,
       brand: link.brand,
       model: link.model,
       year: data.year,
       engine: link.engine,
-    });
+    };
+    await this.assertUnique(uniqueKey);
+
+    const deleted =
+      await this.userVehiclesRepository.findDeletedByUniqueKey(uniqueKey);
+    if (deleted) {
+      const restored = await this.userVehiclesRepository.restore(deleted.id);
+      restored.vehicleModelId = link.vehicleModelId;
+      restored.doors = doors;
+      restored.name = data.name ?? null;
+      const saved = await this.userVehiclesRepository.save(restored);
+      await this.evictStatsCache(userId);
+      return saved;
+    }
 
     const userVehicle = this.userVehiclesRepository.create({
       userId,
