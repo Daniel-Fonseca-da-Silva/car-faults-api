@@ -24,12 +24,12 @@ describe('Review entity', () => {
     expect(table?.name).toBe('reviews');
   });
 
-  it('defines a unique constraint on userId and knownIssueId', () => {
+  it('does not define a plain @Unique on userId/knownIssueId (soft-delete-aware uniqueness is enforced by a partial index migration instead)', () => {
     const unique = getMetadataArgsStorage().uniques.find(
       (u) => u.target === Review,
     );
 
-    expect(unique?.columns).toEqual(['userId', 'knownIssueId']);
+    expect(unique).toBeUndefined();
   });
 
   it('defines id as a generated uuid primary column', () => {

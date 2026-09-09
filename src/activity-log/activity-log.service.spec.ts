@@ -16,6 +16,8 @@ describe('ActivityLogService', () => {
     create: jest.Mock;
     save: jest.Mock;
     findFavorite: jest.Mock;
+    findDeletedFavorite: jest.Mock;
+    restore: jest.Mock;
     softDelete: jest.Mock;
     countByUserAndType: jest.Mock;
     findFavoritesHydrated: jest.Mock;
@@ -29,6 +31,8 @@ describe('ActivityLogService', () => {
       create: jest.fn(),
       save: jest.fn(),
       findFavorite: jest.fn(),
+      findDeletedFavorite: jest.fn(),
+      restore: jest.fn(),
       softDelete: jest.fn(),
       countByUserAndType: jest.fn(),
       findFavoritesHydrated: jest.fn(),
@@ -145,6 +149,7 @@ describe('ActivityLogService', () => {
 
     it('creates a new favorite with the year in metadata and evicts the stats cache when none exists', async () => {
       activityLogRepository.findFavorite.mockResolvedValue(null);
+      activityLogRepository.findDeletedFavorite.mockResolvedValue(null);
       const created = {
         id: 'log-1',
         type: ActivityLogType.VEHICLE_FAVORITE,
@@ -328,6 +333,7 @@ describe('ActivityLogService', () => {
   describe('cache eviction failure handling', () => {
     it('logs a warning and does not throw when cache deletion fails on a write path', async () => {
       activityLogRepository.findFavorite.mockResolvedValue(null);
+      activityLogRepository.findDeletedFavorite.mockResolvedValue(null);
       const created = { id: 'log-1' } as ActivityLog;
       activityLogRepository.create.mockReturnValue(created);
       activityLogRepository.save.mockResolvedValue(created);

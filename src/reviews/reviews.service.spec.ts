@@ -11,8 +11,10 @@ describe('ReviewsService', () => {
     findByKnownIssueId: jest.Mock;
     findById: jest.Mock;
     findByUserAndKnownIssue: jest.Mock;
+    findDeletedByUserAndKnownIssue: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    restore: jest.Mock;
     softDelete: jest.Mock;
   };
   let knownIssuesService: { findById: jest.Mock };
@@ -35,8 +37,10 @@ describe('ReviewsService', () => {
       findByKnownIssueId: jest.fn(),
       findById: jest.fn(),
       findByUserAndKnownIssue: jest.fn(),
+      findDeletedByUserAndKnownIssue: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      restore: jest.fn(),
       softDelete: jest.fn(),
     };
     knownIssuesService = { findById: jest.fn() };
@@ -119,6 +123,7 @@ describe('ReviewsService', () => {
         id: 'ki-1',
       });
       reviewsRepository.findByUserAndKnownIssue.mockResolvedValue(null);
+      reviewsRepository.findDeletedByUserAndKnownIssue.mockResolvedValue(null);
       const created = buildReview();
       reviewsRepository.create.mockReturnValue(created);
       reviewsRepository.save.mockResolvedValue(created);
