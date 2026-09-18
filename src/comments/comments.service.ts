@@ -66,6 +66,10 @@ export class CommentsService {
     return this.commentsRepository.countAll();
   }
 
+  findById(id: string): Promise<Comment | null> {
+    return this.commentsRepository.findById(id);
+  }
+
   async create(userId: string, data: CreateCommentData): Promise<Comment> {
     const knownIssue = await this.knownIssuesService.findById(
       data.knownIssueId,
@@ -101,6 +105,17 @@ export class CommentsService {
 
   async remove(id: string, userId: string): Promise<void> {
     const comment = await this.getOwned(id, userId);
+    if (comment.imageUrl) {
+      await this.r2StorageService.deleteByPublicUrl(comment.imageUrl);
+    }
+    await this.commentsRepository.softDelete(id);
+  }
+
+  async adminRemove(id: string): Promise<void> {
+    const comment = await this.commentsRepository.findById(id);
+    if (!comment) {
+      throw new NotFoundException(`Comment ${id} not found`);
+    }
     if (comment.imageUrl) {
       await this.r2StorageService.deleteByPublicUrl(comment.imageUrl);
     }

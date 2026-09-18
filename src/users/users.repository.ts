@@ -37,8 +37,14 @@ export class UsersRepository {
     return this.repository.save(user);
   }
 
-  async softDelete(id: string): Promise<void> {
-    await this.repository.softDelete(id);
+  async anonymizeAndSoftDelete(
+    id: string,
+    anonymizedData: Pick<User, 'name' | 'email' | 'avatarUrl' | 'googleId'>,
+  ): Promise<void> {
+    await this.repository.update(id, {
+      ...anonymizedData,
+      deletedAt: new Date(),
+    });
   }
 
   recover(user: User): Promise<User> {

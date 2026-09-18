@@ -60,6 +60,18 @@ describe('ReviewsService', () => {
     expect(reviewsService).toBeDefined();
   });
 
+  describe('findById', () => {
+    it('delegates to the repository', async () => {
+      const review = buildReview();
+      reviewsRepository.findById.mockResolvedValue(review);
+
+      const result = await reviewsService.findById('review-1');
+
+      expect(reviewsRepository.findById).toHaveBeenCalledWith('review-1');
+      expect(result).toBe(review);
+    });
+  });
+
   describe('findByKnownIssue', () => {
     it('resolves the default limit and returns a null nextCursor when there is no next page', async () => {
       const reviews = [buildReview()];
@@ -240,6 +252,27 @@ describe('ReviewsService', () => {
       );
 
       await expect(reviewsService.remove('review-1', userId)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(reviewsRepository.softDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('adminRemove', () => {
+    it('deletes the review regardless of ownership', async () => {
+      reviewsRepository.findById.mockResolvedValue(
+        buildReview({ userId: 'other-user' }),
+      );
+
+      await reviewsService.adminRemove('review-1');
+
+      expect(reviewsRepository.softDelete).toHaveBeenCalledWith('review-1');
+    });
+
+    it('throws NotFoundException when the review does not exist', async () => {
+      reviewsRepository.findById.mockResolvedValue(null);
+
+      await expect(reviewsService.adminRemove('missing')).rejects.toThrow(
         NotFoundException,
       );
       expect(reviewsRepository.softDelete).not.toHaveBeenCalled();

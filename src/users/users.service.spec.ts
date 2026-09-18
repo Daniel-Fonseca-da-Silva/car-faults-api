@@ -14,7 +14,7 @@ describe('UsersService', () => {
     findByGoogleIdIncludingDeleted: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    softDelete: jest.Mock;
+    anonymizeAndSoftDelete: jest.Mock;
     recover: jest.Mock;
   };
   let cache: {
@@ -31,7 +31,7 @@ describe('UsersService', () => {
       findByGoogleIdIncludingDeleted: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      softDelete: jest.fn(),
+      anonymizeAndSoftDelete: jest.fn(),
       recover: jest.fn(),
     };
     cache = {
@@ -326,14 +326,22 @@ describe('UsersService', () => {
   });
 
   describe('softDelete', () => {
-    it('soft deletes an existing user', async () => {
+    it('anonymizes and soft deletes an existing user', async () => {
       const user = { id: 'id-1' } as User;
       usersRepository.findById.mockResolvedValue(user);
 
       await usersService.softDelete('id-1');
 
       expect(usersRepository.findById).toHaveBeenCalledWith('id-1');
-      expect(usersRepository.softDelete).toHaveBeenCalledWith('id-1');
+      expect(usersRepository.anonymizeAndSoftDelete).toHaveBeenCalledWith(
+        'id-1',
+        {
+          name: 'Usuário deletado',
+          email: 'deleted-id-1@anon.local',
+          avatarUrl: null,
+          googleId: null,
+        },
+      );
     });
 
     it('invalidates the cached user after a successful soft delete', async () => {
@@ -351,7 +359,7 @@ describe('UsersService', () => {
       await expect(usersService.softDelete('id-1')).rejects.toThrow(
         NotFoundException,
       );
-      expect(usersRepository.softDelete).not.toHaveBeenCalled();
+      expect(usersRepository.anonymizeAndSoftDelete).not.toHaveBeenCalled();
       expect(cache.del).not.toHaveBeenCalled();
     });
   });

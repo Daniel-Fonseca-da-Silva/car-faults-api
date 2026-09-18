@@ -9,7 +9,7 @@ describe('UsersRepository', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
-    softDelete: jest.Mock;
+    update: jest.Mock;
     recover: jest.Mock;
   };
 
@@ -18,7 +18,7 @@ describe('UsersRepository', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      softDelete: jest.fn(),
+      update: jest.fn(),
       recover: jest.fn(),
     };
 
@@ -122,13 +122,25 @@ describe('UsersRepository', () => {
     });
   });
 
-  describe('softDelete', () => {
-    it('delegates to repository.softDelete', async () => {
-      repository.softDelete.mockResolvedValue(undefined);
+  describe('anonymizeAndSoftDelete', () => {
+    it('updates the user with anonymized data and a deletion timestamp', async () => {
+      repository.update.mockResolvedValue(undefined);
+      const anonymizedData = {
+        name: 'Usuário deletado',
+        email: 'deleted-id-1@anon.local',
+        avatarUrl: null,
+        googleId: null,
+      };
 
-      await usersRepository.softDelete('id-1');
+      await usersRepository.anonymizeAndSoftDelete('id-1', anonymizedData);
 
-      expect(repository.softDelete).toHaveBeenCalledWith('id-1');
+      expect(repository.update).toHaveBeenCalledWith(
+        'id-1',
+        expect.objectContaining({
+          ...anonymizedData,
+          deletedAt: expect.any(Date) as Date,
+        }),
+      );
     });
   });
 

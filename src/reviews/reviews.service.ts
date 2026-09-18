@@ -64,6 +64,10 @@ export class ReviewsService {
     return { items, nextCursor };
   }
 
+  findById(id: string): Promise<Review | null> {
+    return this.reviewsRepository.findById(id);
+  }
+
   async create(userId: string, data: CreateReviewData): Promise<Review> {
     const knownIssue = await this.knownIssuesService.findById(
       data.knownIssueId,
@@ -119,6 +123,14 @@ export class ReviewsService {
 
   async remove(id: string, userId: string): Promise<void> {
     await this.getOwned(id, userId);
+    await this.reviewsRepository.softDelete(id);
+  }
+
+  async adminRemove(id: string): Promise<void> {
+    const review = await this.reviewsRepository.findById(id);
+    if (!review) {
+      throw new NotFoundException(`Review ${id} not found`);
+    }
     await this.reviewsRepository.softDelete(id);
   }
 

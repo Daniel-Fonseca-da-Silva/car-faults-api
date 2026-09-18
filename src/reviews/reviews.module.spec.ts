@@ -18,11 +18,16 @@ describe('ReviewsModule', () => {
       'providers',
       ReviewsModule,
     ) as unknown[];
+    const moduleExports = Reflect.getMetadata(
+      'exports',
+      ReviewsModule,
+    ) as unknown[];
 
     expect(imports).toHaveLength(2);
     expect(imports[0].module).toBe(TypeOrmModule);
     expect(imports[1]).toBe(KnownIssuesModule);
     expect(controllers).toEqual([ReviewsController]);
     expect(providers).toEqual([ReviewsRepository, ReviewsService]);
+    expect(moduleExports).toEqual([ReviewsService]);
   });
 });
