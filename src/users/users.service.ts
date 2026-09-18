@@ -113,7 +113,12 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User ${id} not found`);
     }
-    await this.usersRepository.softDelete(id);
+    await this.usersRepository.anonymizeAndSoftDelete(id, {
+      name: 'Usuário deletado',
+      email: `deleted-${id}@anon.local`,
+      avatarUrl: null,
+      googleId: null,
+    });
     await this.evictCached(id);
   }
 

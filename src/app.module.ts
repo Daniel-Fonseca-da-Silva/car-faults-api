@@ -15,6 +15,7 @@ import { LoggerModule } from './logger/logger.module';
 import { LookupsModule } from './lookups/lookups.module';
 import { PlatformModule } from './platform/platform.module';
 import { RedisModule } from './redis/redis.module';
+import { ReportsModule } from './reports/reports.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { StorageModule } from './storage/storage.module';
 import { UserVehiclesModule } from './user-vehicles/user-vehicles.module';
@@ -43,6 +44,7 @@ import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
     ReviewsModule,
     StorageModule,
     CommentsModule,
+    ReportsModule,
     AdminModule,
     PlatformModule,
   ],
