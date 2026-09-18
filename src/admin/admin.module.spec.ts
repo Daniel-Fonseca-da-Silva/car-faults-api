@@ -1,8 +1,10 @@
 import { FixesModule } from '../fixes/fixes.module';
 import { KnownIssuesModule } from '../known-issues/known-issues.module';
+import { ReportsModule } from '../reports/reports.module';
 import { VehicleModelsModule } from '../vehicle-models/vehicle-models.module';
 import { AdminFixesController } from './admin-fixes.controller';
 import { AdminKnownIssuesController } from './admin-known-issues.controller';
+import { AdminReportsController } from './admin-reports.controller';
 import { AdminVehicleModelsController } from './admin-vehicle-models.controller';
 import { AdminModule } from './admin.module';
 
@@ -18,11 +20,13 @@ describe('AdminModule', () => {
       VehicleModelsModule,
       KnownIssuesModule,
       FixesModule,
+      ReportsModule,
     ]);
     expect(controllers).toEqual([
       AdminVehicleModelsController,
       AdminKnownIssuesController,
       AdminFixesController,
+      AdminReportsController,
     ]);
   });
 });

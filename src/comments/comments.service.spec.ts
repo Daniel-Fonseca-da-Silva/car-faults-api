@@ -130,6 +130,18 @@ describe('CommentsService', () => {
     });
   });
 
+  describe('findById', () => {
+    it('delegates to the repository', async () => {
+      const comment = buildComment();
+      commentsRepository.findById.mockResolvedValue(comment);
+
+      const result = await commentsService.findById('comment-1');
+
+      expect(commentsRepository.findById).toHaveBeenCalledWith('comment-1');
+      expect(result).toBe(comment);
+    });
+  });
+
   describe('create', () => {
     it('creates a comment when the known issue exists', async () => {
       knownIssuesService.findById.mockResolvedValue({
@@ -350,6 +362,42 @@ describe('CommentsService', () => {
       );
 
       await expect(commentsService.remove('comment-1', userId)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(commentsRepository.softDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('adminRemove', () => {
+    it('deletes the comment regardless of ownership', async () => {
+      commentsRepository.findById.mockResolvedValue(
+        buildComment({ userId: 'other-user' }),
+      );
+
+      await commentsService.adminRemove('comment-1');
+
+      expect(commentsRepository.softDelete).toHaveBeenCalledWith('comment-1');
+    });
+
+    it('deletes the R2 image before soft-deleting the comment', async () => {
+      commentsRepository.findById.mockResolvedValue(
+        buildComment({
+          imageUrl: 'https://cdn.example.com/comments/user-1/uuid.jpg',
+        }),
+      );
+
+      await commentsService.adminRemove('comment-1');
+
+      expect(r2StorageService.deleteByPublicUrl).toHaveBeenCalledWith(
+        'https://cdn.example.com/comments/user-1/uuid.jpg',
+      );
+      expect(commentsRepository.softDelete).toHaveBeenCalledWith('comment-1');
+    });
+
+    it('throws NotFoundException when the comment does not exist', async () => {
+      commentsRepository.findById.mockResolvedValue(null);
+
+      await expect(commentsService.adminRemove('missing')).rejects.toThrow(
         NotFoundException,
       );
       expect(commentsRepository.softDelete).not.toHaveBeenCalled();
