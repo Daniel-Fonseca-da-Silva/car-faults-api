@@ -9,6 +9,12 @@ export class PlatformVehicleItemDto {
   @ApiProperty({ example: 'Golf' })
   model: string;
 
+  @ApiPropertyOptional({
+    description: 'Colloquial or chassis-code display name, when recorded.',
+    example: 'Polo 6N1',
+  })
+  name?: string;
+
   @ApiProperty({ example: 2018 })
   yearFrom: number;
 
@@ -27,6 +33,7 @@ export class PlatformVehicleItemDto {
   constructor(vehicleModel: VehicleModel) {
     this.brand = vehicleModel.brand;
     this.model = vehicleModel.model;
+    this.name = vehicleModel.name ?? undefined;
     this.yearFrom = vehicleModel.yearFrom;
     this.engine = vehicleModel.engine;
     // findCatalogPaginated only returns rows with a non-null fuelType.
