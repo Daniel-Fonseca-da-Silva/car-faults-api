@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { LookupLocale } from '../../common/enums/lookup-locale.enum';
 import { IssueSeverity } from '../../known-issues/enums/issue-severity.enum';
 import { TopFaultRow } from '../../known-issues/known-issues.repository';
 import { TopFaultVehicleDto } from './top-fault-vehicle.dto';
@@ -16,6 +17,16 @@ export class TopFaultItemDto {
   @ApiProperty({ example: 412 })
   reportCount: number;
 
+  @ApiProperty({
+    enum: LookupLocale,
+    example: LookupLocale.PtPt,
+    description:
+      'Locale this fault is actually written in. May differ from the ' +
+      'requested locale when no content exists yet for that locale and ' +
+      'the API fell back to another one.',
+  })
+  contentLocale: LookupLocale;
+
   @ApiProperty({ type: TopFaultVehicleDto })
   vehicle: TopFaultVehicleDto;
 
@@ -24,6 +35,7 @@ export class TopFaultItemDto {
     this.faultTitle = row.title;
     this.severity = row.severity;
     this.reportCount = row.reportCount;
+    this.contentLocale = row.contentLocale;
     this.vehicle = new TopFaultVehicleDto(row);
   }
 }

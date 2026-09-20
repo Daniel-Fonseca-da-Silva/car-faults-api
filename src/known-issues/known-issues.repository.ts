@@ -14,6 +14,7 @@ export interface TopFaultRow {
   title: string;
   severity: IssueSeverity;
   reportCount: number;
+  contentLocale: LookupLocale;
   vehicleBrand: string;
   vehicleModel: string;
   vehicleYearFrom: number;
@@ -56,6 +57,7 @@ interface RawTopFaultRow {
   title: string;
   severity: IssueSeverity;
   reportCount: string | number;
+  contentLocale: LookupLocale;
   vehicleBrand: string;
   vehicleModel: string;
   vehicleYearFrom: string | number;
@@ -66,6 +68,12 @@ interface RawTopFaultRow {
 
 @Injectable()
 export class KnownIssuesRepository {
+  private static readonly LOCALE_FALLBACK_ORDER: LookupLocale[] = [
+    LookupLocale.PtPt,
+    LookupLocale.EnGb,
+    LookupLocale.EsEs,
+  ];
+
   constructor(
     @InjectRepository(KnownIssue)
     private readonly repository: Repository<KnownIssue>,
@@ -171,10 +179,17 @@ export class KnownIssuesRepository {
   async findFaultsPaginated(criteria: FaultsCriteria): Promise<FaultsPage> {
     const { limit, cursor } = criteria;
 
-    const qb = this.buildFaultsQuery(criteria)
+    const effectiveLocale = await this.resolveAvailableLocale(criteria);
+    const effectiveCriteria =
+      effectiveLocale === criteria.locale
+        ? criteria
+        : { ...criteria, locale: effectiveLocale };
+
+    const qb = this.buildFaultsQuery(effectiveCriteria)
       .select('ki.id', 'id')
       .addSelect('ki.title', 'title')
       .addSelect('ki.severity', 'severity')
+      .addSelect('ki.locale', 'contentLocale')
       .addSelect('vm.brand', 'vehicleBrand')
       .addSelect('vm.model', 'vehicleModel')
       .addSelect('vm.year_from', 'vehicleYearFrom')
@@ -212,6 +227,7 @@ export class KnownIssuesRepository {
       title: row.title,
       severity: row.severity,
       reportCount: Number(row.reportCount),
+      contentLocale: row.contentLocale,
       vehicleBrand: row.vehicleBrand,
       vehicleModel: row.vehicleModel,
       vehicleYearFrom: Number(row.vehicleYearFrom),
@@ -227,6 +243,45 @@ export class KnownIssuesRepository {
         : null;
 
     return { items, nextCursor };
+  }
+
+  // Faults are authored independently per locale, with no fallback the
+  // requested locale can come back empty even though the same vehicles
+  // have faults reported in another locale. If nothing matches the
+  // requested locale, fall back to the first locale (in priority order)
+  // that has faults for this criteria, so the page shows that content
+  // instead of an empty state.
+  private async resolveAvailableLocale(
+    criteria: FaultsCriteria,
+  ): Promise<LookupLocale> {
+    if (await this.hasFaultsForLocale(criteria, criteria.locale)) {
+      return criteria.locale;
+    }
+
+    for (const fallbackLocale of KnownIssuesRepository.LOCALE_FALLBACK_ORDER) {
+      if (fallbackLocale === criteria.locale) {
+        continue;
+      }
+      if (await this.hasFaultsForLocale(criteria, fallbackLocale)) {
+        return fallbackLocale;
+      }
+    }
+
+    return criteria.locale;
+  }
+
+  private async hasFaultsForLocale(
+    criteria: FaultsCriteria,
+    locale: LookupLocale,
+  ): Promise<boolean> {
+    const raw = await this.buildFaultsQuery({ ...criteria, locale })
+      .select('ki.id', 'id')
+      .groupBy('ki.id')
+      .having('COUNT(c.id) > 0')
+      .limit(1)
+      .getRawMany();
+
+    return raw.length > 0;
   }
 
   private buildFaultsQuery(
