@@ -461,6 +461,9 @@ describe('VehicleModelsRepository', () => {
       expect(queryBuilder.where).toHaveBeenCalledWith(
         'vehicle_model.fuel_type IS NOT NULL',
       );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('EXISTS'),
+      );
       expect(queryBuilder.take).toHaveBeenCalledWith(21);
       expect(result).toEqual({ items: vehicleModels, nextCursor: null });
     });
