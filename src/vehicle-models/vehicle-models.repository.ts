@@ -228,6 +228,13 @@ export class VehicleModelsRepository {
     const qb = this.repository
       .createQueryBuilder('vehicle_model')
       .where('vehicle_model.fuel_type IS NOT NULL')
+      .andWhere(
+        `EXISTS (
+          SELECT 1 FROM known_issues ki
+          WHERE ki.vehicle_model_id = vehicle_model.id
+            AND ki.deleted_at IS NULL
+        )`,
+      )
       .orderBy('vehicle_model.brand', 'ASC')
       .addOrderBy('vehicle_model.model', 'ASC')
       .addOrderBy('vehicle_model.year_from', 'ASC')

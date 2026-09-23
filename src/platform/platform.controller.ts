@@ -70,7 +70,8 @@ export class PlatformController {
   @ApiOperation({
     summary: 'Get the paginated vehicle model catalog, for sitemap generation',
     description:
-      'Only returns vehicle models with a fuel type on record, since those are the only ones with a canonical URL.',
+      'Only returns vehicle models with a fuel type on record and at least one known issue, ' +
+      'so thin pages (no content) stay out of the sitemap and pSEO hub pages.',
   })
   @ApiOkResponse({ type: PlatformVehiclesResponseDto })
   @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
