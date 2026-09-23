@@ -36,7 +36,8 @@ export class PlatformVehicleItemDto {
     this.name = vehicleModel.name ?? undefined;
     this.yearFrom = vehicleModel.yearFrom;
     this.engine = vehicleModel.engine;
-    // findCatalogPaginated only returns rows with a non-null fuelType.
+    // findCatalogPaginated only returns rows with a non-null fuelType
+    // and at least one known issue.
     this.fuelType = vehicleModel.fuelType as FuelType;
     this.doors = vehicleModel.doors ?? undefined;
   }
