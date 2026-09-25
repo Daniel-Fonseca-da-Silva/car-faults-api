@@ -40,6 +40,7 @@ export interface VehicleModelPaginationCriteria {
   cursor?: string;
   brand?: string;
   model?: string;
+  hasImage?: boolean;
 }
 
 export interface VehicleCatalogPaginationCriteria {
@@ -191,7 +192,7 @@ export class VehicleModelsRepository {
   async findPaginated(
     criteria: VehicleModelPaginationCriteria,
   ): Promise<VehicleModelsCursorPage> {
-    const { limit, cursor, brand, model } = criteria;
+    const { limit, cursor, brand, model, hasImage } = criteria;
     const qb = this.repository
       .createQueryBuilder('vehicle_model')
       .orderBy('vehicle_model.brand', 'ASC')
@@ -205,6 +206,15 @@ export class VehicleModelsRepository {
     }
     if (model) {
       qb.andWhere('vehicle_model.model ILIKE :model', { model: `%${model}%` });
+    }
+    if (hasImage === true) {
+      qb.andWhere(
+        "vehicle_model.image_url IS NOT NULL AND vehicle_model.image_url <> ''",
+      );
+    } else if (hasImage === false) {
+      qb.andWhere(
+        "(vehicle_model.image_url IS NULL OR vehicle_model.image_url = '')",
+      );
     }
     if (cursor) {
       const { sql, params } = buildKeysetWhere(
