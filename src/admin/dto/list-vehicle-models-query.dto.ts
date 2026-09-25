@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 import { CursorPaginationQueryDto } from '../../common/pagination/cursor-query.dto';
 
 export class AdminListVehicleModelsQueryDto extends CursorPaginationQueryDto {
@@ -15,4 +15,14 @@ export class AdminListVehicleModelsQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @IsString()
   model?: string;
+
+  @ApiPropertyOptional({
+    enum: ['true', 'false'],
+    description:
+      'Filter by image presence: "true" only with image_url, "false" only without.',
+    example: 'false',
+  })
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  hasImage?: 'true' | 'false';
 }

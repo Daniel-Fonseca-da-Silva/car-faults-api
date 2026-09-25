@@ -70,6 +70,8 @@ export class AdminVehicleModelsController {
         cursor: query.cursor,
         brand: query.brand,
         model: query.model,
+        hasImage:
+          query.hasImage === undefined ? undefined : query.hasImage === 'true',
       },
     );
     return new AdminVehicleModelListResponseDto(items, nextCursor);
