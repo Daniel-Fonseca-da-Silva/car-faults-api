@@ -284,6 +284,32 @@ describe('VehicleModelsRepository', () => {
       );
     });
 
+    it('filters to vehicle models with an image when hasImage is true', async () => {
+      queryBuilder.getMany.mockResolvedValue([]);
+
+      await vehicleModelsRepository.findPaginated({
+        limit: 10,
+        hasImage: true,
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        "vehicle_model.image_url IS NOT NULL AND vehicle_model.image_url <> ''",
+      );
+    });
+
+    it('filters to vehicle models without an image when hasImage is false', async () => {
+      queryBuilder.getMany.mockResolvedValue([]);
+
+      await vehicleModelsRepository.findPaginated({
+        limit: 10,
+        hasImage: false,
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        "(vehicle_model.image_url IS NULL OR vehicle_model.image_url = '')",
+      );
+    });
+
     it('applies a keyset predicate when a cursor is given', async () => {
       queryBuilder.getMany.mockResolvedValue([]);
       const cursor = Buffer.from(

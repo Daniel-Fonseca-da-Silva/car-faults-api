@@ -96,6 +96,25 @@ describe('AdminVehicleModelsController', () => {
       });
       expect(result.nextCursor).toBe('next-cursor');
     });
+
+    it.each([
+      ['true', true],
+      ['false', false],
+    ] as const)(
+      'maps hasImage=%s to a boolean filter',
+      async (hasImage, expected) => {
+        vehicleModelsService.findPaginated.mockResolvedValue({
+          items: [],
+          nextCursor: null,
+        });
+
+        await controller.findAll({ hasImage });
+
+        expect(vehicleModelsService.findPaginated).toHaveBeenCalledWith(
+          expect.objectContaining({ hasImage: expected }),
+        );
+      },
+    );
   });
 
   describe('findOne', () => {
