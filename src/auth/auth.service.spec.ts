@@ -154,6 +154,7 @@ describe('AuthService', () => {
         getPayload: () => ({
           sub: profile.googleId,
           email: profile.email,
+          email_verified: true,
           name: profile.name,
           picture: profile.avatarUrl,
         }),

@@ -18,17 +18,17 @@ describe('validateEnv', () => {
   });
 
   it('rejects a JWT_SECRET shorter than the minimum length', () => {
-    expect(() =>
-      validateEnv({ ...validEnv, JWT_SECRET: 'short' }),
-    ).toThrow('JWT_SECRET');
+    expect(() => validateEnv({ ...validEnv, JWT_SECRET: 'short' })).toThrow(
+      'JWT_SECRET',
+    );
   });
 
   it.each(['', undefined, 'abc', '0', '-1', '1.5'])(
     'rejects THROTTLE_LIMIT=%p',
     (value) => {
-      expect(() =>
-        validateEnv({ ...validEnv, THROTTLE_LIMIT: value }),
-      ).toThrow('THROTTLE_LIMIT must be a positive integer');
+      expect(() => validateEnv({ ...validEnv, THROTTLE_LIMIT: value })).toThrow(
+        'THROTTLE_LIMIT must be a positive integer',
+      );
     },
   );
 
@@ -55,7 +55,11 @@ describe('validateEnv', () => {
 
   it('rejects COOKIE_SECURE=false in production', () => {
     expect(() =>
-      validateEnv({ ...validEnv, NODE_ENV: 'production', COOKIE_SECURE: 'false' }),
+      validateEnv({
+        ...validEnv,
+        NODE_ENV: 'production',
+        COOKIE_SECURE: 'false',
+      }),
     ).toThrow('COOKIE_SECURE must not be "false" in production');
   });
 
