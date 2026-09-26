@@ -20,7 +20,8 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({
     example: 'https://lh3.googleusercontent.com/a/avatar-id',
-    description: 'HTTPS URL on a Google profile photo host (*.googleusercontent.com)',
+    description:
+      'HTTPS URL on a Google profile photo host (*.googleusercontent.com)',
     maxLength: AVATAR_URL_MAX_LENGTH,
   })
   @IsOptional()

@@ -28,7 +28,10 @@ export function validateEnv(env: RawEnv): RawEnv {
   const errors: string[] = [];
 
   const jwtSecret = env.JWT_SECRET;
-  if (typeof jwtSecret !== 'string' || jwtSecret.length < JWT_SECRET_MIN_LENGTH) {
+  if (
+    typeof jwtSecret !== 'string' ||
+    jwtSecret.length < JWT_SECRET_MIN_LENGTH
+  ) {
     errors.push(
       `JWT_SECRET must be set and at least ${JWT_SECRET_MIN_LENGTH} characters long`,
     );
@@ -57,7 +60,9 @@ export function validateEnv(env: RawEnv): RawEnv {
   }
 
   if (errors.length > 0) {
-    throw new Error(`Invalid environment configuration:\n- ${errors.join('\n- ')}`);
+    throw new Error(
+      `Invalid environment configuration:\n- ${errors.join('\n- ')}`,
+    );
   }
 
   return env;
