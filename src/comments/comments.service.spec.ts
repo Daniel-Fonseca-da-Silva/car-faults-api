@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { KnownIssuesService } from '../known-issues/known-issues.service';
 import { R2StorageService } from '../storage/r2-storage.service';
@@ -17,7 +17,10 @@ describe('CommentsService', () => {
     softDelete: jest.Mock;
   };
   let knownIssuesService: { findById: jest.Mock };
-  let r2StorageService: { deleteByPublicUrl: jest.Mock };
+  let r2StorageService: {
+    deleteByPublicUrl: jest.Mock;
+    isCommentImageOwnedBy: jest.Mock;
+  };
 
   const userId = 'user-1';
 
@@ -44,6 +47,7 @@ describe('CommentsService', () => {
     knownIssuesService = { findById: jest.fn() };
     r2StorageService = {
       deleteByPublicUrl: jest.fn().mockResolvedValue(undefined),
+      isCommentImageOwnedBy: jest.fn().mockReturnValue(true),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -187,6 +191,24 @@ describe('CommentsService', () => {
       );
     });
 
+    it("rejects an imageUrl outside the user's comments prefix", async () => {
+      knownIssuesService.findById.mockResolvedValue({ id: 'ki-1' });
+      r2StorageService.isCommentImageOwnedBy.mockReturnValue(false);
+
+      await expect(
+        commentsService.create(userId, {
+          knownIssueId: 'ki-1',
+          body: 'Had the same issue',
+          imageUrl: 'https://cdn.example.com/comments/other-user/uuid.jpg',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(r2StorageService.isCommentImageOwnedBy).toHaveBeenCalledWith(
+        'https://cdn.example.com/comments/other-user/uuid.jpg',
+        userId,
+      );
+      expect(commentsRepository.create).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundException when the known issue does not exist', async () => {
       knownIssuesService.findById.mockResolvedValue(null);
 
@@ -304,6 +326,44 @@ describe('CommentsService', () => {
       ).rejects.toThrow('r2 down');
       expect(commentsRepository.save).not.toHaveBeenCalled();
     });
+
+    it("rejects a new imageUrl outside the user's prefix without deleting the old image", async () => {
+      const comment = buildComment({
+        imageUrl: 'https://cdn.example.com/comments/user-1/old.jpg',
+      });
+      commentsRepository.findById.mockResolvedValue(comment);
+      r2StorageService.isCommentImageOwnedBy.mockImplementation((url: string) =>
+        url.includes('/comments/user-1/'),
+      );
+
+      await expect(
+        commentsService.update('comment-1', userId, {
+          body: 'Updated',
+          imageUrl: 'https://cdn.example.com/vehicles/catalog.jpg',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(r2StorageService.deleteByPublicUrl).not.toHaveBeenCalled();
+      expect(commentsRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("does not delete a stored imageUrl outside the author's prefix when replacing it", async () => {
+      const comment = buildComment({
+        imageUrl: 'https://cdn.example.com/comments/other-user/victim.jpg',
+      });
+      commentsRepository.findById.mockResolvedValue(comment);
+      commentsRepository.save.mockImplementation((c) => Promise.resolve(c));
+      r2StorageService.isCommentImageOwnedBy.mockImplementation((url: string) =>
+        url.includes('/comments/user-1/'),
+      );
+
+      const result = await commentsService.update('comment-1', userId, {
+        body: 'Updated',
+        imageUrl: null,
+      });
+
+      expect(r2StorageService.deleteByPublicUrl).not.toHaveBeenCalled();
+      expect(result.imageUrl).toBeNull();
+    });
   });
 
   describe('remove', () => {
@@ -345,6 +405,24 @@ describe('CommentsService', () => {
         'r2 down',
       );
       expect(commentsRepository.softDelete).not.toHaveBeenCalled();
+    });
+
+    it("soft-deletes without touching R2 when imageUrl is outside the author's prefix", async () => {
+      commentsRepository.findById.mockResolvedValue(
+        buildComment({
+          imageUrl: 'https://cdn.example.com/vehicles/catalog.jpg',
+        }),
+      );
+      r2StorageService.isCommentImageOwnedBy.mockReturnValue(false);
+
+      await commentsService.remove('comment-1', userId);
+
+      expect(r2StorageService.isCommentImageOwnedBy).toHaveBeenCalledWith(
+        'https://cdn.example.com/vehicles/catalog.jpg',
+        userId,
+      );
+      expect(r2StorageService.deleteByPublicUrl).not.toHaveBeenCalled();
+      expect(commentsRepository.softDelete).toHaveBeenCalledWith('comment-1');
     });
 
     it('throws NotFoundException when the comment does not exist', async () => {
@@ -391,6 +469,25 @@ describe('CommentsService', () => {
       expect(r2StorageService.deleteByPublicUrl).toHaveBeenCalledWith(
         'https://cdn.example.com/comments/user-1/uuid.jpg',
       );
+      expect(commentsRepository.softDelete).toHaveBeenCalledWith('comment-1');
+    });
+
+    it('checks ownership against the comment author, not the admin', async () => {
+      commentsRepository.findById.mockResolvedValue(
+        buildComment({
+          userId: 'author-1',
+          imageUrl: 'https://cdn.example.com/comments/other-user/victim.jpg',
+        }),
+      );
+      r2StorageService.isCommentImageOwnedBy.mockReturnValue(false);
+
+      await commentsService.adminRemove('comment-1');
+
+      expect(r2StorageService.isCommentImageOwnedBy).toHaveBeenCalledWith(
+        'https://cdn.example.com/comments/other-user/victim.jpg',
+        'author-1',
+      );
+      expect(r2StorageService.deleteByPublicUrl).not.toHaveBeenCalled();
       expect(commentsRepository.softDelete).toHaveBeenCalledWith('comment-1');
     });
 

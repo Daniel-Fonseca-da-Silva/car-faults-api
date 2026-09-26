@@ -74,6 +74,8 @@ describe('AuthController', () => {
   });
 
   describe('googleCallback', () => {
+    const nonce = 'n'.repeat(43);
+
     it('sets an httpOnly access token cookie and redirects to the web app with a one-time code', async () => {
       const user = { id: 'id-1' } as User;
       authService.login.mockReturnValue(
@@ -83,7 +85,7 @@ describe('AuthController', () => {
       authService.createExchangeCode.mockResolvedValue('exchange-code');
       const req = {
         user,
-        query: { state: 'en-GB' },
+        query: { state: `en-GB.${nonce}` },
       } as unknown as Request;
 
       await authController.googleCallback(req, res as unknown as Response);
@@ -99,23 +101,26 @@ describe('AuthController', () => {
       );
       expect(authService.createExchangeCode).toHaveBeenCalledWith('signed-jwt');
       expect(res.redirect).toHaveBeenCalledWith(
-        'http://localhost:3000/en-GB/auth/callback?code=exchange-code',
+        `http://localhost:3000/en-GB/auth/callback?code=exchange-code&state=en-GB.${nonce}`,
       );
     });
 
-    it('falls back to the default locale when state is missing or unsupported', async () => {
+    it('falls back to the default locale when the state locale is unsupported', async () => {
       const user = { id: 'id-1' } as User;
       authService.login.mockReturnValue(
         new AuthResponseDto({ accessToken: 'signed-jwt', user: undefined }),
       );
       authService.resolveAccessTokenExpiryMs.mockReturnValue(604800000);
       authService.createExchangeCode.mockResolvedValue('exchange-code');
-      const req = { user, query: {} } as unknown as Request;
+      const req = {
+        user,
+        query: { state: `fr-FR.${nonce}` },
+      } as unknown as Request;
 
       await authController.googleCallback(req, res as unknown as Response);
 
       expect(res.redirect).toHaveBeenCalledWith(
-        'http://localhost:3000/pt-PT/auth/callback?code=exchange-code',
+        `http://localhost:3000/pt-PT/auth/callback?code=exchange-code&state=fr-FR.${nonce}`,
       );
     });
   });
