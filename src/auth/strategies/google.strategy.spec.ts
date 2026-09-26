@@ -101,5 +101,23 @@ describe('GoogleStrategy', () => {
       expect(authService.validateGoogleProfile).not.toHaveBeenCalled();
       expect(done).toHaveBeenCalledWith(expect.any(Error), false);
     });
+
+    it('calls done with an error when the Google email is not verified', async () => {
+      const profileWithUnverifiedEmail = {
+        ...baseProfile,
+        emails: [{ value: 'ana@example.com', verified: false }],
+      } as unknown as Profile;
+      const done = jest.fn();
+
+      await googleStrategy.validate(
+        'access-token',
+        'refresh-token',
+        profileWithUnverifiedEmail,
+        done,
+      );
+
+      expect(authService.validateGoogleProfile).not.toHaveBeenCalled();
+      expect(done).toHaveBeenCalledWith(expect.any(Error), false);
+    });
   });
 });

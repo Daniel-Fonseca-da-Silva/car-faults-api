@@ -25,9 +25,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: Profile,
     done: VerifyCallback,
   ): Promise<void> {
-    const email = profile.emails?.[0]?.value;
+    const primaryEmail = profile.emails?.[0];
+    const email = primaryEmail?.value;
     if (!email) {
       done(new UnauthorizedException('Google account has no email'), false);
+      return;
+    }
+
+    // Accounts are linked by email, so an unverified address could be used
+    // to take over an existing user.
+    if (primaryEmail.verified !== true) {
+      done(new UnauthorizedException('Google email is not verified'), false);
       return;
     }
 

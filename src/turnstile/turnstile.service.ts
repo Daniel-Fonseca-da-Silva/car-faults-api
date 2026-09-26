@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { isProductionEnvironment } from '../logger/pino-http.options';
 import { errorMessage } from '../redis/redis-error.util';
 
 export const TURNSTILE_REQUIRED_ERROR_CODE = 'TURNSTILE_REQUIRED';
@@ -22,7 +23,10 @@ export class TurnstileService {
     token: string | undefined,
     remoteIp?: string,
   ): Promise<void> {
-    if (this.config.get<string>('TURNSTILE_ENABLED') === 'false') {
+    if (
+      this.config.get<string>('TURNSTILE_ENABLED') === 'false' &&
+      !isProductionEnvironment()
+    ) {
       return;
     }
 

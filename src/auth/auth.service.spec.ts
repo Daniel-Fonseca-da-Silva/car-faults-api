@@ -2,6 +2,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { REDIS_CLIENT } from '../redis/redis.constants';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
@@ -21,6 +22,9 @@ describe('AuthService', () => {
   };
   let jwtService: { sign: jest.Mock; decode: jest.Mock };
   let cache: { get: jest.Mock; set: jest.Mock; del: jest.Mock };
+  let redisExec: jest.Mock;
+  let redisMulti: { get: jest.Mock; del: jest.Mock; exec: jest.Mock };
+  let redis: { set: jest.Mock; multi: jest.Mock };
   let configService: { getOrThrow: jest.Mock };
 
   const profile = {
@@ -39,6 +43,11 @@ describe('AuthService', () => {
     };
     jwtService = { sign: jest.fn(), decode: jest.fn() };
     cache = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
+    redisExec = jest.fn();
+    redisMulti = { get: jest.fn(), del: jest.fn(), exec: redisExec };
+    redisMulti.get.mockReturnValue(redisMulti);
+    redisMulti.del.mockReturnValue(redisMulti);
+    redis = { set: jest.fn(), multi: jest.fn().mockReturnValue(redisMulti) };
     configService = { getOrThrow: jest.fn() };
 
     usersService.findOptionalByEmail.mockResolvedValue(null);
@@ -51,6 +60,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: CACHE_MANAGER, useValue: cache },
+        { provide: REDIS_CLIENT, useValue: redis },
       ],
     }).compile();
 
@@ -144,6 +154,7 @@ describe('AuthService', () => {
         getPayload: () => ({
           sub: profile.googleId,
           email: profile.email,
+          email_verified: true,
           name: profile.name,
           picture: profile.avatarUrl,
         }),
@@ -251,9 +262,10 @@ describe('AuthService', () => {
       const code = await authService.createExchangeCode('signed-jwt');
 
       expect(code).toEqual(expect.any(String));
-      expect(cache.set).toHaveBeenCalledWith(
+      expect(redis.set).toHaveBeenCalledWith(
         `oauth:code:${code}`,
         'signed-jwt',
+        'PX',
         60_000,
       );
     });
@@ -267,35 +279,57 @@ describe('AuthService', () => {
   });
 
   describe('consumeExchangeCode', () => {
-    it('returns the access token and deletes the code on a hit', async () => {
-      cache.get.mockResolvedValue('signed-jwt');
+    it('atomically reads and deletes the code, returning the access token', async () => {
+      redisExec.mockResolvedValue([
+        [null, 'signed-jwt'],
+        [null, 1],
+      ]);
 
       const result = await authService.consumeExchangeCode('xyz');
 
-      expect(cache.get).toHaveBeenCalledWith('oauth:code:xyz');
-      expect(cache.del).toHaveBeenCalledWith('oauth:code:xyz');
+      expect(redis.multi).toHaveBeenCalledTimes(1);
+      expect(redisMulti.get).toHaveBeenCalledWith('oauth:code:xyz');
+      expect(redisMulti.del).toHaveBeenCalledWith('oauth:code:xyz');
       expect(result).toBe('signed-jwt');
     });
 
     it('throws UnauthorizedException when the code is missing or expired', async () => {
-      cache.get.mockResolvedValue(undefined);
+      redisExec.mockResolvedValue([
+        [null, null],
+        [null, 0],
+      ]);
 
       await expect(authService.consumeExchangeCode('missing')).rejects.toThrow(
         'Invalid or expired code',
       );
-      expect(cache.del).not.toHaveBeenCalled();
     });
 
     it('rejects reuse of an already-consumed code', async () => {
-      cache.get
-        .mockResolvedValueOnce('signed-jwt')
-        .mockResolvedValueOnce(undefined);
+      redisExec
+        .mockResolvedValueOnce([
+          [null, 'signed-jwt'],
+          [null, 1],
+        ])
+        .mockResolvedValueOnce([
+          [null, null],
+          [null, 0],
+        ]);
 
       await authService.consumeExchangeCode('xyz');
 
       await expect(authService.consumeExchangeCode('xyz')).rejects.toThrow(
         'Invalid or expired code',
       );
+    });
+
+    it('propagates Redis errors from the GET', async () => {
+      const error = new Error('redis down');
+      redisExec.mockResolvedValue([
+        [error, null],
+        [null, 0],
+      ]);
+
+      await expect(authService.consumeExchangeCode('xyz')).rejects.toBe(error);
     });
   });
 

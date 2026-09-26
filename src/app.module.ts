@@ -7,6 +7,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { CommentsModule } from './comments/comments.module';
 import { createThrottlerOptions } from './common/throttler/throttler-options.factory';
+import { validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { FixesModule } from './fixes/fixes.module';
 import { HealthModule } from './health/health.module';
@@ -24,7 +25,7 @@ import { VehicleModelsModule } from './vehicle-models/vehicle-models.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: createThrottlerOptions,

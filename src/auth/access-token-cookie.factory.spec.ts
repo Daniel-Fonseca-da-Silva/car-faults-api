@@ -17,15 +17,23 @@ describe('createAccessTokenCookieOptions', () => {
     expect(ACCESS_TOKEN_COOKIE_NAME).toBe('access_token');
   });
 
-  it('defaults to httpOnly, path "/", sameSite "lax" and secure false', () => {
+  it('defaults to httpOnly, path "/", sameSite "lax" and secure true', () => {
     const options = createAccessTokenCookieOptions(configWith({}));
 
     expect(options).toEqual({
       httpOnly: true,
       path: '/',
       sameSite: 'lax',
-      secure: false,
+      secure: true,
     });
+  });
+
+  it('only disables secure when COOKIE_SECURE is explicitly "false"', () => {
+    const options = createAccessTokenCookieOptions(
+      configWith({ COOKIE_SECURE: 'false' }),
+    );
+
+    expect(options.secure).toBe(false);
   });
 
   it('reads sameSite and secure from the environment', () => {

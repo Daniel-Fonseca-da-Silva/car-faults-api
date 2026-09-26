@@ -33,6 +33,7 @@ import { ExchangeSessionCodeDto } from './dto/exchange-session-code.dto';
 import { GoogleMobileLoginDto } from './dto/google-mobile-login.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { resolveLocale } from './locale.util';
+import { parseOAuthState } from './oauth-state';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -75,9 +76,15 @@ export class AuthController {
     });
 
     const code = await this.authService.createExchangeCode(accessToken);
-    const locale = resolveLocale(req.query.state);
+    // GoogleAuthGuard has already checked the state against the browser cookie.
+    const state = req.query.state as string;
+    const locale = resolveLocale(parseOAuthState(state)?.locale);
     const webAppUrl = this.config.getOrThrow<string>('WEB_APP_URL');
-    res.redirect(`${webAppUrl}/${locale}/auth/callback?code=${code}`);
+    // The web app re-checks `state` against its own cookie before exchanging
+    // the code, so a leaked callback URL cannot log another browser in.
+    res.redirect(
+      `${webAppUrl}/${locale}/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
+    );
   }
 
   @Post('session/exchange')

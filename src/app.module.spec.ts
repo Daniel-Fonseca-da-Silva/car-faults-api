@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { AdminModule } from './admin/admin.module';
-import { AppModule } from './app.module';
 import { AuthModule } from './auth/auth.module';
 import { CommentsModule } from './comments/comments.module';
 import { DatabaseModule } from './database/database.module';
@@ -75,8 +74,30 @@ class AdminModuleStub {}
 @Module({})
 class PlatformModuleStub {}
 
+// ConfigModule.forRoot validates the environment as soon as app.module is
+// loaded, so the required variables must exist before it is imported (CI has
+// no .env file).
+const TEST_ENV = {
+  JWT_SECRET: 'test-jwt-secret-with-at-least-32-characters',
+  THROTTLE_TTL_MS: '60000',
+  THROTTLE_LIMIT: '100',
+  THROTTLE_AUTH_TTL_MS: '60000',
+  THROTTLE_AUTH_LIMIT: '10',
+  THROTTLE_LOOKUPS_TTL_MS: '60000',
+  THROTTLE_LOOKUPS_LIMIT: '100',
+  THROTTLE_AI_MOBILE_TTL_MS: '60000',
+  THROTTLE_AI_MOBILE_LIMIT: '10',
+};
+
 describe('AppModule', () => {
+  let AppModule: typeof import('./app.module').AppModule;
   let module: TestingModule;
+
+  beforeAll(async () => {
+    Object.assign(process.env, TEST_ENV);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    ({ AppModule } = await import('./app.module'));
+  });
 
   beforeEach(async () => {
     module = await Test.createTestingModule({
@@ -118,7 +139,7 @@ describe('AppModule', () => {
   });
 
   afterEach(async () => {
-    await module.close();
+    await module?.close();
   });
 
   it('should be defined', () => {

@@ -78,6 +78,68 @@ describe('R2StorageService', () => {
     });
   });
 
+  describe('isCommentImageOwnedBy', () => {
+    const uuid = '4e6f4a8b-9c0d-4e2f-8a4b-5c6d7e8f9a0b';
+
+    it.each(['jpg', 'png', 'webp'])(
+      'accepts an upload-generated .%s key under the user prefix',
+      (ext) => {
+        expect(
+          service.isCommentImageOwnedBy(
+            `https://cdn.example.com/comments/user-1/${uuid}.${ext}`,
+            'user-1',
+          ),
+        ).toBe(true);
+      },
+    );
+
+    it.each([
+      ['empty url', ''],
+      [
+        'another user prefix',
+        `https://cdn.example.com/comments/user-2/${uuid}.jpg`,
+      ],
+      [
+        'user id prefix collision',
+        `https://cdn.example.com/comments/user-10/${uuid}.jpg`,
+      ],
+      ['catalog image', `https://cdn.example.com/vehicles/${uuid}.jpg`],
+      ['other host', `https://evil.com/comments/user-1/${uuid}.jpg`],
+      [
+        'path traversal',
+        `https://cdn.example.com/comments/user-1/../user-2/${uuid}.jpg`,
+      ],
+      [
+        'encoded traversal',
+        `https://cdn.example.com/comments/user-1/..%2Fuser-2%2F${uuid}.jpg`,
+      ],
+      ['nested path', `https://cdn.example.com/comments/user-1/x/${uuid}.jpg`],
+      [
+        'query string',
+        `https://cdn.example.com/comments/user-1/${uuid}.jpg?x=1`,
+      ],
+      [
+        'non-uuid filename',
+        'https://cdn.example.com/comments/user-1/avatar.jpg',
+      ],
+      [
+        'disallowed extension',
+        `https://cdn.example.com/comments/user-1/${uuid}.svg`,
+      ],
+    ])('rejects %s', (_label, url) => {
+      expect(service.isCommentImageOwnedBy(url, 'user-1')).toBe(false);
+    });
+
+    it('rejects when userId is empty', () => {
+      expect(
+        service.isCommentImageOwnedBy(
+          `https://cdn.example.com/comments//${uuid}.jpg`,
+          '',
+        ),
+      ).toBe(false);
+    });
+  });
+
   describe('deleteByPublicUrl', () => {
     it('does nothing when the url is empty', async () => {
       await service.deleteByPublicUrl(null);

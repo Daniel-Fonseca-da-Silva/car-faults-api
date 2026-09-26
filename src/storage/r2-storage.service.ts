@@ -11,6 +11,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { errorMessage } from '../redis/redis-error.util';
 
+const COMMENT_IMAGE_FILENAME_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
+
 @Injectable()
 export class R2StorageService {
   private readonly logger = new Logger(R2StorageService.name);
@@ -57,6 +60,26 @@ export class R2StorageService {
     }
 
     return `${this.publicBaseUrl}/${key}`;
+  }
+
+  /**
+   * True only when `url` is exactly `<publicBase>/comments/<userId>/<uuid>.<ext>`,
+   * i.e. an object the comment image upload endpoint generated for that user.
+   */
+  isCommentImageOwnedBy(
+    url: string | null | undefined,
+    userId: string,
+  ): boolean {
+    if (!url || !userId) {
+      return false;
+    }
+
+    const prefix = `${this.publicBaseUrl}/comments/${userId}/`;
+    if (!url.startsWith(prefix)) {
+      return false;
+    }
+
+    return COMMENT_IMAGE_FILENAME_PATTERN.test(url.slice(prefix.length));
   }
 
   async deleteByPublicUrl(url: string | null | undefined): Promise<void> {

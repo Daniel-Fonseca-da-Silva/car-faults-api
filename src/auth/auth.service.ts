@@ -4,7 +4,12 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, randomUUID } from 'crypto';
 import { OAuth2Client, TokenPayload } from 'google-auth-library';
-import { jwtDenyCacheKey, oauthCodeCacheKey } from '../redis/redis.constants';
+import type Redis from 'ioredis';
+import {
+  jwtDenyCacheKey,
+  oauthCodeCacheKey,
+  REDIS_CLIENT,
+} from '../redis/redis.constants';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -28,6 +33,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
   async validateGoogleProfile(profile: GoogleProfileData): Promise<User> {
@@ -89,6 +95,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Google ID token');
     }
 
+    // Accounts are linked by email, so an unverified address could be used
+    // to take over an existing user.
+    if (payload.email_verified !== true) {
+      throw new UnauthorizedException('Google email is not verified');
+    }
+
     return {
       googleId: payload.sub,
       email: payload.email,
@@ -115,9 +127,10 @@ export class AuthService {
 
   async createExchangeCode(accessToken: string): Promise<string> {
     const code = randomBytes(32).toString('base64url');
-    await this.cache.set(
+    await this.redis.set(
       oauthCodeCacheKey(code),
       accessToken,
+      'PX',
       OAUTH_CODE_TTL_MS,
     );
     return code;
@@ -125,12 +138,17 @@ export class AuthService {
 
   async consumeExchangeCode(code: string): Promise<string> {
     const key = oauthCodeCacheKey(code);
-    const accessToken = await this.cache.get<string>(key);
-    if (!accessToken) {
+    // GET + DEL in a single MULTI so two concurrent requests can't both
+    // redeem the same one-time code.
+    const results = await this.redis.multi().get(key).del(key).exec();
+    const [getError, accessToken] = results?.[0] ?? [];
+    if (getError) {
+      throw getError;
+    }
+    if (typeof accessToken !== 'string' || !accessToken) {
       throw new UnauthorizedException('Invalid or expired code');
     }
 
-    await this.cache.del(key);
     return accessToken;
   }
 

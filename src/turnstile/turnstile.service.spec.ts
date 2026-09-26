@@ -122,5 +122,20 @@ describe('TurnstileService', () => {
       await expect(service.assertValid(undefined)).resolves.toBeUndefined();
       expect(fetchSpy).not.toHaveBeenCalled();
     });
+
+    it('ignores TURNSTILE_ENABLED="false" in production', async () => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      config.get.mockReturnValue('false');
+
+      try {
+        await expect(service.assertValid(undefined)).rejects.toThrow(
+          'A valid Turnstile token is required',
+        );
+        expect(fetchSpy).not.toHaveBeenCalled();
+      } finally {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+    });
   });
 });

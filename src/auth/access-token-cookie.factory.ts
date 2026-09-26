@@ -21,6 +21,8 @@ export function createAccessTokenCookieOptions(
     httpOnly: true,
     path: '/',
     sameSite: resolveSameSite(config),
-    secure: config.get<string>('COOKIE_SECURE', 'false') === 'true',
+    // Secure by default: only an explicit COOKIE_SECURE=false (local HTTP dev)
+    // disables it, and env validation refuses that in production.
+    secure: config.get<string>('COOKIE_SECURE', 'true') !== 'false',
   };
 }
