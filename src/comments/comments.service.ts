@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { decodeCursor, encodeCursor } from '../common/pagination/cursor.util';
 import { resolveLimit } from '../common/pagination/cursor-query.dto';
 import { splitPage } from '../common/pagination/paginate.util';
@@ -28,6 +33,8 @@ export interface CommentsPage {
 
 @Injectable()
 export class CommentsService {
+  private readonly logger = new Logger(CommentsService.name);
+
   constructor(
     private readonly commentsRepository: CommentsRepository,
     private readonly knownIssuesService: KnownIssuesService,
@@ -77,6 +84,7 @@ export class CommentsService {
     if (!knownIssue) {
       throw new NotFoundException(`Known issue ${data.knownIssueId} not found`);
     }
+    this.assertOwnedImageUrl(data.imageUrl, userId);
 
     const comment = this.commentsRepository.create({
       userId,
@@ -95,7 +103,8 @@ export class CommentsService {
     const comment = await this.getOwned(id, userId);
 
     if (data.imageUrl !== undefined && data.imageUrl !== comment.imageUrl) {
-      await this.r2StorageService.deleteByPublicUrl(comment.imageUrl);
+      this.assertOwnedImageUrl(data.imageUrl, userId);
+      await this.deleteImage(comment);
       comment.imageUrl = data.imageUrl;
     }
 
@@ -105,9 +114,7 @@ export class CommentsService {
 
   async remove(id: string, userId: string): Promise<void> {
     const comment = await this.getOwned(id, userId);
-    if (comment.imageUrl) {
-      await this.r2StorageService.deleteByPublicUrl(comment.imageUrl);
-    }
+    await this.deleteImage(comment);
     await this.commentsRepository.softDelete(id);
   }
 
@@ -116,10 +123,45 @@ export class CommentsService {
     if (!comment) {
       throw new NotFoundException(`Comment ${id} not found`);
     }
-    if (comment.imageUrl) {
-      await this.r2StorageService.deleteByPublicUrl(comment.imageUrl);
-    }
+    await this.deleteImage(comment);
     await this.commentsRepository.softDelete(id);
+  }
+
+  private assertOwnedImageUrl(
+    imageUrl: string | null | undefined,
+    userId: string,
+  ): void {
+    if (
+      imageUrl &&
+      !this.r2StorageService.isCommentImageOwnedBy(imageUrl, userId)
+    ) {
+      throw new BadRequestException(
+        'imageUrl must reference an image uploaded by the current user',
+      );
+    }
+  }
+
+  /**
+   * Deletes the comment's R2 object only when it lives under the comment
+   * author's own `comments/{userId}/` prefix, so a URL pointing at another
+   * user's (or a catalog) object can never trigger its deletion.
+   */
+  private async deleteImage(comment: Comment): Promise<void> {
+    if (!comment.imageUrl) {
+      return;
+    }
+    if (
+      !this.r2StorageService.isCommentImageOwnedBy(
+        comment.imageUrl,
+        comment.userId,
+      )
+    ) {
+      this.logger.warn(
+        `Skipping R2 delete for comment ${comment.id}: imageUrl is outside the author's prefix`,
+      );
+      return;
+    }
+    await this.r2StorageService.deleteByPublicUrl(comment.imageUrl);
   }
 
   private async getOwned(id: string, userId: string): Promise<Comment> {
