@@ -4,7 +4,6 @@ import {
   IsArray,
   IsEnum,
   IsInt,
-  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -22,10 +21,6 @@ class AiFixResultDto {
 
   @IsString()
   steps: string;
-
-  @IsOptional()
-  @IsNumber()
-  estimatedCostEur?: number;
 }
 
 class AiKnownIssueResultDto {

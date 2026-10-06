@@ -4,7 +4,6 @@ import {
   IsArray,
   IsEnum,
   IsInt,
-  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -20,10 +19,6 @@ class AiTranslateFixDto {
 
   @IsString()
   steps: string;
-
-  @IsOptional()
-  @IsNumber()
-  estimatedCostEur?: number | null;
 }
 
 class AiTranslateKnownIssueDto {

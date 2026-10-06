@@ -34,26 +34,22 @@ export interface CreateFixData {
   knownIssueId: string;
   summary: string;
   steps: string;
-  estimatedCostEur?: number;
 }
 
 export interface UpdateFixData {
   summary?: string;
   steps?: string;
-  estimatedCostEur?: number;
 }
 
 export interface AdminCreateFixData {
   knownIssueId: string;
   summary: string;
   steps: string;
-  estimatedCostEur?: number;
 }
 
 export interface AdminUpdateFixData {
   summary?: string;
   steps?: string;
-  estimatedCostEur?: number;
 }
 
 @Injectable()
@@ -134,10 +130,6 @@ export class FixesService {
       userId,
       summary: data.summary,
       steps: data.steps,
-      estimatedCostEur:
-        data.estimatedCostEur !== undefined
-          ? String(data.estimatedCostEur)
-          : null,
       source: FixSource.USER,
     });
     const saved = await this.fixesRepository.save(fix);
@@ -150,11 +142,7 @@ export class FixesService {
     userId: string,
     data: UpdateFixData,
   ): Promise<FixWithCounts> {
-    if (
-      data.summary === undefined &&
-      data.steps === undefined &&
-      data.estimatedCostEur === undefined
-    ) {
+    if (data.summary === undefined && data.steps === undefined) {
       throw new BadRequestException('At least one field must be provided');
     }
 
@@ -165,9 +153,6 @@ export class FixesService {
     }
     if (data.steps !== undefined) {
       fix.steps = data.steps;
-    }
-    if (data.estimatedCostEur !== undefined) {
-      fix.estimatedCostEur = String(data.estimatedCostEur);
     }
 
     const saved = await this.fixesRepository.save(fix);
@@ -255,10 +240,6 @@ export class FixesService {
       userId: null,
       summary: data.summary,
       steps: data.steps,
-      estimatedCostEur:
-        data.estimatedCostEur !== undefined
-          ? String(data.estimatedCostEur)
-          : null,
       source: FixSource.AI,
     });
     const saved = await this.fixesRepository.save(fix);
@@ -280,9 +261,6 @@ export class FixesService {
     }
     if (data.steps !== undefined) {
       fix.steps = data.steps;
-    }
-    if (data.estimatedCostEur !== undefined) {
-      fix.estimatedCostEur = String(data.estimatedCostEur);
     }
 
     const saved = await this.fixesRepository.save(fix);

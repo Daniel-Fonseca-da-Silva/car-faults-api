@@ -1,13 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  IsNumber,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Min,
-  MinLength,
-} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsUUID, MinLength } from 'class-validator';
 
 export class CreateFixDto {
   @ApiProperty({ example: 'b3a5c1d2-4e6f-4a8b-9c0d-1e2f3a4b5c6d' })
@@ -25,11 +17,4 @@ export class CreateFixDto {
   @IsString()
   @MinLength(1)
   steps: string;
-
-  @ApiPropertyOptional({ example: 450, minimum: 0 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  estimatedCostEur?: number;
 }

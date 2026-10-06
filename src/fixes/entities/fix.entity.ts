@@ -34,15 +34,6 @@ export class Fix {
   @Column({ type: 'text' })
   steps: string;
 
-  @Column({
-    name: 'estimated_cost_eur',
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-    nullable: true,
-  })
-  estimatedCostEur: string | null;
-
   @Column({ type: 'enum', enum: FixSource })
   source: FixSource;
 
