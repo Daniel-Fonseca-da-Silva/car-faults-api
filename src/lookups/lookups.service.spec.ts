@@ -230,7 +230,6 @@ describe('LookupsService', () => {
               {
                 summary: 'Replace synchros',
                 steps: 'Do it',
-                estimatedCostEur: 450,
               },
               { summary: 'Adjust clutch', steps: 'Do it too' },
             ],
@@ -311,7 +310,6 @@ describe('LookupsService', () => {
             userId: null,
             summary: 'Replace synchros',
             steps: 'Do it',
-            estimatedCostEur: '450',
             source: FixSource.AI,
           },
           {
@@ -319,7 +317,6 @@ describe('LookupsService', () => {
             userId: null,
             summary: 'Adjust clutch',
             steps: 'Do it too',
-            estimatedCostEur: null,
             source: FixSource.AI,
           },
         ],
@@ -598,7 +595,6 @@ describe('LookupsService', () => {
           {
             summary: 'Replace synchros',
             steps: 'Do it',
-            estimatedCostEur: '450',
           },
         ],
       } as unknown as KnownIssue;
@@ -616,7 +612,6 @@ describe('LookupsService', () => {
               {
                 summary: '[pt-PT] Replace synchros',
                 steps: '[pt-PT] Do it',
-                estimatedCostEur: 450,
               },
             ],
           },
@@ -656,7 +651,6 @@ describe('LookupsService', () => {
               {
                 summary: 'Replace synchros',
                 steps: 'Do it',
-                estimatedCostEur: 450,
               },
             ],
           },

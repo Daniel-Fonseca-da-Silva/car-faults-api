@@ -27,15 +27,6 @@ describe('UpdateFixDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('passes validation with only estimatedCostEur, coercing it to a number', async () => {
-    const dto = plainToInstance(UpdateFixDto, { estimatedCostEur: '99.5' });
-
-    const errors = await validate(dto);
-
-    expect(errors).toHaveLength(0);
-    expect(dto.estimatedCostEur).toBe(99.5);
-  });
-
   it('fails validation when summary is empty', async () => {
     const dto = plainToInstance(UpdateFixDto, { summary: '' });
 
@@ -50,15 +41,5 @@ describe('UpdateFixDto', () => {
     const errors = await validate(dto);
 
     expect(errors.some((error) => error.property === 'steps')).toBe(true);
-  });
-
-  it('fails validation when estimatedCostEur is negative', async () => {
-    const dto = plainToInstance(UpdateFixDto, { estimatedCostEur: -1 });
-
-    const errors = await validate(dto);
-
-    expect(errors.some((error) => error.property === 'estimatedCostEur')).toBe(
-      true,
-    );
   });
 });

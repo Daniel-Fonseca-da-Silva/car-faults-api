@@ -17,18 +17,6 @@ describe('CreateFixDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('passes validation with an optional estimatedCostEur, coercing it to a number', async () => {
-    const dto = plainToInstance(CreateFixDto, {
-      ...base,
-      estimatedCostEur: '450',
-    });
-
-    const errors = await validate(dto);
-
-    expect(errors).toHaveLength(0);
-    expect(dto.estimatedCostEur).toBe(450);
-  });
-
   it('fails validation when knownIssueId is missing', async () => {
     const dto = plainToInstance(CreateFixDto, {
       summary: base.summary,
@@ -69,18 +57,5 @@ describe('CreateFixDto', () => {
     const errors = await validate(dto);
 
     expect(errors.some((error) => error.property === 'steps')).toBe(true);
-  });
-
-  it('fails validation when estimatedCostEur is negative', async () => {
-    const dto = plainToInstance(CreateFixDto, {
-      ...base,
-      estimatedCostEur: -1,
-    });
-
-    const errors = await validate(dto);
-
-    expect(errors.some((error) => error.property === 'estimatedCostEur')).toBe(
-      true,
-    );
   });
 });

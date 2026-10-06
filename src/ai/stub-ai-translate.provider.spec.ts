@@ -25,7 +25,6 @@ describe('StubAiTranslateProvider', () => {
             {
               summary: 'Replace synchros',
               steps: 'Do it',
-              estimatedCostEur: 450,
             },
           ],
         },
@@ -45,14 +44,13 @@ describe('StubAiTranslateProvider', () => {
           {
             summary: '[pt-PT] Replace synchros',
             steps: '[pt-PT] Do it',
-            estimatedCostEur: 450,
           },
         ],
       },
     ]);
   });
 
-  it('preserves severity, typicalKm, sources and estimatedCostEur unchanged', async () => {
+  it('preserves severity, typicalKm and sources unchanged', async () => {
     const input: AiTranslateInput = {
       sourceLanguage: LookupLocale.PtPt,
       targetLanguage: LookupLocale.EnGb,

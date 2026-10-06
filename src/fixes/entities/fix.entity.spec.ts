@@ -66,13 +66,6 @@ describe('Fix entity', () => {
     expect(findColumn('steps')?.options.nullable).toBeFalsy();
   });
 
-  it('maps estimatedCostEur to a nullable decimal column', () => {
-    const column = findColumn('estimatedCostEur');
-    expect(column?.options.name).toBe('estimated_cost_eur');
-    expect(column?.options.type).toBe('decimal');
-    expect(column?.options.nullable).toBe(true);
-  });
-
   it('defines source as a required enum column', () => {
     const column = findColumn('source');
     expect(column?.options.type).toBe('enum');

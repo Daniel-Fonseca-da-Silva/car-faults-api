@@ -34,7 +34,6 @@ describe('FixesController', () => {
     userId: 'user-1',
     summary: 'Replace synchros',
     steps: 'Remove gearbox and replace synchro rings.',
-    estimatedCostEur: null,
     source: FixSource.USER,
     likes: 0,
     dislikes: 0,
