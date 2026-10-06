@@ -17,7 +17,6 @@ export interface AiLookupInput {
 export interface AiFixResult {
   summary: string;
   steps: string;
-  estimatedCostEur?: number;
 }
 
 export interface AiKnownIssueResult {

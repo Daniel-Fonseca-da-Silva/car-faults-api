@@ -1,12 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  IsNumber,
-  IsOptional,
-  IsString,
-  Min,
-  MinLength,
-} from 'class-validator';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
 export class AdminUpdateFixDto {
   @ApiPropertyOptional({ example: 'Replace gearbox synchros' })
@@ -22,11 +15,4 @@ export class AdminUpdateFixDto {
   @IsString()
   @MinLength(1)
   steps?: string;
-
-  @ApiPropertyOptional({ example: 450, minimum: 0 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  estimatedCostEur?: number;
 }

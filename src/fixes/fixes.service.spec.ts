@@ -60,7 +60,6 @@ describe('FixesService', () => {
       userId,
       summary: 'Replace synchros',
       steps: 'Remove gearbox and replace synchro rings.',
-      estimatedCostEur: null,
       source: FixSource.USER,
       createdAt: new Date('2026-01-01'),
       ...overrides,
@@ -251,7 +250,6 @@ describe('FixesService', () => {
         knownIssueId: 'ki-1',
         summary: 'Replace synchros',
         steps: 'Remove gearbox and replace synchro rings.',
-        estimatedCostEur: 100,
       });
 
       expect(knownIssuesService.findById).toHaveBeenCalledWith('ki-1');
@@ -260,7 +258,6 @@ describe('FixesService', () => {
         userId,
         summary: 'Replace synchros',
         steps: 'Remove gearbox and replace synchro rings.',
-        estimatedCostEur: '100',
         source: FixSource.USER,
       });
       expect(cache.del).toHaveBeenCalledWith(
@@ -329,12 +326,10 @@ describe('FixesService', () => {
       const result = await fixesService.update('fix-1', userId, {
         summary: 'Updated summary',
         steps: 'Updated steps',
-        estimatedCostEur: 250,
       });
 
       expect(fix.summary).toBe('Updated summary');
       expect(fix.steps).toBe('Updated steps');
-      expect(fix.estimatedCostEur).toBe('250');
       expect(cache.del).toHaveBeenCalled();
       expect(result).toBe(withCounts);
     });

@@ -22,7 +22,6 @@ describe('AdminFixesController', () => {
     userId: null,
     summary: 'Replace synchros',
     steps: 'Remove gearbox and replace synchro rings.',
-    estimatedCostEur: null,
     source: FixSource.AI,
   } as Fix;
 

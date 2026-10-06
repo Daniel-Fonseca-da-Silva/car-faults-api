@@ -50,7 +50,6 @@ interface LookupCriteria {
 interface PersistableFix {
   summary: string;
   steps: string;
-  estimatedCostEur?: number | null;
 }
 
 interface PersistableKnownIssue {
@@ -267,8 +266,6 @@ export class LookupsService {
         fixes: (issue.fixes ?? []).map((fix) => ({
           summary: fix.summary,
           steps: fix.steps,
-          estimatedCostEur:
-            fix.estimatedCostEur != null ? Number(fix.estimatedCostEur) : null,
         })),
       })),
     };
@@ -387,8 +384,6 @@ export class LookupsService {
         userId: null,
         summary: fix.summary,
         steps: fix.steps,
-        estimatedCostEur:
-          fix.estimatedCostEur != null ? String(fix.estimatedCostEur) : null,
         source: FixSource.AI,
       })),
     );

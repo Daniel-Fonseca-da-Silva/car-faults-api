@@ -18,7 +18,6 @@ describe('lookup response DTOs', () => {
     userId: null,
     summary: 'Replace synchros',
     steps: 'Remove gearbox and replace synchro rings.',
-    estimatedCostEur: '450.00',
     source: FixSource.AI,
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
@@ -62,7 +61,6 @@ describe('lookup response DTOs', () => {
         id: 'fix-1',
         summary: 'Replace synchros',
         steps: fix.steps,
-        estimatedCostEur: '450.00',
         source: FixSource.AI,
       });
     });

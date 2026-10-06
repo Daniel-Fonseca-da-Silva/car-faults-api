@@ -23,9 +23,6 @@ export class AdminFixResponseDto {
   })
   steps: string;
 
-  @ApiPropertyOptional({ example: '450.00', nullable: true })
-  estimatedCostEur: string | null;
-
   @ApiProperty({ enum: FixSource, example: FixSource.AI })
   source: FixSource;
 
@@ -41,7 +38,6 @@ export class AdminFixResponseDto {
     this.userId = fix.userId;
     this.summary = fix.summary;
     this.steps = fix.steps;
-    this.estimatedCostEur = fix.estimatedCostEur;
     this.source = fix.source;
     this.createdAt = fix.createdAt;
     this.updatedAt = fix.updatedAt;
