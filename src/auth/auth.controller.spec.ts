@@ -114,13 +114,13 @@ describe('AuthController', () => {
       authService.createExchangeCode.mockResolvedValue('exchange-code');
       const req = {
         user,
-        query: { state: `fr-FR.${nonce}` },
+        query: { state: `ja-JP.${nonce}` },
       } as unknown as Request;
 
       await authController.googleCallback(req, res as unknown as Response);
 
       expect(res.redirect).toHaveBeenCalledWith(
-        `http://localhost:3000/pt-PT/auth/callback?code=exchange-code&state=fr-FR.${nonce}`,
+        `http://localhost:3000/pt-PT/auth/callback?code=exchange-code&state=ja-JP.${nonce}`,
       );
     });
   });

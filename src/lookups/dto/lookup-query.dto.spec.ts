@@ -132,7 +132,7 @@ describe('LookupQueryDto', () => {
   it('fails validation when language is not a known enum value', async () => {
     const dto = plainToInstance(LookupQueryDto, {
       ...validQuery,
-      language: 'fr-FR',
+      language: 'ja-JP',
     });
 
     const errors = await validate(dto);
