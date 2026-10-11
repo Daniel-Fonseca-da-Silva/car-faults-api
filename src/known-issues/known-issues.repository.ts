@@ -70,8 +70,14 @@ interface RawTopFaultRow {
 export class KnownIssuesRepository {
   private static readonly LOCALE_FALLBACK_ORDER: LookupLocale[] = [
     LookupLocale.PtPt,
+    LookupLocale.PtBr,
     LookupLocale.EnGb,
+    LookupLocale.EnUs,
     LookupLocale.EsEs,
+    LookupLocale.EsMx,
+    LookupLocale.FrFr,
+    LookupLocale.DeDe,
+    LookupLocale.ItIt,
   ];
 
   constructor(

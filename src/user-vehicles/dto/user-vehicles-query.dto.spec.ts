@@ -26,7 +26,7 @@ describe('UserVehiclesQueryDto', () => {
 
   it('fails validation for an unsupported language', async () => {
     const dto = plainToInstance(UserVehiclesQueryDto, {
-      language: 'fr-FR',
+      language: 'ja-JP',
     });
 
     const errors = await validate(dto);

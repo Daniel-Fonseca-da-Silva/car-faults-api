@@ -78,6 +78,9 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
     fuelType: null,
   } as VehicleModel;
 
+  const languageKeys = (baseKey: string) =>
+    Object.values(LookupLocale).map((language) => `${baseKey}:${language}`);
+
   it('builds a single-year key plus a variant per supported language when yearTo equals yearFrom', () => {
     const keys = buildLookupCacheKeysForVehicleModel({
       ...baseVehicleModel,
@@ -87,9 +90,7 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
 
     expect(keys).toEqual([
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2001:1.0'),
     ]);
   });
 
@@ -102,9 +103,7 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
 
     expect(keys).toEqual([
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2001:1.0'),
     ]);
   });
 
@@ -117,17 +116,11 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
 
     expect(keys).toEqual([
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2001:1.0'),
       'vehicle:lookup:Volkswagen:Polo:2002:1.0',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2002:1.0'),
       'vehicle:lookup:Volkswagen:Polo:2003:1.0',
-      'vehicle:lookup:Volkswagen:Polo:2003:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2003:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2003:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2003:1.0'),
     ]);
   });
 
@@ -142,14 +135,10 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
     expect(keys).toEqual([
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:3',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2001:1.0'),
       'vehicle:lookup:Volkswagen:Polo:2002:1.0',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:3',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2002:1.0'),
     ]);
   });
 
@@ -164,14 +153,10 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
     expect(keys).toEqual([
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:diesel',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2001:1.0'),
       'vehicle:lookup:Volkswagen:Polo:2002:1.0',
       'vehicle:lookup:Volkswagen:Polo:2002:1.0:diesel',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2002:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2002:1.0'),
     ]);
   });
 
@@ -188,9 +173,7 @@ describe('buildLookupCacheKeysForVehicleModel', () => {
       'vehicle:lookup:Volkswagen:Polo:2001:1.0',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:3',
       'vehicle:lookup:Volkswagen:Polo:2001:1.0:diesel',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:pt-PT',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:en-GB',
-      'vehicle:lookup:Volkswagen:Polo:2001:1.0:es-ES',
+      ...languageKeys('vehicle:lookup:Volkswagen:Polo:2001:1.0'),
     ]);
   });
 });

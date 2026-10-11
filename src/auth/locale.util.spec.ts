@@ -7,7 +7,7 @@ describe('resolveLocale', () => {
     expect(resolveLocale('pt-PT')).toBe('pt-PT');
   });
 
-  it.each([undefined, null, '', 'fr-FR', 42, {}])(
+  it.each([undefined, null, '', 'ja-JP', 42, {}])(
     'falls back to the default locale for %p',
     (state) => {
       expect(resolveLocale(state)).toBe(DEFAULT_LOCALE);

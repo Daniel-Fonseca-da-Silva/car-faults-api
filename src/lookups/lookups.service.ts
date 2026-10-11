@@ -37,6 +37,14 @@ export interface LookupRequestContext {
   turnstileToken?: string;
 }
 
+const CLOSEST_SOURCE_LANGUAGE: Partial<Record<LookupLocale, LookupLocale>> = {
+  [LookupLocale.PtBr]: LookupLocale.PtPt,
+  [LookupLocale.PtPt]: LookupLocale.PtBr,
+  [LookupLocale.EsMx]: LookupLocale.EsEs,
+  [LookupLocale.EsEs]: LookupLocale.EsMx,
+  [LookupLocale.EnUs]: LookupLocale.EnGb,
+};
+
 interface LookupCriteria {
   brand: string;
   model: string;
@@ -209,7 +217,10 @@ export class LookupsService {
     context: LookupRequestContext,
   ): Promise<LookupResponseDto> {
     await this.assertAiGateAllowed(context);
-    const sourceLanguage = this.pickSourceLanguage(existingIssues);
+    const sourceLanguage = this.pickSourceLanguage(
+      existingIssues,
+      targetLanguage,
+    );
     const issuesToTranslate = existingIssues.filter(
       (issue) => issue.locale === sourceLanguage,
     );
@@ -244,7 +255,17 @@ export class LookupsService {
     await this.turnstileService.assertValid(context.turnstileToken);
   }
 
-  private pickSourceLanguage(issues: KnownIssue[]): LookupLocale {
+  private pickSourceLanguage(
+    issues: KnownIssue[],
+    targetLanguage: LookupLocale,
+  ): LookupLocale {
+    // Regional variants of the same language (pt-PT/pt-BR, es-ES/es-MX,
+    // en-GB/en-US) translate more faithfully from each other than from
+    // another language.
+    const closest = CLOSEST_SOURCE_LANGUAGE[targetLanguage];
+    if (closest && issues.some((issue) => issue.locale === closest)) {
+      return closest;
+    }
     const hasEnGb = issues.some((issue) => issue.locale === LookupLocale.EnGb);
     return hasEnGb ? LookupLocale.EnGb : issues[0].locale;
   }
