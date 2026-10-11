@@ -2,7 +2,7 @@
 
 Backend for **Auto Crónica** - a SaaS focused on **chronic reliability by vehicle model**: what typically fails on a given make / model / year / engine, how severe it is, typical cost and how it gets fixed.
 
-Initial market: **Portugal** (later ES/FR). Product languages: `pt-PT`, `en-GB` and `es-ES`.
+Initial market: **Portugal** (later ES/FR). Product languages: `pt-PT`, `pt-BR`, `en-GB`, `en-US`, `es-ES`, `es-MX`, `fr-FR`, `de-DE` and `it-IT`.
 
 ## What we are
 
