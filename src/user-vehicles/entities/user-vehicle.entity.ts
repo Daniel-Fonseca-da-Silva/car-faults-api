@@ -54,7 +54,7 @@ export class UserVehicle {
   @Column({ type: 'int', nullable: true })
   doors: number | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', precision: 3 })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })

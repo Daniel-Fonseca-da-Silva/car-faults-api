@@ -32,7 +32,7 @@ export class ActivityLog {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, unknown> | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', precision: 3 })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })

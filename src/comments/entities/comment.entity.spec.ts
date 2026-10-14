@@ -80,6 +80,7 @@ describe('Comment entity', () => {
 
   it('maps createdAt/updatedAt to snake_case columns', () => {
     expect(findColumn('createdAt')?.options.name).toBe('created_at');
+    expect(findColumn('createdAt')?.options.precision).toBe(3);
     expect(findColumn('updatedAt')?.options.name).toBe('updated_at');
   });
 
