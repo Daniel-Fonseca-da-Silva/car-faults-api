@@ -11,6 +11,7 @@ import { errorMessage } from '../redis/redis-error.util';
 import {
   PLATFORM_STATS_CACHE_KEY,
   platformFaultsCacheKey,
+  platformVehiclesCacheKey,
 } from '../redis/redis.constants';
 import {
   PaginatedVehicleModels,
@@ -66,11 +67,20 @@ export class PlatformService {
     return result;
   }
 
-  getVehicles(criteria: {
+  async getVehicles(criteria: {
     limit: number;
     cursor?: string;
   }): Promise<PaginatedVehicleModels> {
-    return this.vehicleModelsService.findCatalogPaginated(criteria);
+    const cacheKey = platformVehiclesCacheKey(criteria);
+    const cached = await this.getCached<PaginatedVehicleModels>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const result =
+      await this.vehicleModelsService.findCatalogPaginated(criteria);
+    await this.setCached(cacheKey, result);
+    return result;
   }
 
   private async getCached<T>(key: string): Promise<T | undefined> {
