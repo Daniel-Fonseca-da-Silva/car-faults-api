@@ -10,6 +10,9 @@ RUN npm run build && npm prune --omit=dev
 
 FROM gcr.io/distroless/nodejs24-debian13:nonroot
 WORKDIR /app
+# The DB columns are timestamp without time zone and node-postgres reads
+# them in the process time zone, so it must match the database (UTC).
+ENV TZ=UTC
 COPY --from=builder /build/dist ./dist
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/package.json ./

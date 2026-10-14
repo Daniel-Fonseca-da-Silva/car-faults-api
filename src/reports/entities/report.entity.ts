@@ -45,7 +45,7 @@ export class Report {
   @Column({ type: 'enum', enum: ReportStatus, default: ReportStatus.PENDING })
   status: ReportStatus;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', precision: 3 })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })

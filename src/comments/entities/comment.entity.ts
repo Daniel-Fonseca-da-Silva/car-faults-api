@@ -36,7 +36,7 @@ export class Comment {
   @Column({ name: 'image_url', type: 'text', nullable: true })
   imageUrl: string | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', precision: 3 })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })

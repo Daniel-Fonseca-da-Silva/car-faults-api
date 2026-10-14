@@ -52,7 +52,7 @@ export class KnownIssue {
   @OneToMany(() => Fix, (fix) => fix.knownIssue)
   fixes: Fix[];
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', precision: 3 })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })

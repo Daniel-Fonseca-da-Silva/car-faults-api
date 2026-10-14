@@ -1,3 +1,4 @@
+import './common/timezone/force-utc';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';

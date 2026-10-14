@@ -43,7 +43,7 @@ export class Review {
   @Column({ type: 'text', nullable: true })
   comment: string | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', precision: 3 })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })

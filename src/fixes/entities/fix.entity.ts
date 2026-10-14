@@ -37,7 +37,7 @@ export class Fix {
   @Column({ type: 'enum', enum: FixSource })
   source: FixSource;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', precision: 3 })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
