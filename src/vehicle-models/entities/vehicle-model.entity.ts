@@ -33,6 +33,17 @@ export class VehicleModel {
   @Column()
   engine: string;
 
+  // Slugs back the indexed path lookup (/make/model/year/fuel/engine URLs);
+  // VehicleModelsRepository.save derives them from brand/model/engine.
+  @Column({ name: 'brand_slug' })
+  brandSlug: string;
+
+  @Column({ name: 'model_slug' })
+  modelSlug: string;
+
+  @Column({ name: 'engine_slug' })
+  engineSlug: string;
+
   @Column({ type: 'int', nullable: true })
   doors: number | null;
 

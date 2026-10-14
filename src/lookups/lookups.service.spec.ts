@@ -910,6 +910,49 @@ describe('LookupsService', () => {
       expect(aiTranslateProvider.translate).not.toHaveBeenCalled();
     });
 
+    it('returns the cached response keyed by vehicle id without loading issues on a cache HIT', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      const cached = { vehicle: { id: 'vm-1' }, knownIssues: [] };
+      vehicleModelsService.findByPathLookup.mockResolvedValue(vehicleModel);
+      cache.get.mockResolvedValue(cached);
+
+      const result = await lookupsService.lookupByPath({
+        ...pathQuery,
+        language: LookupLocale.PtBr,
+      });
+
+      expect(cache.get).toHaveBeenCalledWith('vehicle:lookup-by-id:vm-1:pt-BR');
+      expect(
+        knownIssuesService.findByVehicleModelIdAndLocale,
+      ).not.toHaveBeenCalled();
+      expect(result).toBe(cached);
+    });
+
+    it('caches the response keyed by vehicle id on a cache MISS', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByPathLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([]);
+
+      const result = await lookupsService.lookupByPath(pathQuery);
+
+      expect(cache.set).toHaveBeenCalledWith(
+        'vehicle:lookup-by-id:vm-1:en-GB',
+        result,
+        21600000,
+      );
+    });
+
+    it('still answers when the cache get fails', async () => {
+      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      vehicleModelsService.findByPathLookup.mockResolvedValue(vehicleModel);
+      knownIssuesService.findByVehicleModelIdAndLocale.mockResolvedValue([]);
+      cache.get.mockRejectedValue(new Error('redis unavailable'));
+
+      const result = await lookupsService.lookupByPath(pathQuery);
+
+      expect(result.vehicle.id).toBe('vm-1');
+    });
+
     it('throws NotFoundException when no vehicle model matches the path slugs', async () => {
       vehicleModelsService.findByPathLookup.mockResolvedValue(null);
 

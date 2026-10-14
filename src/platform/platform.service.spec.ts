@@ -186,23 +186,60 @@ describe('PlatformService', () => {
   });
 
   describe('getVehicles', () => {
-    it('delegates to the vehicle models service without caching', async () => {
-      const items = [{ id: 'vm-1' }] as unknown as VehicleModel[];
-      vehicleModelsService.findCatalogPaginated.mockResolvedValue({
-        items,
-        nextCursor: null,
-      });
+    const criteria = { limit: 50, cursor: 'abc' };
+    const page = {
+      items: [{ id: 'vm-1' }] as unknown as VehicleModel[],
+      nextCursor: null,
+    };
 
-      const result = await platformService.getVehicles({
-        limit: 50,
-      });
+    it('returns the cached page without querying the catalog on a cache HIT', async () => {
+      cache.get.mockResolvedValue(page);
 
-      expect(vehicleModelsService.findCatalogPaginated).toHaveBeenCalledWith({
-        limit: 50,
-      });
-      expect(cache.get).not.toHaveBeenCalled();
-      expect(cache.set).not.toHaveBeenCalled();
-      expect(result).toEqual({ items, nextCursor: null });
+      const result = await platformService.getVehicles(criteria);
+
+      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:50:abc');
+      expect(vehicleModelsService.findCatalogPaginated).not.toHaveBeenCalled();
+      expect(result).toBe(page);
+    });
+
+    it('queries and caches the page on a cache MISS', async () => {
+      cache.get.mockResolvedValue(undefined);
+      vehicleModelsService.findCatalogPaginated.mockResolvedValue(page);
+
+      const result = await platformService.getVehicles(criteria);
+
+      expect(vehicleModelsService.findCatalogPaginated).toHaveBeenCalledWith(
+        criteria,
+      );
+      expect(cache.set).toHaveBeenCalledWith(
+        'platform:vehicles:50:abc',
+        page,
+        300000,
+      );
+      expect(result).toBe(page);
+    });
+
+    it('uses an empty cursor segment for the first page', async () => {
+      cache.get.mockResolvedValue(page);
+
+      await platformService.getVehicles({ limit: 200 });
+
+      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:200:');
+    });
+
+    it('falls back to the catalog query when the cache get fails', async () => {
+      cache.get.mockRejectedValue(new Error('redis down'));
+      vehicleModelsService.findCatalogPaginated.mockResolvedValue(page);
+
+      await expect(platformService.getVehicles(criteria)).resolves.toBe(page);
+    });
+
+    it('does not fail the request when caching the page errors', async () => {
+      cache.get.mockResolvedValue(undefined);
+      cache.set.mockRejectedValue(new Error('redis down'));
+      vehicleModelsService.findCatalogPaginated.mockResolvedValue(page);
+
+      await expect(platformService.getVehicles(criteria)).resolves.toBe(page);
     });
   });
 });

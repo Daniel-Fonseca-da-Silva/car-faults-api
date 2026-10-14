@@ -131,14 +131,17 @@ export class VehicleModelsRepository {
     criteria: VehiclePathLookupCriteria,
   ): Promise<VehicleModel | null> {
     const { year, fuelType, doors } = criteria;
-    const makeSlug = slugify(criteria.make);
-    const modelSlug = slugify(criteria.model);
-    const engineSlug = slugify(criteria.engine);
+    const slugWhere = {
+      brandSlug: slugify(criteria.make),
+      modelSlug: slugify(criteria.model),
+      engineSlug: slugify(criteria.engine),
+      fuelType,
+    };
 
     const [openEnded, bounded] = await Promise.all([
       this.repository.find({
         where: {
-          fuelType,
+          ...slugWhere,
           yearFrom: LessThanOrEqual(year),
           yearTo: IsNull(),
         },
@@ -146,7 +149,7 @@ export class VehicleModelsRepository {
       }),
       this.repository.find({
         where: {
-          fuelType,
+          ...slugWhere,
           yearFrom: LessThanOrEqual(year),
           yearTo: MoreThanOrEqual(year),
         },
@@ -154,12 +157,7 @@ export class VehicleModelsRepository {
       }),
     ]);
 
-    const matches = [...openEnded, ...bounded].filter(
-      (candidate) =>
-        slugify(candidate.brand) === makeSlug &&
-        slugify(candidate.model) === modelSlug &&
-        slugify(candidate.engine) === engineSlug,
-    );
+    const matches = [...openEnded, ...bounded];
 
     if (matches.length === 0) {
       return null;
@@ -186,6 +184,9 @@ export class VehicleModelsRepository {
     const repository = manager
       ? manager.getRepository(VehicleModel)
       : this.repository;
+    vehicleModel.brandSlug = slugify(vehicleModel.brand);
+    vehicleModel.modelSlug = slugify(vehicleModel.model);
+    vehicleModel.engineSlug = slugify(vehicleModel.engine);
     return repository.save(vehicleModel);
   }
 

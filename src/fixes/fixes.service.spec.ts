@@ -51,6 +51,7 @@ describe('FixesService', () => {
     yearTo: 2001,
     engine: '1.0',
     doors: null,
+    fuelType: 'diesel',
   };
 
   const buildFix = (overrides: Partial<Fix> = {}) =>
@@ -261,8 +262,9 @@ describe('FixesService', () => {
         source: FixSource.USER,
       });
       expect(cache.del).toHaveBeenCalledWith(
-        'vehicle:lookup:Volkswagen:Polo:2001:1.0',
+        'vehicle:lookup:Volkswagen:Polo:2001:1.0:diesel:en-GB',
       );
+      expect(cache.del).toHaveBeenCalledWith('vehicle:lookup-by-id:vm-1:en-GB');
       expect(result).toBe(withCounts);
     });
 

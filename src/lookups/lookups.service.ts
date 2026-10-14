@@ -29,7 +29,10 @@ import { AiRateLimiterService } from './ai-rate-limiter.service';
 import { LookupByPathQueryDto } from './dto/lookup-by-path-query.dto';
 import { LookupQueryDto } from './dto/lookup-query.dto';
 import { LookupResponseDto } from './dto/lookup-response.dto';
-import { buildLookupCacheKey } from './lookup-cache-key.util';
+import {
+  buildLookupByIdCacheKey,
+  buildLookupCacheKey,
+} from './lookup-cache-key.util';
 
 export interface LookupRequestContext {
   clientType: ClientType;
@@ -132,6 +135,12 @@ export class LookupsService {
     }
 
     const language = query.language ?? LookupLocale.EnGb;
+    const cacheKey = buildLookupByIdCacheKey(vehicleModel.id, language);
+    const cached = await this.getCached(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const localeIssues =
       await this.knownIssuesService.findByVehicleModelIdAndLocale(
         vehicleModel.id,
@@ -139,7 +148,9 @@ export class LookupsService {
       );
     const knownIssuesWithCounts = await this.attachFixCounts(localeIssues);
 
-    return new LookupResponseDto(vehicleModel, knownIssuesWithCounts);
+    const result = new LookupResponseDto(vehicleModel, knownIssuesWithCounts);
+    await this.setCached(cacheKey, result);
+    return result;
   }
 
   private async lookupUncached(

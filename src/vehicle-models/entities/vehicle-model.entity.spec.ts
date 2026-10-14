@@ -40,6 +40,15 @@ describe('VehicleModel entity', () => {
     expect(findColumn('engine')?.options.nullable).toBeFalsy();
   });
 
+  it('maps the slug columns to required snake_case columns', () => {
+    expect(findColumn('brandSlug')?.options.name).toBe('brand_slug');
+    expect(findColumn('modelSlug')?.options.name).toBe('model_slug');
+    expect(findColumn('engineSlug')?.options.name).toBe('engine_slug');
+    expect(findColumn('brandSlug')?.options.nullable).toBeFalsy();
+    expect(findColumn('modelSlug')?.options.nullable).toBeFalsy();
+    expect(findColumn('engineSlug')?.options.nullable).toBeFalsy();
+  });
+
   it('defines name as nullable', () => {
     expect(findColumn('name')?.options.nullable).toBe(true);
   });
