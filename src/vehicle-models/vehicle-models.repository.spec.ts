@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { IsNull, LessThanOrEqual } from 'typeorm';
+import { IsNull, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import type { EntityManager } from 'typeorm';
 import { VehicleModel } from './entities/vehicle-model.entity';
 import { FuelType } from './enums/fuel-type.enum';
@@ -203,8 +203,31 @@ describe('VehicleModelsRepository', () => {
   });
 
   describe('save', () => {
+    const newVehicleModel = (): VehicleModel =>
+      ({
+        id: 'vm-1',
+        brand: 'Citroën',
+        model: 'C4 Picasso',
+        engine: '1.6 HDi',
+      }) as VehicleModel;
+
+    it('derives brand, model and engine slugs before saving', async () => {
+      const vehicleModel = newVehicleModel();
+      repository.save.mockResolvedValue(vehicleModel);
+
+      await vehicleModelsRepository.save(vehicleModel);
+
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          brandSlug: 'citroen',
+          modelSlug: 'c4-picasso',
+          engineSlug: '1-6-hdi',
+        }),
+      );
+    });
+
     it('delegates to repository.save when no manager is given', async () => {
-      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      const vehicleModel = newVehicleModel();
       repository.save.mockResolvedValue(vehicleModel);
 
       const result = await vehicleModelsRepository.save(vehicleModel);
@@ -214,7 +237,7 @@ describe('VehicleModelsRepository', () => {
     });
 
     it('saves through the given manager when provided', async () => {
-      const vehicleModel = { id: 'vm-1' } as VehicleModel;
+      const vehicleModel = newVehicleModel();
       const managerRepository = {
         save: jest.fn().mockResolvedValue(vehicleModel),
       };
@@ -382,22 +405,51 @@ describe('VehicleModelsRepository', () => {
       expect(result).toBe(vehicleModel);
     });
 
-    it('excludes candidates whose slugified fields do not match', async () => {
-      const wrongModel = {
-        id: 'vm-2',
-        brand: 'Volkswagen',
-        model: 'Golf',
+    it('filters by slugified make, model and engine in the query', async () => {
+      repository.find.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      await vehicleModelsRepository.findByPathLookup({
+        ...pathCriteria,
+        make: 'Volkswagen',
+        model: 'Polo',
         engine: '1.0',
-        doors: null,
-      } as VehicleModel;
+      });
+
+      const slugWhere = {
+        brandSlug: 'volkswagen',
+        modelSlug: 'polo',
+        engineSlug: '1-0',
+        fuelType: FuelType.DIESEL,
+      };
+      expect(repository.find).toHaveBeenNthCalledWith(1, {
+        where: {
+          ...slugWhere,
+          yearFrom: LessThanOrEqual(2001),
+          yearTo: IsNull(),
+        },
+        order: { id: 'ASC' },
+      });
+      expect(repository.find).toHaveBeenNthCalledWith(2, {
+        where: {
+          ...slugWhere,
+          yearFrom: LessThanOrEqual(2001),
+          yearTo: MoreThanOrEqual(2001),
+        },
+        order: { id: 'ASC' },
+      });
+    });
+
+    it('prefers an open-ended candidate over a bounded one', async () => {
+      const openEnded = { id: 'vm-8', doors: null } as VehicleModel;
+      const bounded = { id: 'vm-7', doors: null } as VehicleModel;
       repository.find
-        .mockResolvedValueOnce([wrongModel])
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce([openEnded])
+        .mockResolvedValueOnce([bounded]);
 
       const result =
         await vehicleModelsRepository.findByPathLookup(pathCriteria);
 
-      expect(result).toBeNull();
+      expect(result).toBe(openEnded);
     });
 
     it('prefers the candidate matching doors when doors is given and multiple match', async () => {
