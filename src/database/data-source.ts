@@ -1,3 +1,4 @@
+import '../common/timezone/force-utc';
 import 'dotenv/config';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
