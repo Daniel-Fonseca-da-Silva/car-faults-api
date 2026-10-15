@@ -33,6 +33,7 @@ describe('KnownIssuesRepository', () => {
     addOrderBy: jest.Mock;
     limit: jest.Mock;
     take: jest.Mock;
+    distinct: jest.Mock;
     getRawMany: jest.Mock;
     getMany: jest.Mock;
   };
@@ -54,6 +55,7 @@ describe('KnownIssuesRepository', () => {
       addOrderBy: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
+      distinct: jest.fn().mockReturnThis(),
       getRawMany: jest.fn(),
       getMany: jest.fn(),
     };
@@ -160,6 +162,54 @@ describe('KnownIssuesRepository', () => {
         relations: { fixes: true },
       });
       expect(result).toBe(knownIssues);
+    });
+  });
+
+  describe('findLocalesByVehicleModelIds', () => {
+    it('returns an empty map without querying when no ids are given', async () => {
+      const result = await knownIssuesRepository.findLocalesByVehicleModelIds(
+        [],
+      );
+
+      expect(repository.createQueryBuilder).not.toHaveBeenCalled();
+      expect(result.size).toBe(0);
+    });
+
+    it('selects distinct locales for the given vehicle models', async () => {
+      queryBuilder.getRawMany.mockResolvedValue([]);
+
+      await knownIssuesRepository.findLocalesByVehicleModelIds([
+        'vm-1',
+        'vm-2',
+      ]);
+
+      expect(repository.createQueryBuilder).toHaveBeenCalledWith('known_issue');
+      expect(queryBuilder.distinct).toHaveBeenCalledWith(true);
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'known_issue.vehicle_model_id IN (:...vehicleModelIds)',
+        { vehicleModelIds: ['vm-1', 'vm-2'] },
+      );
+    });
+
+    it('groups the locales by vehicle model id', async () => {
+      queryBuilder.getRawMany.mockResolvedValue([
+        { vehicleModelId: 'vm-1', locale: LookupLocale.PtBr },
+        { vehicleModelId: 'vm-1', locale: LookupLocale.PtPt },
+        { vehicleModelId: 'vm-2', locale: LookupLocale.EnUs },
+      ]);
+
+      const result = await knownIssuesRepository.findLocalesByVehicleModelIds([
+        'vm-1',
+        'vm-2',
+        'vm-3',
+      ]);
+
+      expect(result.get('vm-1')).toEqual([
+        LookupLocale.PtBr,
+        LookupLocale.PtPt,
+      ]);
+      expect(result.get('vm-2')).toEqual([LookupLocale.EnUs]);
+      expect(result.has('vm-3')).toBe(false);
     });
   });
 
