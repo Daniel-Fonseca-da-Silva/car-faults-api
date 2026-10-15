@@ -34,6 +34,7 @@ describe('KnownIssuesRepository', () => {
     limit: jest.Mock;
     take: jest.Mock;
     distinct: jest.Mock;
+    withDeleted: jest.Mock;
     getRawMany: jest.Mock;
     getMany: jest.Mock;
   };
@@ -56,6 +57,7 @@ describe('KnownIssuesRepository', () => {
       limit: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       distinct: jest.fn().mockReturnThis(),
+      withDeleted: jest.fn().mockReturnThis(),
       getRawMany: jest.fn(),
       getMany: jest.fn(),
     };
@@ -209,6 +211,61 @@ describe('KnownIssuesRepository', () => {
         LookupLocale.PtPt,
       ]);
       expect(result.get('vm-2')).toEqual([LookupLocale.EnUs]);
+      expect(result.has('vm-3')).toBe(false);
+    });
+  });
+
+  describe('findIssuesUpdatedAtByVehicleModelIds', () => {
+    it('returns an empty map without querying when no ids are given', async () => {
+      const result =
+        await knownIssuesRepository.findIssuesUpdatedAtByVehicleModelIds([]);
+
+      expect(repository.createQueryBuilder).not.toHaveBeenCalled();
+      expect(result.size).toBe(0);
+    });
+
+    it('takes the latest issue or fix change per vehicle model, soft-deleted rows included', async () => {
+      queryBuilder.getRawMany.mockResolvedValue([]);
+
+      await knownIssuesRepository.findIssuesUpdatedAtByVehicleModelIds([
+        'vm-1',
+        'vm-2',
+      ]);
+
+      expect(repository.createQueryBuilder).toHaveBeenCalledWith('known_issue');
+      expect(queryBuilder.withDeleted).toHaveBeenCalled();
+      expect(queryBuilder.leftJoin).toHaveBeenCalledWith(
+        'known_issue.fixes',
+        'fix',
+      );
+      expect(queryBuilder.addSelect).toHaveBeenCalledWith(
+        'GREATEST(MAX(known_issue.updated_at), MAX(fix.updated_at))',
+        'updatedAt',
+      );
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'known_issue.vehicle_model_id IN (:...vehicleModelIds)',
+        { vehicleModelIds: ['vm-1', 'vm-2'] },
+      );
+      expect(queryBuilder.groupBy).toHaveBeenCalledWith(
+        'known_issue.vehicle_model_id',
+      );
+    });
+
+    it('maps each vehicle model id to its latest update as a Date', async () => {
+      queryBuilder.getRawMany.mockResolvedValue([
+        { vehicleModelId: 'vm-1', updatedAt: new Date('2026-03-01T00:00:00Z') },
+        { vehicleModelId: 'vm-2', updatedAt: '2026-04-01T00:00:00.000Z' },
+      ]);
+
+      const result =
+        await knownIssuesRepository.findIssuesUpdatedAtByVehicleModelIds([
+          'vm-1',
+          'vm-2',
+          'vm-3',
+        ]);
+
+      expect(result.get('vm-1')).toEqual(new Date('2026-03-01T00:00:00Z'));
+      expect(result.get('vm-2')).toEqual(new Date('2026-04-01T00:00:00Z'));
       expect(result.has('vm-3')).toBe(false);
     });
   });
