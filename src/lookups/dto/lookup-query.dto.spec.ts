@@ -52,6 +52,41 @@ describe('LookupQueryDto', () => {
     expect(errors.some((error) => error.property === 'year')).toBe(true);
   });
 
+  it('normalizes free-text engine input to litres', async () => {
+    const dto = plainToInstance(LookupQueryDto, {
+      ...validQuery,
+      engine: '1,6 TDI',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.engine).toBe('1.6');
+  });
+
+  it('accepts the electric engine sentinel', async () => {
+    const dto = plainToInstance(LookupQueryDto, {
+      ...validQuery,
+      engine: 'electric',
+      fuelType: FuelType.ELECTRIC,
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+  });
+
+  it.each(['Golf', '9.9', ''])(
+    'fails validation when engine is %p',
+    async (engine) => {
+      const dto = plainToInstance(LookupQueryDto, { ...validQuery, engine });
+
+      const errors = await validate(dto);
+
+      expect(errors.some((error) => error.property === 'engine')).toBe(true);
+    },
+  );
+
   it('passes validation without doors', async () => {
     const dto = plainToInstance(LookupQueryDto, validQuery);
 
