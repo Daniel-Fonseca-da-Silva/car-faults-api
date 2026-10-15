@@ -1,12 +1,12 @@
 export const ELECTRIC_ENGINE = 'electric';
 export const MIN_ENGINE_LITRES = 0.6;
-export const MAX_ENGINE_LITRES = 8.0;
+export const MAX_ENGINE_LITRES = 8.4;
 
 const LITRES_STEP = 0.1;
 
 /**
  * Every engine value a lookup accepts: displacements in litres ("0.6" to
- * "8.0", one decimal) plus the electric sentinel, which the clients send for
+ * "8.4", one decimal) plus the electric sentinel, which the clients send for
  * vehicles with no combustion engine.
  */
 export const ENGINE_OPTIONS: readonly string[] = [
