@@ -1,4 +1,8 @@
-import { JWT_SECRET_MIN_LENGTH, validateEnv } from './env.validation';
+import {
+  INTERNAL_API_KEY_MIN_LENGTH,
+  JWT_SECRET_MIN_LENGTH,
+  validateEnv,
+} from './env.validation';
 
 describe('validateEnv', () => {
   const validEnv = {
@@ -31,6 +35,21 @@ describe('validateEnv', () => {
       );
     },
   );
+
+  it.each([undefined, '', 'k'.repeat(INTERNAL_API_KEY_MIN_LENGTH)])(
+    'accepts INTERNAL_API_KEY=%p',
+    (value) => {
+      expect(() =>
+        validateEnv({ ...validEnv, INTERNAL_API_KEY: value }),
+      ).not.toThrow();
+    },
+  );
+
+  it('rejects an INTERNAL_API_KEY shorter than the minimum length', () => {
+    expect(() =>
+      validateEnv({ ...validEnv, INTERNAL_API_KEY: 'short' }),
+    ).toThrow('INTERNAL_API_KEY');
+  });
 
   it('rejects COOKIE_SECURE=false with COOKIE_SAME_SITE=none', () => {
     expect(() =>
