@@ -148,6 +148,38 @@ export class KnownIssuesRepository {
     });
   }
 
+  /**
+   * Locales with at least one (non-deleted) known issue, per vehicle model.
+   * Vehicle models without issues are absent from the map.
+   */
+  async findLocalesByVehicleModelIds(
+    vehicleModelIds: string[],
+  ): Promise<Map<string, LookupLocale[]>> {
+    const localesById = new Map<string, LookupLocale[]>();
+    if (vehicleModelIds.length === 0) {
+      return localesById;
+    }
+
+    const rows = await this.repository
+      .createQueryBuilder('known_issue')
+      .select('known_issue.vehicle_model_id', 'vehicleModelId')
+      .addSelect('known_issue.locale', 'locale')
+      .distinct(true)
+      .where('known_issue.vehicle_model_id IN (:...vehicleModelIds)', {
+        vehicleModelIds,
+      })
+      .orderBy('known_issue.vehicle_model_id', 'ASC')
+      .addOrderBy('known_issue.locale', 'ASC')
+      .getRawMany<{ vehicleModelId: string; locale: LookupLocale }>();
+
+    for (const { vehicleModelId, locale } of rows) {
+      const locales = localesById.get(vehicleModelId) ?? [];
+      locales.push(locale);
+      localesById.set(vehicleModelId, locales);
+    }
+    return localesById;
+  }
+
   findById(id: string): Promise<KnownIssue | null> {
     return this.repository.findOne({ where: { id } });
   }

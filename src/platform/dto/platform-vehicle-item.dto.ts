@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { LookupLocale } from '../../common/enums/lookup-locale.enum';
 import { VehicleModel } from '../../vehicle-models/entities/vehicle-model.entity';
 import { FuelType } from '../../vehicle-models/enums/fuel-type.enum';
 
@@ -30,7 +31,17 @@ export class PlatformVehicleItemDto {
   })
   doors?: number;
 
-  constructor(vehicleModel: VehicleModel) {
+  @ApiProperty({
+    enum: LookupLocale,
+    isArray: true,
+    description:
+      'Locales with at least one known issue. Only these locales have a vehicle page ' +
+      'with content, so sitemaps should list the vehicle for these locales only.',
+    example: [LookupLocale.PtBr, LookupLocale.PtPt],
+  })
+  locales: LookupLocale[];
+
+  constructor(vehicleModel: VehicleModel, locales: LookupLocale[]) {
     this.brand = vehicleModel.brand;
     this.model = vehicleModel.model;
     this.name = vehicleModel.name ?? undefined;
@@ -40,5 +51,6 @@ export class PlatformVehicleItemDto {
     // and at least one known issue.
     this.fuelType = vehicleModel.fuelType as FuelType;
     this.doors = vehicleModel.doors ?? undefined;
+    this.locales = locales;
   }
 }

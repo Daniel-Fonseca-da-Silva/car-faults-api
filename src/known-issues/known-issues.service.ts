@@ -111,6 +111,14 @@ export class KnownIssuesService {
     );
   }
 
+  findLocalesByVehicleModelIds(
+    vehicleModelIds: string[],
+  ): Promise<Map<string, LookupLocale[]>> {
+    return this.knownIssuesRepository.findLocalesByVehicleModelIds(
+      vehicleModelIds,
+    );
+  }
+
   findById(id: string): Promise<KnownIssue | null> {
     return this.knownIssuesRepository.findById(id);
   }

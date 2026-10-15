@@ -1,6 +1,7 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LookupLocale } from '../common/enums/lookup-locale.enum';
 import { CommentsService } from '../comments/comments.service';
 import {
   FaultsCriteria,
@@ -13,11 +14,20 @@ import {
   platformFaultsCacheKey,
   platformVehiclesCacheKey,
 } from '../redis/redis.constants';
-import {
-  PaginatedVehicleModels,
-  VehicleModelsService,
-} from '../vehicle-models/vehicle-models.service';
+import { VehicleModel } from '../vehicle-models/entities/vehicle-model.entity';
+import { VehicleModelsService } from '../vehicle-models/vehicle-models.service';
 import { PlatformStats } from './dto/platform-stats-response.dto';
+
+export interface PlatformCatalogVehicle {
+  vehicleModel: VehicleModel;
+  // Locales with known issues: the only locales whose vehicle page has content.
+  locales: LookupLocale[];
+}
+
+export interface PlatformCatalogPage {
+  items: PlatformCatalogVehicle[];
+  nextCursor: string | null;
+}
 
 @Injectable()
 export class PlatformService {
@@ -70,15 +80,26 @@ export class PlatformService {
   async getVehicles(criteria: {
     limit: number;
     cursor?: string;
-  }): Promise<PaginatedVehicleModels> {
+  }): Promise<PlatformCatalogPage> {
     const cacheKey = platformVehiclesCacheKey(criteria);
-    const cached = await this.getCached<PaginatedVehicleModels>(cacheKey);
+    const cached = await this.getCached<PlatformCatalogPage>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    const result =
+    const { items, nextCursor } =
       await this.vehicleModelsService.findCatalogPaginated(criteria);
+    const localesById =
+      await this.knownIssuesService.findLocalesByVehicleModelIds(
+        items.map((vehicleModel) => vehicleModel.id),
+      );
+    const result: PlatformCatalogPage = {
+      items: items.map((vehicleModel) => ({
+        vehicleModel,
+        locales: localesById.get(vehicleModel.id) ?? [],
+      })),
+      nextCursor,
+    };
     await this.setCached(cacheKey, result);
     return result;
   }
