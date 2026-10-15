@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,6 +11,12 @@ import {
   MinLength,
 } from 'class-validator';
 import { LookupLocale } from '../../common/enums/lookup-locale.enum';
+import {
+  ENGINE_OPTIONS,
+  MAX_ENGINE_LITRES,
+  MIN_ENGINE_LITRES,
+  normalizeEngine,
+} from '../../common/utils/normalize-engine.util';
 import { FuelType } from '../../vehicle-models/enums/fuel-type.enum';
 
 const MIN_YEAR = 1900;
@@ -33,9 +40,17 @@ export class LookupQueryDto {
   @Min(MIN_YEAR)
   year: number;
 
-  @ApiProperty({ example: '1.0' })
+  @ApiProperty({
+    description: `Displacement in litres (${MIN_ENGINE_LITRES.toFixed(1)}-${MAX_ENGINE_LITRES.toFixed(1)}) or "electric". Free text such as "1,6", "1.6 TDI" or "1598cc" is normalized to "1.6".`,
+    example: '1.0',
+  })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? (normalizeEngine(value) ?? value) : value,
+  )
   @IsString()
-  @MinLength(1)
+  @IsIn(ENGINE_OPTIONS, {
+    message: `engine must be a displacement in litres between ${MIN_ENGINE_LITRES.toFixed(1)} and ${MAX_ENGINE_LITRES.toFixed(1)} (e.g. 1.6) or "electric"`,
+  })
   engine: string;
 
   @ApiProperty({ enum: FuelType, example: FuelType.DIESEL })
