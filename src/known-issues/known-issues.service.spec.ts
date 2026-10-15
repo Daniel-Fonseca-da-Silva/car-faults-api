@@ -16,6 +16,7 @@ describe('KnownIssuesService', () => {
     findPageByVehicleModelId: jest.Mock;
     findByVehicleModelIdAndLocale: jest.Mock;
     findLocalesByVehicleModelIds: jest.Mock;
+    findIssuesUpdatedAtByVehicleModelIds: jest.Mock;
     countByVehicleModelId: jest.Mock;
     countByVehicleModelIdAndLocale: jest.Mock;
     findById: jest.Mock;
@@ -47,6 +48,7 @@ describe('KnownIssuesService', () => {
       findPageByVehicleModelId: jest.fn(),
       findByVehicleModelIdAndLocale: jest.fn(),
       findLocalesByVehicleModelIds: jest.fn(),
+      findIssuesUpdatedAtByVehicleModelIds: jest.fn(),
       countByVehicleModelId: jest.fn(),
       countByVehicleModelIdAndLocale: jest.fn(),
       findById: jest.fn(),
@@ -179,6 +181,25 @@ describe('KnownIssuesService', () => {
         knownIssuesRepository.findLocalesByVehicleModelIds,
       ).toHaveBeenCalledWith(['vm-1']);
       expect(result).toBe(localesById);
+    });
+  });
+
+  describe('findIssuesUpdatedAtByVehicleModelIds', () => {
+    it('delegates to the repository', async () => {
+      const updatedAtById = new Map([
+        ['vm-1', new Date('2026-03-01T00:00:00Z')],
+      ]);
+      knownIssuesRepository.findIssuesUpdatedAtByVehicleModelIds.mockResolvedValue(
+        updatedAtById,
+      );
+
+      const result =
+        await knownIssuesService.findIssuesUpdatedAtByVehicleModelIds(['vm-1']);
+
+      expect(
+        knownIssuesRepository.findIssuesUpdatedAtByVehicleModelIds,
+      ).toHaveBeenCalledWith(['vm-1']);
+      expect(result).toBe(updatedAtById);
     });
   });
 

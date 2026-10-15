@@ -23,6 +23,7 @@ describe('PlatformService', () => {
     countAll: jest.Mock;
     findFaultsPaginated: jest.Mock;
     findLocalesByVehicleModelIds: jest.Mock;
+    findIssuesUpdatedAtByVehicleModelIds: jest.Mock;
   };
   let cache: { get: jest.Mock; set: jest.Mock };
 
@@ -61,6 +62,9 @@ describe('PlatformService', () => {
         .fn()
         .mockResolvedValue({ items: [topFaultRow], nextCursor: null }),
       findLocalesByVehicleModelIds: jest.fn().mockResolvedValue(new Map()),
+      findIssuesUpdatedAtByVehicleModelIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
     };
     cache = {
       get: jest.fn().mockResolvedValue(undefined),
@@ -189,12 +193,25 @@ describe('PlatformService', () => {
 
   describe('getVehicles', () => {
     const criteria = { limit: 50, cursor: 'abc' };
-    const vehicleModels = [{ id: 'vm-1' }, { id: 'vm-2' }] as VehicleModel[];
+    const vehicleModels = [
+      { id: 'vm-1', updatedAt: new Date('2026-01-01T00:00:00.000Z') },
+      { id: 'vm-2', updatedAt: new Date('2026-05-01T00:00:00.000Z') },
+    ] as VehicleModel[];
     const catalogPage = { items: vehicleModels, nextCursor: 'next' };
     const page = {
       items: [
-        { vehicleModel: vehicleModels[0], locales: [LookupLocale.PtPt] },
-        { vehicleModel: vehicleModels[1], locales: [] },
+        {
+          vehicleModel: vehicleModels[0],
+          locales: [LookupLocale.PtPt],
+          // Issue change is newer than the vehicle model change.
+          updatedAt: '2026-03-01T00:00:00.000Z',
+        },
+        {
+          vehicleModel: vehicleModels[1],
+          locales: [],
+          // Vehicle model change is newer than the issue change.
+          updatedAt: '2026-05-01T00:00:00.000Z',
+        },
       ],
       nextCursor: 'next',
     };
@@ -204,6 +221,12 @@ describe('PlatformService', () => {
       knownIssuesService.findLocalesByVehicleModelIds.mockResolvedValue(
         new Map([['vm-1', [LookupLocale.PtPt]]]),
       );
+      knownIssuesService.findIssuesUpdatedAtByVehicleModelIds.mockResolvedValue(
+        new Map([
+          ['vm-1', new Date('2026-03-01T00:00:00.000Z')],
+          ['vm-2', new Date('2026-02-01T00:00:00.000Z')],
+        ]),
+      );
     });
 
     it('returns the cached page without querying the catalog on a cache HIT', async () => {
@@ -211,7 +234,7 @@ describe('PlatformService', () => {
 
       const result = await platformService.getVehicles(criteria);
 
-      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:v2:50:abc');
+      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:v3:50:abc');
       expect(vehicleModelsService.findCatalogPaginated).not.toHaveBeenCalled();
       expect(
         knownIssuesService.findLocalesByVehicleModelIds,
@@ -219,7 +242,7 @@ describe('PlatformService', () => {
       expect(result).toBe(page);
     });
 
-    it('attaches each vehicle model locales and caches the page on a cache MISS', async () => {
+    it('attaches each vehicle model locales and latest update and caches the page on a cache MISS', async () => {
       cache.get.mockResolvedValue(undefined);
 
       const result = await platformService.getVehicles(criteria);
@@ -230,9 +253,12 @@ describe('PlatformService', () => {
       expect(
         knownIssuesService.findLocalesByVehicleModelIds,
       ).toHaveBeenCalledWith(['vm-1', 'vm-2']);
+      expect(
+        knownIssuesService.findIssuesUpdatedAtByVehicleModelIds,
+      ).toHaveBeenCalledWith(['vm-1', 'vm-2']);
       expect(result).toEqual(page);
       expect(cache.set).toHaveBeenCalledWith(
-        'platform:vehicles:v2:50:abc',
+        'platform:vehicles:v3:50:abc',
         page,
         300000,
       );
@@ -243,7 +269,7 @@ describe('PlatformService', () => {
 
       await platformService.getVehicles({ limit: 200 });
 
-      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:v2:200:');
+      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:v3:200:');
     });
 
     it('falls back to the catalog query when the cache get fails', async () => {

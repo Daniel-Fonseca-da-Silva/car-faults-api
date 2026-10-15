@@ -22,6 +22,9 @@ export interface PlatformCatalogVehicle {
   vehicleModel: VehicleModel;
   // Locales with known issues: the only locales whose vehicle page has content.
   locales: LookupLocale[];
+  // Latest change to the vehicle model, its known issues or their fixes, as
+  // ISO 8601 (kept as a string so it survives the Redis round trip).
+  updatedAt: string;
 }
 
 export interface PlatformCatalogPage {
@@ -89,14 +92,21 @@ export class PlatformService {
 
     const { items, nextCursor } =
       await this.vehicleModelsService.findCatalogPaginated(criteria);
-    const localesById =
-      await this.knownIssuesService.findLocalesByVehicleModelIds(
-        items.map((vehicleModel) => vehicleModel.id),
-      );
+    const vehicleModelIds = items.map((vehicleModel) => vehicleModel.id);
+    const [localesById, issuesUpdatedAtById] = await Promise.all([
+      this.knownIssuesService.findLocalesByVehicleModelIds(vehicleModelIds),
+      this.knownIssuesService.findIssuesUpdatedAtByVehicleModelIds(
+        vehicleModelIds,
+      ),
+    ]);
     const result: PlatformCatalogPage = {
       items: items.map((vehicleModel) => ({
         vehicleModel,
         locales: localesById.get(vehicleModel.id) ?? [],
+        updatedAt: latestDate(
+          vehicleModel.updatedAt,
+          issuesUpdatedAtById.get(vehicleModel.id),
+        ).toISOString(),
       })),
       nextCursor,
     };
@@ -120,4 +130,8 @@ export class PlatformService {
       this.logger.warn(`Cache set failed for key ${key}: ${errorMessage(err)}`);
     }
   }
+}
+
+function latestDate(first: Date, second: Date | undefined): Date {
+  return second && second > first ? second : first;
 }

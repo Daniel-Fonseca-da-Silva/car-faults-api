@@ -119,6 +119,14 @@ export class KnownIssuesService {
     );
   }
 
+  findIssuesUpdatedAtByVehicleModelIds(
+    vehicleModelIds: string[],
+  ): Promise<Map<string, Date>> {
+    return this.knownIssuesRepository.findIssuesUpdatedAtByVehicleModelIds(
+      vehicleModelIds,
+    );
+  }
+
   findById(id: string): Promise<KnownIssue | null> {
     return this.knownIssuesRepository.findById(id);
   }

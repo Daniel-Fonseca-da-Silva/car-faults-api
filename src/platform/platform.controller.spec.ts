@@ -168,7 +168,13 @@ describe('PlatformController', () => {
 
     it('defaults limit to the configured default when omitted', async () => {
       platformService.getVehicles.mockResolvedValue({
-        items: [{ vehicleModel, locales: [LookupLocale.PtPt] }],
+        items: [
+          {
+            vehicleModel,
+            locales: [LookupLocale.PtPt],
+            updatedAt: '2026-03-01T00:00:00.000Z',
+          },
+        ],
         nextCursor: null,
       });
 
@@ -188,6 +194,7 @@ describe('PlatformController', () => {
             fuelType: FuelType.DIESEL,
             doors: 5,
             locales: [LookupLocale.PtPt],
+            updatedAt: '2026-03-01T00:00:00.000Z',
           },
         ],
         nextCursor: null,
@@ -206,7 +213,11 @@ describe('PlatformController', () => {
     it('omits doors from the vehicle item when the vehicle model has none on record', async () => {
       platformService.getVehicles.mockResolvedValue({
         items: [
-          { vehicleModel: { ...vehicleModel, doors: null }, locales: [] },
+          {
+            vehicleModel: { ...vehicleModel, doors: null },
+            locales: [],
+            updatedAt: '2026-03-01T00:00:00.000Z',
+          },
         ],
         nextCursor: null,
       });
