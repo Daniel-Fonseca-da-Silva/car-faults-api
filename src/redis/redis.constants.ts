@@ -10,8 +10,8 @@ export const OAUTH_CODE_CACHE_KEY_PREFIX = 'oauth:code:';
 export const JWT_DENY_CACHE_KEY_PREFIX = 'jwt:deny:';
 export const PLATFORM_STATS_CACHE_KEY = 'platform:stats';
 export const PLATFORM_FAULTS_CACHE_KEY_PREFIX = 'platform:faults:';
-// v2: items carry per-vehicle locales; the version keeps pre-deploy cache entries from being served.
-export const PLATFORM_VEHICLES_CACHE_KEY_PREFIX = 'platform:vehicles:v2:';
+// v3: items carry per-vehicle locales (v2) and updatedAt (v3); the version keeps pre-deploy cache entries from being served.
+export const PLATFORM_VEHICLES_CACHE_KEY_PREFIX = 'platform:vehicles:v3:';
 
 export function userStatsCacheKey(userId: string): string {
   return `${USER_STATS_CACHE_KEY_PREFIX}${userId}`;

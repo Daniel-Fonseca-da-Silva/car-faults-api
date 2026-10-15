@@ -180,6 +180,41 @@ export class KnownIssuesRepository {
     return localesById;
   }
 
+  /**
+   * Latest change to the known issues of each vehicle model, or to their
+   * fixes. Soft-deleted rows count too (soft delete bumps updated_at), so
+   * removing an issue or fix moves the date forward. Vehicle models without
+   * issues are absent from the map.
+   */
+  async findIssuesUpdatedAtByVehicleModelIds(
+    vehicleModelIds: string[],
+  ): Promise<Map<string, Date>> {
+    const updatedAtById = new Map<string, Date>();
+    if (vehicleModelIds.length === 0) {
+      return updatedAtById;
+    }
+
+    const rows = await this.repository
+      .createQueryBuilder('known_issue')
+      .withDeleted()
+      .leftJoin('known_issue.fixes', 'fix')
+      .select('known_issue.vehicle_model_id', 'vehicleModelId')
+      .addSelect(
+        'GREATEST(MAX(known_issue.updated_at), MAX(fix.updated_at))',
+        'updatedAt',
+      )
+      .where('known_issue.vehicle_model_id IN (:...vehicleModelIds)', {
+        vehicleModelIds,
+      })
+      .groupBy('known_issue.vehicle_model_id')
+      .getRawMany<{ vehicleModelId: string; updatedAt: Date | string }>();
+
+    for (const { vehicleModelId, updatedAt } of rows) {
+      updatedAtById.set(vehicleModelId, new Date(updatedAt));
+    }
+    return updatedAtById;
+  }
+
   findById(id: string): Promise<KnownIssue | null> {
     return this.repository.findOne({ where: { id } });
   }

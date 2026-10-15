@@ -89,8 +89,8 @@ export class PlatformController {
     });
     return new PlatformVehiclesResponseDto(
       items.map(
-        ({ vehicleModel, locales }) =>
-          new PlatformVehicleItemDto(vehicleModel, locales),
+        ({ vehicleModel, locales, updatedAt }) =>
+          new PlatformVehicleItemDto(vehicleModel, locales, updatedAt),
       ),
       nextCursor,
     );

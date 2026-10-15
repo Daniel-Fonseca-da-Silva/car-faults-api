@@ -41,7 +41,20 @@ export class PlatformVehicleItemDto {
   })
   locales: LookupLocale[];
 
-  constructor(vehicleModel: VehicleModel, locales: LookupLocale[]) {
+  @ApiProperty({
+    format: 'date-time',
+    description:
+      'Latest change to the vehicle model, its known issues or their fixes. ' +
+      'Meant for the sitemap lastmod.',
+    example: '2026-10-01T12:00:00.000Z',
+  })
+  updatedAt: string;
+
+  constructor(
+    vehicleModel: VehicleModel,
+    locales: LookupLocale[],
+    updatedAt: string,
+  ) {
     this.brand = vehicleModel.brand;
     this.model = vehicleModel.model;
     this.name = vehicleModel.name ?? undefined;
@@ -52,5 +65,6 @@ export class PlatformVehicleItemDto {
     this.fuelType = vehicleModel.fuelType as FuelType;
     this.doors = vehicleModel.doors ?? undefined;
     this.locales = locales;
+    this.updatedAt = updatedAt;
   }
 }
