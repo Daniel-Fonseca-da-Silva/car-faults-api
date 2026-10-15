@@ -22,6 +22,7 @@ describe('PlatformService', () => {
   let knownIssuesService: {
     countAll: jest.Mock;
     findFaultsPaginated: jest.Mock;
+    findLocalesByVehicleModelIds: jest.Mock;
   };
   let cache: { get: jest.Mock; set: jest.Mock };
 
@@ -59,6 +60,7 @@ describe('PlatformService', () => {
       findFaultsPaginated: jest
         .fn()
         .mockResolvedValue({ items: [topFaultRow], nextCursor: null }),
+      findLocalesByVehicleModelIds: jest.fn().mockResolvedValue(new Map()),
     };
     cache = {
       get: jest.fn().mockResolvedValue(undefined),
@@ -187,36 +189,53 @@ describe('PlatformService', () => {
 
   describe('getVehicles', () => {
     const criteria = { limit: 50, cursor: 'abc' };
+    const vehicleModels = [{ id: 'vm-1' }, { id: 'vm-2' }] as VehicleModel[];
+    const catalogPage = { items: vehicleModels, nextCursor: 'next' };
     const page = {
-      items: [{ id: 'vm-1' }] as unknown as VehicleModel[],
-      nextCursor: null,
+      items: [
+        { vehicleModel: vehicleModels[0], locales: [LookupLocale.PtPt] },
+        { vehicleModel: vehicleModels[1], locales: [] },
+      ],
+      nextCursor: 'next',
     };
+
+    beforeEach(() => {
+      vehicleModelsService.findCatalogPaginated.mockResolvedValue(catalogPage);
+      knownIssuesService.findLocalesByVehicleModelIds.mockResolvedValue(
+        new Map([['vm-1', [LookupLocale.PtPt]]]),
+      );
+    });
 
     it('returns the cached page without querying the catalog on a cache HIT', async () => {
       cache.get.mockResolvedValue(page);
 
       const result = await platformService.getVehicles(criteria);
 
-      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:50:abc');
+      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:v2:50:abc');
       expect(vehicleModelsService.findCatalogPaginated).not.toHaveBeenCalled();
+      expect(
+        knownIssuesService.findLocalesByVehicleModelIds,
+      ).not.toHaveBeenCalled();
       expect(result).toBe(page);
     });
 
-    it('queries and caches the page on a cache MISS', async () => {
+    it('attaches each vehicle model locales and caches the page on a cache MISS', async () => {
       cache.get.mockResolvedValue(undefined);
-      vehicleModelsService.findCatalogPaginated.mockResolvedValue(page);
 
       const result = await platformService.getVehicles(criteria);
 
       expect(vehicleModelsService.findCatalogPaginated).toHaveBeenCalledWith(
         criteria,
       );
+      expect(
+        knownIssuesService.findLocalesByVehicleModelIds,
+      ).toHaveBeenCalledWith(['vm-1', 'vm-2']);
+      expect(result).toEqual(page);
       expect(cache.set).toHaveBeenCalledWith(
-        'platform:vehicles:50:abc',
+        'platform:vehicles:v2:50:abc',
         page,
         300000,
       );
-      expect(result).toBe(page);
     });
 
     it('uses an empty cursor segment for the first page', async () => {
@@ -224,22 +243,24 @@ describe('PlatformService', () => {
 
       await platformService.getVehicles({ limit: 200 });
 
-      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:200:');
+      expect(cache.get).toHaveBeenCalledWith('platform:vehicles:v2:200:');
     });
 
     it('falls back to the catalog query when the cache get fails', async () => {
       cache.get.mockRejectedValue(new Error('redis down'));
-      vehicleModelsService.findCatalogPaginated.mockResolvedValue(page);
 
-      await expect(platformService.getVehicles(criteria)).resolves.toBe(page);
+      await expect(platformService.getVehicles(criteria)).resolves.toEqual(
+        page,
+      );
     });
 
     it('does not fail the request when caching the page errors', async () => {
       cache.get.mockResolvedValue(undefined);
       cache.set.mockRejectedValue(new Error('redis down'));
-      vehicleModelsService.findCatalogPaginated.mockResolvedValue(page);
 
-      await expect(platformService.getVehicles(criteria)).resolves.toBe(page);
+      await expect(platformService.getVehicles(criteria)).resolves.toEqual(
+        page,
+      );
     });
   });
 });

@@ -71,7 +71,8 @@ export class PlatformController {
     summary: 'Get the paginated vehicle model catalog, for sitemap generation',
     description:
       'Only returns vehicle models with a fuel type on record and at least one known issue, ' +
-      'so thin pages (no content) stay out of the sitemap and pSEO hub pages.',
+      'so thin pages (no content) stay out of the sitemap and pSEO hub pages. Each item lists ' +
+      'the locales that have known issues, since vehicle pages only show issues in their own locale.',
   })
   @ApiOkResponse({ type: PlatformVehiclesResponseDto })
   @ApiBadRequestResponse({ description: 'Invalid cursor or validation failed' })
@@ -87,7 +88,10 @@ export class PlatformController {
       cursor: query.cursor,
     });
     return new PlatformVehiclesResponseDto(
-      items.map((item) => new PlatformVehicleItemDto(item)),
+      items.map(
+        ({ vehicleModel, locales }) =>
+          new PlatformVehicleItemDto(vehicleModel, locales),
+      ),
       nextCursor,
     );
   }
