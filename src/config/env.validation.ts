@@ -1,6 +1,7 @@
 import { isProductionEnvironment } from '../logger/pino-http.options';
 
 export const JWT_SECRET_MIN_LENGTH = 32;
+export const INTERNAL_API_KEY_MIN_LENGTH = 32;
 
 const REQUIRED_POSITIVE_INT_VARS = [
   'THROTTLE_TTL_MS',
@@ -34,6 +35,19 @@ export function validateEnv(env: RawEnv): RawEnv {
   ) {
     errors.push(
       `JWT_SECRET must be set and at least ${JWT_SECRET_MIN_LENGTH} characters long`,
+    );
+  }
+
+  // Optional: unset means no client can skip throttling.
+  const internalApiKey = env.INTERNAL_API_KEY;
+  if (
+    internalApiKey !== undefined &&
+    internalApiKey !== '' &&
+    (typeof internalApiKey !== 'string' ||
+      internalApiKey.length < INTERNAL_API_KEY_MIN_LENGTH)
+  ) {
+    errors.push(
+      `INTERNAL_API_KEY must be at least ${INTERNAL_API_KEY_MIN_LENGTH} characters long when set`,
     );
   }
 
